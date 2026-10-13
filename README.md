@@ -1,4 +1,4 @@
-# Shift+ Integrated Display — Prototype
+# neo
 
 카네비모빌리티 통합형 차량 디스플레이(클러스터 + IVI, 1920×1080) HTML 프로토타입입니다.
 브라우저만 있으면 동작하며 ProtoPie 앱이나 API 키 없이 사용할 수 있습니다.

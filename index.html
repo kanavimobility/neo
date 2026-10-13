@@ -1778,6 +1778,9 @@ var qs=new URLSearchParams(location.search);
 var LANG=qs.get('ttlang')||'en-US'; // TomTom 언어. 한국어: ?ttlang=ko-KR
 var KEY=(qs.get('ttkey')||'').trim(); // TomTom API 키: 설정 > System 에서 입력(브라우저에 저장) 또는 주소 끝에 ?ttkey=키
 try{if(KEY)localStorage.setItem('shiftTTKey',KEY);else KEY=localStorage.getItem('shiftTTKey')||'';}catch(e){}
+var SITE_KEY='FZXYwOCZm0jU4LnuuK9CHY9dJeaMNTGX';
+if(!KEY)KEY=SITE_KEY;
+function siteKeyFail(){if(KEY&&KEY===SITE_KEY){console.warn('TomTom 사이트 키 사용 불가 → 무료 지도로 전환');KEY='';freeTry=0;loadFreeTiles();return true;}return false;} /* 도메인 밖(PC 파일 등)에서는 무료 지도로 자동 전환 */
 var HOSTS=qs.get('tthost')?[qs.get('tthost')]:['kr-api.tomtom.com','api.tomtom.com'];
 var hostIdx=0;
 var CUR={lat:37.2886,lon:127.0514,name:'현재 위치 (광교중앙역)'};
@@ -1807,7 +1810,7 @@ function loadTiles(){
   if(tiles)map.removeLayer(tiles);
   tiles=L.tileLayer('https://'+host()+'/map/1/tile/basic/night/{z}/{x}/{y}.png?key='+KEY+'&tileSize=256&language='+LANG+'',{maxZoom:20,attribution:'© TomTom'});
   tiles.on('tileload',function(){if(!tileOk){tileOk=true;$('nav').style.backgroundImage='none';}});
-  tiles.on('tileerror',function(){if(tileOk)return;if(hostIdx<HOSTS.length-1){hostIdx++;loadTiles();}else diagnose();});
+  tiles.on('tileerror',function(){if(tileOk)return;if(hostIdx<HOSTS.length-1){hostIdx++;loadTiles();}else if(!siteKeyFail())diagnose();});
   tiles.addTo(map);
 }
 loadTiles();

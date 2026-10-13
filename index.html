@@ -2,6 +2,19 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<script>
+/* ================== 비디오(YouTube) 목록 ==================
+   메모장에서 아래 [ ] 안에 YouTube 링크를 한 줄에 하나씩 넣고 저장하세요.
+   - 형식: '링크',   (작은따옴표로 감싸고 끝에 쉼표)
+   - 영상: https://youtu.be/xxxxxxxxxxx  또는  https://www.youtube.com/watch?v=xxxxxxxxxxx
+   - 재생목록: https://www.youtube.com/playlist?list=xxxx  (1개만 사용)
+   - 제목/썸네일은 YouTube에서 자동으로 가져옵니다.
+   - 퍼가기(외부 재생)가 막힌 영상은 재생되지 않고 다음 영상으로 넘어갑니다.
+   ========================================================== */
+window.NEO_VIDEO_LINKS = [
+  'https://youtu.be/ZbO9PBdFRdc',
+];
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>neo</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -971,23 +984,23 @@ body.pw-idle #hint.show,body.pw-off #hint.show{display:block}
   <div id="nav" class="abs lv-on">
     <div id="map"></div>
     <div id="navSetup" class="navCard nhide">
-      <div class="ns-head"><div class="ns-back" id="nsBack"></div>경로 설정</div>
+      <div class="ns-head"><div class="ns-back" id="nsBack"></div>Route</div>
       <div class="fld" data-f="origin"><i style="background:#16e484"></i><input id="inOrigin" placeholder="출발지" autocomplete="off"><div class="clr" data-clr="origin">✕</div></div>
-      <div class="fld active" data-f="dest"><i style="background:#f0534e"></i><input id="inDest" placeholder="목적지를 검색하세요" autocomplete="off"><div class="clr" data-clr="dest">✕</div></div>
+      <div class="fld active" data-f="dest"><i style="background:#f0534e"></i><input id="inDest" placeholder="Search destination" autocomplete="off"><div class="clr" data-clr="dest">✕</div></div>
       <div class="chips" id="navChips"></div>
       <div id="navResults"></div>
-      <div class="nhint">지도를 누르면 선택한 칸(출발지/목적지)에 그 위치가 지정됩니다</div>
+      <div class="nhint">Tap the map to set the selected field (origin/destination)</div>
     </div>
     <div id="navPreview" class="navCard nhide">
       <div class="pv-t" id="pvT"></div>
       <div class="pv-r" id="pvR"></div>
-      <div class="nbtns"><div class="nbtn" id="pvEdit">경로 변경</div><div class="nbtn pri" id="pvGo">안내 시작</div></div>
+      <div class="nbtns"><div class="nbtn" id="pvEdit">Edit route</div><div class="nbtn pri" id="pvGo">Start</div></div>
     </div>
     <div id="tbtCard" class="navCard nhide" style="width:430px">
       <div class="tb-top"><img id="tbIco" alt="" style="width:64px;height:64px"><div><div class="tb-dist" id="tbDist"></div><div class="tb-road" id="tbRoad"></div></div></div>
       <div class="tb-bot" id="tbBot"><img id="tbIco2" alt="" style="width:44px;height:44px"><div class="tb-d2" id="tbDist2"></div><div class="tb-l2" id="tbLbl2"></div></div>
     </div>
-    <div id="navStatus" class="nhide"><div class="st"><b id="stEta">--:--</b><small>도착</small></div><div class="st"><b id="stRemain">0</b><small id="stRemainU">km</small></div><div class="st"><b id="stTime">0</b><small>분</small></div><div class="nbtn" id="stStop">안내 종료</div></div>
+    <div id="navStatus" class="nhide"><div class="st"><b id="stEta">--:--</b><small>Arrival</small></div><div class="st"><b id="stRemain">0</b><small id="stRemainU">km</small></div><div class="st"><b id="stTime">0</b><small>min</small></div><div class="nbtn" id="stStop">End</div></div>
     <div id="search" class="abs">
       <div id="searchInput" class="tap" data-tap="search">
         <div class="lft"><div class="ico" data-icon="navIco" style="width:36px;height:36px"></div><span class="txt">Search</span></div>
@@ -1029,8 +1042,8 @@ body.pw-idle #hint.show,body.pw-off #hint.show{display:block}
   </div>
   <div id="ghost"><img alt=""></div>
 </div>
-<div id="hint" class="show">Enter 시동 ON/OFF · Esc 전원 OFF · 1~4 도어 · 5 트렁크 · 0 모두 닫기</div>
-<div id="dbg"><span class="dot"></span><span id="dbgState">연결 안 됨</span><div id="dbgLog"></div></div>
+<div id="hint" class="show">Enter: Engine ON/OFF · Esc: Power OFF · 1–4: Doors · 5: Trunk · 0: Close all</div>
+<div id="dbg"><span class="dot"></span><span id="dbgState">Not connected</span><div id="dbgLog"></div></div>
 
 <script>/*!
  * Socket.IO v2.3.1
@@ -1178,14 +1191,14 @@ function log(t){if(!DEBUG)return;dbgLog.textContent=new Date().toLocaleTimeStrin
 /* ---------- ProtoPie Connect (socket.io 2.3.1, 공식 webapp-bridge 방식) ---------- */
 var socket=null,connected=false;
 function connect(){
-  if(typeof io==='undefined'){dbgState.textContent='socket.io 로드 실패';return;}
+  if(typeof io==='undefined'){dbgState.textContent='socket.io load failed';return;}
   /* 웹 배포(GitHub Pages 등)에서는 ProtoPie Connect(localhost) 연결을 시도하지 않음 — 브라우저의 '로컬 네트워크 접근' 권한 팝업 방지. 사용하려면 ?pp=1 또는 ?server=주소 */
   var isLocal=location.protocol==='file:'||/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  if(!isLocal&&!qs.get('server')&&qs.get('pp')!=='1'){dbgState.textContent='ProtoPie 연결 안 함 (웹 배포 모드 · ?pp=1 로 사용)';return;}
+  if(!isLocal&&!qs.get('server')&&qs.get('pp')!=='1'){dbgState.textContent='ProtoPie not connected (web mode · use ?pp=1)';return;}
   socket=io(SERVER,{transports:['websocket'],reconnection:true,reconnectionDelay:1000,reconnectionDelayMax:3000});
-  socket.on('connect',function(){connected=true;dbg.classList.add('ok');dbgState.textContent='연결됨 '+SERVER;$('hint').classList.remove('show');socket.emit('ppBridgeApp',{name:'ShiftPlusDisplay'});send('htmlReady','1');});
-  socket.on('disconnect',function(){connected=false;dbg.classList.remove('ok');dbgState.textContent='재연결 중… '+SERVER;});
-  socket.on('connect_error',function(){dbgState.textContent='연결 실패 — Connect 실행/주소 확인: '+SERVER;});
+  socket.on('connect',function(){connected=true;dbg.classList.add('ok');dbgState.textContent='Connected '+SERVER;$('hint').classList.remove('show');socket.emit('ppBridgeApp',{name:'ShiftPlusDisplay'});send('htmlReady','1');});
+  socket.on('disconnect',function(){connected=false;dbg.classList.remove('ok');dbgState.textContent='Reconnecting… '+SERVER;});
+  socket.on('connect_error',function(){dbgState.textContent='Connection failed — check ProtoPie Connect: '+SERVER;});
   socket.on('ppMessage',function(m){if(!m)return;log('← '+m.messageId+' ('+m.value+')');handle(String(m.messageId),m.value);});
 }
 function send(id,v){log('→ '+id+(v!==undefined?' ('+v+')':''));if(socket&&connected)socket.emit('ppMessage',{messageId:id,value:v===undefined?'':String(v)});}
@@ -1729,9 +1742,9 @@ connect();
   '<div class="grp"><div class="lbl">VEHICLE</div><div class="row">'+btn('power','⏻ Power','pw')+'</div></div><div class="sep"></div>'+
   '<div class="grp"><div class="lbl">GEAR</div><div class="row">'+['P','R','N','D'].map(function(g){return btn('g'+g,g);}).join('')+'</div></div><div class="sep"></div>'+
   '<div class="grp"><div class="lbl">DOOR</div><div class="row">'+[['fl','FL'],['fr','FR'],['rl','RL'],['rr','RR'],['trunk','Trunk']].map(function(d){return btn('d'+d[0],d[1],'door');}).join('')+'</div></div><div class="sep"></div>'+
-  '<div class="grp"><div class="lbl">LIGHT</div><div class="row">'+btn('tl','◀','turn')+btn('hz','<span class="hzi">▲</span> 비상등','turn')+btn('tr','▶','turn')+btn('hl','Headlight <span class="hls">OFF</span>','hl')+'</div></div><div class="sep"></div>'+
+  '<div class="grp"><div class="lbl">LIGHT</div><div class="row">'+btn('tl','◀','turn')+btn('hz','<span class="hzi">▲</span> Hazard','turn')+btn('tr','▶','turn')+btn('hl','Headlight <span class="hls">OFF</span>','hl')+'</div></div><div class="sep"></div>'+
   '<div class="grp"><div class="lbl">DRIVE MODE</div><div class="row">'+btn('mprev','‹','arr')+'<div class="dmode" data-c="mcur"></div>'+btn('mnext','›','arr')+'</div></div>'+
-  '<div class="sp"></div><div class="barhide" data-c="hide">숨기기 ▾</div>';
+  '<div class="sp"></div><div class="barhide" data-c="hide">Hide ▾</div>';
  document.body.appendChild(b);
  var show=document.createElement('div');show.id='ctrlShow';show.textContent='DEMO ▴';document.body.appendChild(show);
  function setBar(on){window.SHIFT_BAR_ON=on;document.body.classList.toggle('bar',on);try{localStorage.setItem('shiftCtrlBar',on?'1':'0');}catch(e){}fit();}
@@ -1783,8 +1796,8 @@ if(!KEY)KEY=SITE_KEY;
 function siteKeyFail(){if(KEY&&KEY===SITE_KEY){console.warn('TomTom 사이트 키 사용 불가 → 무료 지도로 전환');KEY='';freeTry=0;loadFreeTiles();return true;}return false;} /* 도메인 밖(PC 파일 등)에서는 무료 지도로 자동 전환 */
 var HOSTS=qs.get('tthost')?[qs.get('tthost')]:['kr-api.tomtom.com','api.tomtom.com'];
 var hostIdx=0;
-var CUR={lat:37.2886,lon:127.0514,name:'현재 위치 (광교중앙역)'};
-if(qs.get('origin')){var o=qs.get('origin').split(',');CUR={lat:+o[0],lon:+o[1],name:'현재 위치'};}
+var CUR={lat:37.2886,lon:127.0514,name:'Current location (Gwanggyo Jungang Stn.)'};
+if(qs.get('origin')){var o=qs.get('origin').split(',');CUR={lat:+o[0],lon:+o[1],name:'Current location'};}
 var $=function(id){return document.getElementById(id);};
 var send=function(id,v){if(window.ShiftDisplay)window.ShiftDisplay.send(id,v);};
 function host(){return HOSTS[hostIdx];}
@@ -1800,7 +1813,7 @@ function loadFreeTiles(){
   if(tiles)map.removeLayer(tiles);
   var osm=freeTry>0;
   tiles=osm?L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'osmDark',attribution:'© OpenStreetMap contributors'})
-           :L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap contributors © CARTO'});
+           :L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'});
   tiles.on('tileload',function(){if(!tileOk){tileOk=true;$('nav').style.backgroundImage='none';}});
   tiles.on('tileerror',function(){if(tileOk)return;if(freeTry<1){freeTry++;loadFreeTiles();}else diagnose();});
   tiles.addTo(map);
@@ -1821,24 +1834,24 @@ function diagnose(){
   if(diagShown||tileOk)return;diagShown=true;
   var box=document.createElement('div');
   box.style.cssText='position:absolute;right:38px;top:37px;z-index:6;max-width:560px;padding:18px 22px;border-radius:10px;background:rgba(20,22,26,.9);font-size:19px;line-height:1.5;color:#e5e5e5';
-  box.id='mapDiagBox';box.innerHTML='<b style="color:#f0a24e">지도를 불러오지 못했습니다</b><div id="mapDiag">원인 확인 중…</div>';
+  box.id='mapDiagBox';box.innerHTML='<b style="color:#f0a24e">Unable to load the map</b><div id="mapDiag">Checking…</div>';
   if(L.DomEvent){L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);}
   $('nav').appendChild(box);
-  if(!KEY){box.querySelector('b').textContent='지도 서버에 연결할 수 없습니다';
-    $('mapDiag').innerHTML='무료 지도(OpenStreetMap)에 연결하지 못했습니다. 인터넷 연결을 확인하세요.<br>TomTom 키가 있다면 설정 → System 에서 입력할 수 있습니다.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">설정 열기</div>';
+  if(!KEY){box.querySelector('b').textContent='Cannot connect to the map server';
+    $('mapDiag').innerHTML='Could not reach the free map (OpenStreetMap). Check your internet connection.<br>You can enter a TomTom key in Settings → System.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">Open Settings</div>';
     $('mapKeyGo').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};
     send('mapError','free');return;}
   if(false){
-    $('mapDiag').innerHTML='설정 → System → Navigation 에서 키를 입력하세요.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">설정 열기</div>';
+    $('mapDiag').innerHTML='설정 → System → Navigation 에서 키를 입력하세요.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">Open Settings</div>';
     $('mapKeyGo').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};
     send('mapError','nokey');return;}
   var url='https://'+HOSTS[0]+'/map/1/tile/basic/night/15/27945/12715.png?key='+KEY;
-  var why=location.protocol==='file:'?'파일을 PC에서 직접 연 상태입니다. 키에 도메인 제한이 켜져 있으면 차단됩니다.':'';
+  var why=location.protocol==='file:'?'Opened as a local file. A key with a domain whitelist is blocked here.':'';
   fetch(url).then(function(r){
-    var m={401:'API 키가 유효하지 않습니다.',403:'이 키에 Map Display API 권한이 없거나, 도메인 제한에 지금 주소('+location.host+')가 등록되어 있지 않습니다.',429:'무료 사용량 한도를 넘었습니다.'};
-    $('mapDiag').textContent='HTTP '+r.status+' — '+(m[r.status]||('서버 응답 오류. '+why));
+    var m={401:'Invalid API key.',403:'This key has no Map Display permission, or this address ('+location.host+') is not in the domain whitelist.',429:'Free usage limit exceeded.'};
+    $('mapDiag').textContent='HTTP '+r.status+' — '+(m[r.status]||('Server error. '+why));
   }).catch(function(){
-    $('mapDiag').textContent=/claude\.ai|claudeusercontent/.test(location.host+document.referrer)?'미리보기 환경에서는 외부 지도 서버 연결이 차단됩니다. 내려받은 파일이나 GitHub Pages에서 확인하세요.':('지도 서버에 연결할 수 없습니다. 인터넷 연결 또는 도메인 제한을 확인하세요. '+why);
+    $('mapDiag').textContent=/claude\.ai|claudeusercontent/.test(location.host+document.referrer)?'External map servers are blocked in this preview. Check the downloaded file or GitHub Pages.':('Cannot connect to the map server. Check your internet connection or domain whitelist. '+why);
   });
   send('mapError','1');
 }
@@ -1892,7 +1905,7 @@ function osrmMan(m){var t=m.type,md=m.modifier||'straight';
   return OSRM_MAN[md]||'STRAIGHT';}
 function freeRoute(o,d){
   return jget('https://router.project-osrm.org/route/v1/driving/'+o.lon+','+o.lat+';'+d.lon+','+d.lat+'?overview=full&geometries=geojson&steps=true&alternatives=false').then(function(res){
-    var r=res.routes&&res.routes[0];if(!r)throw new Error(res.code||'경로 없음');
+    var r=res.routes&&res.routes[0];if(!r)throw new Error(res.code||'No route');
     var off=0,ins=[];
     r.legs.forEach(function(l){l.steps.forEach(function(s){var t=s.maneuver.type,man=osrmMan(s.maneuver);
       var skip=(t==='new name'||t==='continue'||t==='notification'||t==='use lane')&&man==='STRAIGHT';
@@ -1900,7 +1913,7 @@ function freeRoute(o,d){
     return {routes:[{summary:{lengthInMeters:r.distance,travelTimeInSeconds:r.duration},
       legs:[{points:r.geometry.coordinates.map(function(c){return {latitude:c[1],longitude:c[0]};})}],guidance:{instructions:ins}}]};});}
 /* 키 없을 때 빠른 목적지 (주소 검색 없이 바로 경로) */
-var PRESET={'광교호수공원':{lat:37.2834,lon:127.0665,name:'광교호수공원'},'판교역':{lat:37.3947,lon:127.1115,name:'판교역'},'수원화성 행궁':{lat:37.2819,lon:127.0138,name:'수원 화성행궁'}};
+var PRESET={'광교호수공원':{lat:37.2834,lon:127.0665,name:'Gwanggyo Lake Park'},'판교역':{lat:37.3947,lon:127.1115,name:'Pangyo Station'},'수원화성 행궁':{lat:37.2819,lon:127.0138,name:'Hwaseong Haenggung'}};
 function fmtDist(m){return m<1000?{v:String(Math.max(0,Math.round(m/10)*10)),u:'m'}:{v:(m/1000).toFixed(m<10000?1:0),u:'km'};}
 
 /* ---------- 상태 ---------- */
@@ -1925,7 +1938,7 @@ function setPoint(f,p){
 function openSetup(){clearRoute();show('setup');if(!st.origin)setPoint('origin',CUR);setActive('dest');renderChips();$('navResults').innerHTML='';}
 
 /* ---------- 검색 ---------- */
-var CHIPS=[{n:'현재 위치',cur:true},{n:'집',q:'광교호수공원'},{n:'회사',q:'판교역'},{n:'즐겨찾기',q:'수원화성 행궁'},{n:'충전소',q:'전기차 충전소'}];
+var CHIPS=[{n:'Current location',cur:true},{n:'Home',q:'광교호수공원'},{n:'Work',q:'판교역'},{n:'Favorite',q:'수원화성 행궁'},{n:'Charging',q:'전기차 충전소'}];
 function renderChips(){
   var box=$('navChips');box.innerHTML='';
   CHIPS.forEach(function(c){var d=document.createElement('div');d.className='chip';d.textContent=c.n;
@@ -1940,14 +1953,14 @@ function search(q){
 }
 function renderResults(list,f){
   var box=$('navResults');box.innerHTML='';
-  if(!list.length){box.innerHTML='<div class="nmsg">검색 결과가 없습니다. 다른 이름으로 검색해 보세요.</div>';return;}
+  if(!list.length){box.innerHTML='<div class="nmsg">No results. Try a different name.</div>';return;}
   list.forEach(function(p){var d=document.createElement('div');d.className='nres';
     var km=p.dist!=null?(p.dist<1000?Math.round(p.dist)+'m':(p.dist/1000).toFixed(1)+'km'):'';
     d.innerHTML='<div style="min-width:0"><b></b><small></small></div><em>'+km+'</em>';
     d.querySelector('b').textContent=p.name;d.querySelector('small').textContent=p.addr;
     d.onclick=function(){box.innerHTML='';setPoint(f,p);};box.appendChild(d);});
 }
-function netErr(e){$('navResults').innerHTML='<div class="nmsg">'+(KEY?'지도 서버에 연결할 수 없습니다. 인터넷 연결과 API 키(도메인 제한)를 확인하세요.':'검색 서버(OpenStreetMap)에 연결할 수 없습니다. 잠시 후 다시 시도하세요.')+'</div>';console.warn(e);}
+function netErr(e){$('navResults').innerHTML='<div class="nmsg">'+(KEY?'Cannot connect to the map server. Check your internet connection and API key.':'Cannot reach the search server (OpenStreetMap). Please try again.')+'</div>';console.warn(e);}
 function quick(q,f){ $(f==='origin'?'inOrigin':'inDest').value=q; if(!KEY&&PRESET[q]){var pp=PRESET[q];setPoint(f,{lat:pp.lat,lon:pp.lon,name:pp.name});return;} search(q).then(function(l){ if(l[0])setPoint(f,l[0]); else renderResults(l,f); }).catch(netErr); }
 var tmr=null;
 ['origin','dest'].forEach(function(f){
@@ -1965,7 +1978,7 @@ $('nsBack').onclick=function(){clearRoute();show('browse');};
 /* 지도 탭 → 선택 중인 칸에 위치 지정 (역지오코딩으로 이름 표시) */
 map.on('click',function(e){
   if(st.mode!=='setup')return;
-  var f=st.active,p={lat:e.latlng.lat,lon:e.latlng.lng,name:'지도에서 선택한 위치'};
+  var f=st.active,p={lat:e.latlng.lat,lon:e.latlng.lng,name:'Selected on map'};
   setPoint(f,p);
   if(!KEY){freeReverse(p).then(function(n){if(n&&st[f]===p){p.name=n;$(f==='origin'?'inOrigin':'inDest').value=n;}}).catch(function(){});return;}
   tt('/search/2/reverseGeocode/'+p.lat+','+p.lon+'.json','language='+LANG+'').then(function(d){
@@ -1977,9 +1990,9 @@ map.on('click',function(e){
 function clearRoute(){stopSim(true);if(line)map.removeLayer(line);if(lineDone)map.removeLayer(lineDone);line=lineDone=null;st.route=null;}
 function calcRoute(){
   var o=st.origin,d=st.dest;clearRoute();
-  $('navResults').innerHTML='<div class="nmsg" style="color:#9aa0a8">경로를 계산하는 중…</div>';
+  $('navResults').innerHTML='<div class="nmsg" style="color:#9aa0a8">Calculating route…</div>';
   (KEY?tt('/routing/1/calculateRoute/'+o.lat+','+o.lon+':'+d.lat+','+d.lon+'/json','instructionsType=text&language='+LANG+'&traffic=true&travelMode=car&routeRepresentation=polyline'):freeRoute(o,d)).then(function(res){
-    var r=res.routes&&res.routes[0];if(!r)throw new Error('경로 없음');
+    var r=res.routes&&res.routes[0];if(!r)throw new Error('No route');
     var pts=[];r.legs.forEach(function(l){l.points.forEach(function(p){pts.push(L.latLng(p.latitude,p.longitude));});});
     var cum=[0];for(var i=1;i<pts.length;i++)cum.push(cum[i-1]+pts[i-1].distanceTo(pts[i]));
     var ins=((r.guidance&&r.guidance.instructions)||[]).map(function(x){return {off:x.routeOffsetInMeters,man:x.maneuver||'STRAIGHT',road:x.street||(x.roadNumbers&&x.roadNumbers.join(', '))||'',msg:x.message||''};});
@@ -1987,18 +2000,18 @@ function calcRoute(){
     line=L.polyline(pts,{color:'#2e7bff',weight:9,opacity:.95}).addTo(map);
     map.fitBounds(line.getBounds(),{paddingTopLeft:[560,60],paddingBottomRight:[60,60]});
     var km=(r.summary.lengthInMeters/1000).toFixed(1),min=Math.round(r.summary.travelTimeInSeconds/60);
-    $('pvT').innerHTML=min+'분<span>'+km+' km</span>';
+    $('pvT').innerHTML=min+' min<span>'+km+' km</span>';
     $('pvR').innerHTML='<div><i style="background:#16e484"></i></div><div><i style="background:#f0534e"></i></div>';
     $('pvR').children[0].appendChild(document.createTextNode(o.name));$('pvR').children[1].appendChild(document.createTextNode(d.name));
     show('preview');
     send('navRoute',km+'km,'+min+'min');send('navDestination',d.name);
-  }).catch(function(e){$('navResults').innerHTML='<div class="nmsg">경로를 찾지 못했습니다: '+e.message+'</div>';});
+  }).catch(function(e){$('navResults').innerHTML='<div class="nmsg">Route not found: '+e.message+'</div>';});
 }
 $('pvEdit').onclick=function(){clearRoute();show('setup');};
 $('pvGo').onclick=function(){startSim();};
 /* 안내 종료/도착 후 초기 화면으로 복귀: 경로선·지나온 선·출발/도착 핀 제거, 입력값 초기화, 차량은 현재 위치로 */
 function resetNav(){
-  if(sim.s>0||sim.drive){var c=carMk.getLatLng();CUR={lat:c.lat,lon:c.lng,name:'현재 위치'};}
+  if(sim.s>0||sim.drive){var c=carMk.getLatLng();CUR={lat:c.lat,lon:c.lng,name:'Current location'};}
   stopSim();clearRoute();sim.s=0;
   if(oMk){map.removeLayer(oMk);oMk=null;}if(dMk){map.removeLayer(dMk);dMk=null;}
   st.origin=null;st.dest=null;$('inOrigin').value='';$('inDest').value='';$('navResults').innerHTML='';
@@ -2078,7 +2091,7 @@ function step(now){
     if(sim.s>=R.total){arrive(p.ll);}
   }else{
     // 목적지 미설정: 현재 위치에서 북쪽으로 조금씩 이동
-    var c=carMk.getLatLng();ll=L.latLng(c.lat+meters/111320,c.lng);CUR={lat:ll.lat,lon:ll.lng,name:'현재 위치'};
+    var c=carMk.getLatLng();ll=L.latLng(c.lat+meters/111320,c.lng);CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};
   }
   carMk.setLatLng(ll);
   if(meters>0&&now-sim.pan>200){sim.pan=now;map.panTo(ll,{animate:false});}
@@ -2091,7 +2104,7 @@ function arrive(ll){
   sim.drive=false;sim.guide=false;document.body.classList.remove('guiding');hideClusterTbt();
   $('tbIco').src=uri(arrow('ARRIVE'));$('tbDist').textContent=/^ko/i.test(LANG)?'도착':'Arrived';$('tbRoad').textContent=st.dest.name;$('tbBot').style.display='none';
   send('navArrived',st.dest.name);send('driveState','stop');
-  setTimeout(function(){if(st.mode==='guide'){CUR={lat:ll.lat,lon:ll.lng,name:'현재 위치'};resetNav();}},4000);
+  setTimeout(function(){if(st.mode==='guide'){CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};resetNav();}},4000);
 }
 /* ---------- 클러스터 TBT (안내 중 다른 앱 화면일 때) ---------- */
 var ctbt=document.createElement('div');ctbt.id='clTbt';
@@ -2107,11 +2120,11 @@ function recenter(){var ll=carMk.getLatLng();map.setView(ll,16);}
 function setKey(k){k=String(k||'').trim();KEY=k;try{if(k)localStorage.setItem('shiftTTKey',k);else localStorage.removeItem('shiftTTKey');}catch(e){}
   var b=$('mapDiagBox');if(b)b.remove();diagShown=false;tileOk=false;hostIdx=0;
   freeTry=0;loadTiles();setTimeout(function(){if(!tileOk)diagnose();},8000);send('mapError','0');}
-function testKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:false,msg:'키를 입력하세요.'});
+function testKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:false,msg:'Enter a key.'});
   return fetch('https://'+HOSTS[0]+'/search/2/search/seoul.json?limit=1&countrySet=KR&key='+encodeURIComponent(k)).then(function(r){
-    var m={200:'정상 — 지도·검색·경로 API를 사용할 수 있습니다.',401:'유효하지 않은 키입니다.',403:'권한이 없거나 도메인 제한에 현재 주소가 등록되어 있지 않습니다.',429:'무료 사용량 한도를 넘었습니다.'};
-    return {ok:r.status===200,msg:'HTTP '+r.status+' — '+(m[r.status]||'서버 응답 오류')};
-  },function(){return {ok:false,msg:'TomTom 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.'};});}
+    var m={200:'OK — map, search and routing APIs are available.',401:'Invalid key.',403:'No permission, or this address is not in the key domain whitelist.',429:'Free usage limit exceeded.'};
+    return {ok:r.status===200,msg:'HTTP '+r.status+' — '+(m[r.status]||'Server error')};
+  },function(){return {ok:false,msg:'Cannot connect to TomTom. Check your internet connection.'};});}
 window.Nav={
   setKey:setKey, testKey:testKey, keyInfo:function(){return {key:KEY,fromUrl:!!qs.get('ttkey')};},
   drive:drive, driving:function(){return sim.drive;}, guiding:function(){return sim.guide;}, onScreen:function(){updateClusterTbtVis();},
@@ -2130,8 +2143,8 @@ window.Nav={
     var s=String(v==null?'':v);
     switch(id){
       case 'navSearch':openSetup();$('inDest').value=s;search(s).then(function(l){renderResults(l,'dest');}).catch(netErr);return true;
-      case 'navDestination':openSetup();if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var a=s.split(',');setPoint('dest',{lat:+a[0],lon:+a[1],name:'목적지'});}else quick(s,'dest');return true;
-      case 'navOrigin':if(st.mode!=='setup')openSetup();if(s==='current'||s===''){setPoint('origin',{lat:CUR.lat,lon:CUR.lon,name:CUR.name});}else if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var b=s.split(',');setPoint('origin',{lat:+b[0],lon:+b[1],name:'출발지'});}else quick(s,'origin');return true;
+      case 'navDestination':openSetup();if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var a=s.split(',');setPoint('dest',{lat:+a[0],lon:+a[1],name:'Destination'});}else quick(s,'dest');return true;
+      case 'navOrigin':if(st.mode!=='setup')openSetup();if(s==='current'||s===''){setPoint('origin',{lat:CUR.lat,lon:CUR.lon,name:CUR.name});}else if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var b=s.split(',');setPoint('origin',{lat:+b[0],lon:+b[1],name:'Origin'});}else quick(s,'origin');return true;
       case 'navStart':if(st.route)startSim();return true;
       case 'drive':{var on=String(v)!=='stop'&&String(v)!=='0'&&String(v)!=='off';if(on&&window.ShiftDisplay&&window.ShiftDisplay.gear()!=='D')window.ShiftDisplay.setGear('D');if(on&&window.ShiftDisplay&&window.ShiftDisplay.gear()!=='D')return true;drive(on);}return true;
       case 'navStop':resetNav();return true;
@@ -2301,8 +2314,8 @@ var cur='home';
 function show(name){
   cur=name;
   document.body.classList.toggle('cam',name==='camera');
-  scrWrap.classList.toggle('show',['music','phone','settings','radio','video'].indexOf(name)>=0);
-  if(name==='video')openVideo();else if(typeof stopVideo==='function'&&name!=='video')stopVideo();
+  scrWrap.classList.toggle('show',['music','phone','settings','radio','video','image'].indexOf(name)>=0);
+  if(name==='video')openVideo(); /* 다른 앱으로 이동해도 비디오 소리는 계속 재생 */
   if(name==='radio'&&!rStations.length)loadRadio(rTab);if(name==='settings'&&typeof renderSet==='function')renderSet();
   scrWrap.querySelectorAll('.scr').forEach(function(s){s.classList.toggle('on',s.id==='scr'+name.charAt(0).toUpperCase()+name.slice(1));});
   SD.setHome(name==='home');
@@ -2313,9 +2326,9 @@ function show(name){
 }
 function flash(msg){toast.textContent=msg;toast.style.display='block';clearTimeout(flash.t);flash.t=setTimeout(function(){toast.style.display='none';},1800);}
 function openApp(id){
-  var map={phone:'phone',usbmusic:'music',settings:'settings',navigation:'home',camera:'camera',btmusic:'music',radio:'radio',video:'video'};
-  if(map[id]){show(map[id]);renderSrc();if(id==='usbmusic'&&!P.hasList())setTimeout(function(){P.pick();},50);}
-  else flash(({image:'Image',androidauto:'Android Auto',carplay:'Apple CarPlay'}[id]||id)+' 화면은 준비 중입니다');
+  var map={phone:'phone',usbmusic:'music',settings:'settings',navigation:'home',camera:'camera',btmusic:'music',radio:'radio',video:'video',image:'image'};
+  if(map[id]){if(id==='btmusic')mSrc='bt';else if(id==='usbmusic')mSrc='usb';show(map[id]);renderSrc();if(id==='usbmusic'&&!P.hasList())setTimeout(function(){P.pick();},50);}
+  else flash(({image:'Image',androidauto:'Android Auto',carplay:'Apple CarPlay'}[id]||id)+' — coming soon');
 }
 
 /* ---------------- Music ---------------- */
@@ -2325,7 +2338,7 @@ var music=el('<div class="scr" id="scrMusic">'+
   '<div id="mScroll"><div class="sec" id="mAlbSec">Album <span style="transform:rotate(-90deg);display:flex">'+IC.chev+'</span></div><div id="albums"></div>'+
   '<div class="sec" id="mSongSec">Songs <span style="transform:rotate(-90deg);display:flex">'+IC.chev+'</span></div><div id="songs"></div></div>'+
   '<div class="empty" id="mEmpty"><span id="mPick">Connect your device</span></div>'+
-  '<div id="nowp"><div class="bar"><div id="npProg"></div></div><div class="art" id="npArt"></div><div class="ti" id="npTi">재생 중인 곡 없음</div><div class="ar" id="npAr"></div>'+
+  '<div id="nowp"><div class="bar"><div id="npProg"></div></div><div class="art" id="npArt"></div><div class="ti" id="npTi">Nothing is playing</div><div class="ar" id="npAr"></div>'+
   '<div class="ctl"><div id="npPrev">'+img(IC.prev,80)+'</div><div id="npPlay">'+img(IC.play,80)+'</div><div id="npNext">'+img(IC.next,80)+'</div></div></div></div>');
 scrWrap.appendChild(music);
 var NOTE='<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 32 32" fill="#fff"><path d="M12 23V8.5l14-3v14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="8.5" cy="23.5" rx="3.8" ry="3.2"/><ellipse cx="22.5" cy="20" rx="3.8" ry="3.2"/></svg>';
@@ -2335,7 +2348,7 @@ function cover(t){return t&&t.art?'background-image:url("'+t.art+'")':'backgroun
 function renderMusic(){
   var L=P.list(),idx=P.index(),has=L.length>0;
   $('mEmpty').style.display=has?'none':'flex';$('mScroll').style.display=has?'':'none';
-  var groups={},order=[];L.forEach(function(t,i){var k=t.album||'기타';if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(i);});
+  var groups={},order=[];L.forEach(function(t,i){var k=t.album||'Others';if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(i);});
   $('albums').innerHTML=order.map(function(k){var f=L[groups[k][0]];return '<div class="alb" data-alb="'+esc(k)+'"><div class="cv" style=\''+cover(f)+'\'></div><div class="n">'+esc(k)+'</div><div class="a">'+esc(f.artist)+'</div></div>';}).join('');
   var ids=L.map(function(t,i){return i;});
   if(mView==='album'&&groups[mAlbum])ids=groups[mAlbum];
@@ -2369,10 +2382,68 @@ $('albums').addEventListener('click',function(e){var a=e.target.closest('.alb');
 $('mAlbSec').addEventListener('click',function(){setView(mView==='main'?'albums':'main');});
 $('mSongSec').addEventListener('click',function(){if(mView==='main')setView('songs');else if(mView==='album')setView(mPrev==='albums'?'albums':'main');else setView('main');});
 $('songs').addEventListener('click',function(e){var s=e.target.closest('.sg');if(s)P.playAt(+s.getAttribute('data-i'));});
-$('mSort').onclick=function(){sortMode={name:'title',title:'artist',artist:'name'}[sortMode];$('mSortT').textContent={name:'Type',title:'제목순',artist:'아티스트순'}[sortMode];renderMusic();};
+$('mSort').onclick=function(){sortMode={name:'title',title:'artist',artist:'name'}[sortMode];$('mSortT').textContent={name:'Type',title:'Title',artist:'Artist'}[sortMode];renderMusic();};
 $('mDev').onclick=function(){P.pick();};$('mPick').onclick=function(){P.pick();};
 music.querySelector('.mh .t').style.cursor='pointer';
-function renderSrc(){} // USB Music 전용
+var mSrc='usb'; /* 미디어 소스 드롭다운 (Figma Media_change 558:36966) */
+(function(){var st=document.createElement('style');st.textContent=
+ '#mSrcMenu{position:absolute;left:70px;top:136px;width:368px;height:219px;box-sizing:border-box;padding:45px 32px 0;border-radius:8px;background:rgba(255,255,255,.1);backdrop-filter:blur(50px);-webkit-backdrop-filter:blur(50px);z-index:30;display:none;flex-direction:column;gap:33px}'+
+ '#mSrcMenu.open{display:flex}'+
+ '#mSrcMenu .msi{display:flex;align-items:center;gap:22px;height:48px;font-size:27px;font-weight:500;color:#e5e5e5;cursor:pointer}'+
+ '#mSrcMenu .sq,#mSrcIco.sq,#mBt .sq{border-radius:16px}'+
+ '.sq.usbg{background:linear-gradient(135deg,#8e8e8e,#6e6e6e)!important}.sq.btg{background:linear-gradient(180deg,#4a68b4,#6893ff)!important}'+
+ '#mSrcBtn>svg:last-child{transition:transform .2s}#mSrcBtn.open>svg:last-child{transform:rotate(180deg)}'+
+ '#mBt{position:absolute;left:0;right:0;top:150px;bottom:154px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#e5e5e5}'+
+ '#mBt b{font-size:30px;font-weight:600;margin-top:8px}#mBt span{font-size:24px;color:#b2b2b2}'+
+ '#scrMusic.bt #mScroll,#scrMusic.bt #mEmpty,#scrMusic.bt #mSort,#scrMusic.bt #mDev{display:none!important}#scrMusic.bt #mBt{display:flex}';
+ document.head.appendChild(st);})();
+var BTI='<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l12 10-6 5V4l6 5L8 19"/></svg>';
+var USBI=img(I.usbIc,28);
+var mMenu=document.createElement('div');mMenu.id='mSrcMenu';
+mMenu.innerHTML='<div class="msi" data-src="usb"><div class="sq usbg">'+USBI+'</div>USB Music</div><div class="msi" data-src="bt"><div class="sq btg">'+BTI+'</div>Bluetooth Music</div>';
+music.appendChild(mMenu);
+var mBt=document.createElement('div');mBt.id='mBt';
+var BTN_T=[['Music title','Artist name','3:58'],['Blue Hour','Kanavi Band','3:21'],['Night Drive','City Lights','4:05'],['Morning Route','Road Trip','3:44'],['Coastline','Wave Theory','2:58'],['Signal','The Mobility','3:36'],['Afterglow','Kanavi Band','4:12'],['Open Road','City Lights','3:09']],btI=0,btPlay=false;
+var btNow=document.createElement('div');btNow.id='btNow';
+btNow.innerHTML='<div class="bar"><div id="btProg"></div></div><div class="art none">'+NOTE+'</div><div class="ti" id="btTi"></div><div class="ar" id="btAr"></div><div class="ctl"><div id="btPrev">'+img(IC.prev,80)+'</div><div id="btPlayB"></div><div id="btNext">'+img(IC.next,80)+'</div></div>';
+music.appendChild(btNow);
+(function(){var st=document.createElement('style');st.textContent=
+ '#btNow{position:absolute;left:0;right:0;bottom:0;height:154px;background:rgba(255,255,255,.08);display:none}#btNow .bar{position:absolute;left:0;top:0;right:0;height:4px;background:rgba(255,255,255,.1)}#btProg{height:100%;width:0;background:#fff}'+
+ '#btNow .art{position:absolute;left:94px;top:32px;width:90px;height:90px;border-radius:2px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#43464d,#26282c)}'+
+ '#btNow .ti{position:absolute;left:210px;top:38px;font-size:28px}#btNow .ar{position:absolute;left:210px;top:78px;font-size:26px;color:#b2b2b2}'+
+ '#btNow .ctl{position:absolute;right:70px;top:37px;display:flex;gap:60px}#btNow .ctl div{width:80px;height:80px;cursor:pointer}'+
+ '#scrMusic.bt #nowp{display:none}#scrMusic.bt.btc #btNow{display:block}#mBt .pbtn{margin-top:20px;min-width:220px}#mBt .sq.off{background:rgba(255,255,255,.14)!important}';
+ document.head.appendChild(st);})();
+var PAUSE_SVG=svg('<path d="M12 8v16M20 8v16"/>',80);
+function renderBtNow(){var on=!!(window.ShiftBT&&window.ShiftBT.musicDev());btNow.classList.toggle('nodev',!on);$('btTi').textContent=on?BTN_T[btI][0]:'Nothing is playing';$('btAr').textContent=on?BTN_T[btI][1]:'';$('btPlayB').innerHTML=btPlay?PAUSE_SVG:img(IC.play,80);if(window.__btList)window.__btList();}
+var btProgT=null,btPos=0;function btTick(){clearInterval(btProgT);if(btPlay)btProgT=setInterval(function(){btPos=(btPos+0.4)%100;$('btProg').style.width=btPos+'%';},200);}
+$('btPlayB').onclick=function(){if(btNow.classList.contains('nodev'))return;btPlay=!btPlay;renderBtNow();btTick();send('btMusic',btPlay?'play':'pause');};
+$('btNext').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','next');};
+$('btPrev').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+BTN_T.length-1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','prev');};
+renderBtNow();
+function renderBtPanel(){var d=window.ShiftBT&&window.ShiftBT.musicDev();music.classList.toggle('btc',!!d);
+  if(!d){btPlay=false;clearInterval(btProgT);renderBtNow();}
+  mBt.innerHTML=d?'':'<b>No connected device</b><span>Connect your phone via Bluetooth to play music.</span><div class="pbtn" id="mBtConn">Connect</div>';
+  var dn=document.getElementById('mBtDevT');if(dn)dn.textContent=d?d.name:'';renderBtNow();
+  var c=document.getElementById('mBtConn');if(c)c.onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('connection');send('btMusic','connect');};}
+var btList=document.createElement('div');btList.id='btList';music.appendChild(btList);
+var BT_ART=['linear-gradient(135deg,#5b7fb8,#2c3b57)','linear-gradient(135deg,#8a6fb0,#3a2d52)','linear-gradient(135deg,#4f9a8f,#24433f)','linear-gradient(135deg,#b07a5b,#4a3326)'];
+var BT_NOTE=NOTE.replace('width="46" height="46"','width="32" height="32"');
+window.__btList=function(){btList.innerHTML=BTN_T.map(function(s,i){return '<div class="btr'+(i===btI?' cur':'')+'" data-bi="'+i+'"><div class="ba" style="background:'+BT_ART[i%BT_ART.length]+'">'+BT_NOTE+'</div><div class="bt2"><b></b><span></span></div><i></i></div>';}).join('');
+  btList.querySelectorAll('.btr').forEach(function(r,i){r.querySelector('b').textContent=BTN_T[i][0];r.querySelector('span').textContent=BTN_T[i][1];r.querySelector('i').textContent=BTN_T[i][2];});};
+btList.addEventListener('click',function(e){var r=e.target.closest('.btr');if(!r)return;btI=+r.getAttribute('data-bi');btPos=0;$('btProg').style.width='0';btPlay=true;renderBtNow();btTick();send('btMusic','play:'+BTN_T[btI][0]);});
+(function(){var dv=document.getElementById('mDev');if(dv){var e=document.createElement('div');e.className='hbtn';e.id='mBtDev';e.innerHTML=BTI.replace('width="28" height="28"','width="32" height="32"').replace('stroke="#fff"','stroke="#b2b2b2"')+'<span id="mBtDevT"></span>';dv.parentNode.appendChild(e);}})();
+window.__btList();
+music.appendChild(mBt);
+function renderSrc(){var bt=mSrc==='bt';music.classList.toggle('bt',bt);$('mSrcT').textContent=bt?'Bluetooth Music':'USB Music';
+  var ic=$('mSrcIco');ic.className='sq '+(bt?'btg':'usbg');ic.style.background='';ic.innerHTML=bt?BTI:USBI;renderBtPanel();}
+window.__renderSrc=renderSrc;
+function srcMenu(open){mMenu.classList.toggle('open',open);$('mSrcBtn').classList.toggle('open',open);}
+$('mSrcBtn').addEventListener('click',function(e){e.stopPropagation();srcMenu(!mMenu.classList.contains('open'));});
+mMenu.addEventListener('click',function(e){e.stopPropagation();var it=e.target.closest('.msi');if(!it)return;var s=it.getAttribute('data-src');srcMenu(false);
+  if(s!==mSrc){if(s==='bt'&&P.playing&&P.playing())P.pause();mSrc=s;renderSrc();send('musicSource',s);}});
+document.addEventListener('click',function(){if(mMenu.classList.contains('open'))srcMenu(false);});
+renderSrc();
 $('npPlay').onclick=function(){P.toggle();};$('npPrev').onclick=function(){P.prev();};$('npNext').onclick=function(){P.next();};
 
 /* ---------------- Phone ---------------- */
@@ -2381,7 +2452,7 @@ var LOG=[['02-952-8833','7:48','in'],['Bell','7:48','out'],['02-952-8833','7:48'
 var CONTACTS=['Bell','Lilly','Mum','Office','Sam','Yuna'],FAV=['Mum','Office'];
 var phone=el('<div class="scr" id="scrPhone"><div class="ph"><div style="width:58px;height:58px;margin:-5px -5px 0 -5px">'+img(PH_ICON,58)+'</div>Subin\'s iPhone 15 Pro'+IC.chev+'</div>'+
  '<div class="tabs"><div class="on" data-t="calls">Calls</div><div data-t="contacts">Contacts</div><div data-t="fav">Favorites</div></div>'+
- '<div id="dialNum"></div><div id="calling"><b id="cName"></b><small id="cState">연결 중…</small></div><div id="dial"></div><div id="callBtn">'+img(CALL_ICON,58)+'</div><div id="bksp">'+img(RS.pho_num_delete,70)+'</div><div id="plWrap"><div id="plist"></div><div id="plTrack"><i id="plThumb"></i></div></div></div>');
+ '<div id="dialNum"></div><div id="calling"><b id="cName"></b><small id="cState">Calling…</small></div><div id="dial"></div><div id="callBtn">'+img(CALL_ICON,58)+'</div><div id="bksp">'+img(RS.pho_num_delete,70)+'</div><div id="plWrap"><div id="plist"></div><div id="plTrack"><i id="plThumb"></i></div></div></div>');
 scrWrap.appendChild(phone);
 var KEYS=[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*',''],['0','+'],['#','']];
 $('dial').innerHTML=KEYS.map(function(k){return '<div class="dk" data-k="'+k[0]+'"><b>'+k[0]+'</b><small>'+k[1]+'</small></div>';}).join('');
@@ -2396,8 +2467,8 @@ $('dial').addEventListener('click',function(e){var k=e.target.closest('.dk');if(
 /* 커스텀 스크롤바 */
 function plScroll(){var p=$('plist'),th=$('plThumb'),tr=$('plTrack'),h=tr.clientHeight,r=p.clientHeight/p.scrollHeight;if(r>=1){tr.style.visibility='hidden';return;}tr.style.visibility='';var hh=Math.max(60,h*r);th.style.height=hh+'px';th.style.top=((h-hh)*p.scrollTop/(p.scrollHeight-p.clientHeight))+'px';}
 $('plist').addEventListener('scroll',plScroll);
-function call(to){if(!to)to=LOG[0][0];flash('Calling '+to+' …');send('phoneCall',to);num='';$('dialNum').textContent='';return;inCall=true;$('cName').textContent=to;$('cState').textContent='연결 중…';$('calling').style.display='block';$('dial').style.visibility='hidden';$('dialNum').style.display='none';$('callBtn').classList.add('end');send('phoneCall',to);
-  var s=0;clearInterval(callT);setTimeout(function(){if(!inCall)return;callT=setInterval(function(){s++;$('cState').textContent='통화 중 '+Math.floor(s/60)+':'+('0'+s%60).slice(-2);},1000);},2000);}
+function call(to){if(!to)to=LOG[0][0];flash('Calling '+to+' …');send('phoneCall',to);num='';$('dialNum').textContent='';return;inCall=true;$('cName').textContent=to;$('cState').textContent='Calling…';$('calling').style.display='block';$('dial').style.visibility='hidden';$('dialNum').style.display='none';$('callBtn').classList.add('end');send('phoneCall',to);
+  var s=0;clearInterval(callT);setTimeout(function(){if(!inCall)return;callT=setInterval(function(){s++;$('cState').textContent='In call '+Math.floor(s/60)+':'+('0'+s%60).slice(-2);},1000);},2000);}
 function hang(){inCall=false;clearInterval(callT);$('calling').style.display='none';$('dial').style.visibility='';$('dialNum').style.display='';$('callBtn').classList.remove('end');send('phoneEnd','1');}
 $('callBtn').onclick=function(){call(num);};
 $('plist').addEventListener('click',function(e){var r=e.target.closest('.pr');if(r)call(r.getAttribute('data-n'));});
@@ -2410,48 +2481,142 @@ var sMenu='connection',conn={hotspot:false,bt:true,dev:{music:false,phone:true,a
 function renderSet(){
   $('setMenu').innerHTML=MENU.map(function(m){return '<div class="sm'+(m[0]===sMenu?' on':'')+'" data-m="'+m[0]+'">'+img(m[2],40)+m[1]+'</div>';}).join('');
   if(sMenu==='system'){renderSystem();return;}
-  if(sMenu!=='connection'){$('setBody').innerHTML='<div class="soon">'+MENU.filter(function(m){return m[0]===sMenu;})[0][1]+' 설정 화면은 준비 중입니다</div>';return;}
-  $('setBody').innerHTML='<div class="srow"><div class="tg'+(conn.hotspot?' on':'')+'" data-tg="hotspot"></div><div><b>Hotspot</b><small>Name : Kanavi Mobility</small><small>PW : Kanavi4ever</small></div></div>'+
-   '<div class="srow"><div class="tg'+(conn.bt?' on':'')+'" data-tg="bt"></div><div><b>Bluetooth</b><small>Name : Kanavi Mobility</small></div></div>'+
-   '<div class="slab">My Device</div><div class="dev">'+img(RS.set_phone,40)+'<span class="sp">Subin\'s iPhone 15 pro</span>'+
-   '<div class="dvb'+(conn.dev.music?' on':'')+'" data-dv="music">'+img(RS.set_media,36)+'</div><div class="dvb'+(conn.dev.phone?' on':'')+'" data-dv="phone">'+img(RS.set_phone,36)+'</div><div class="dvb'+(conn.dev.aa?' on':'')+'" data-dv="aa">'+img(IC.aa,30)+'</div><div class="dvb" data-dv="del">'+img(RS.set_delete,36)+'</div></div>'+
-   (conn.bt?'<div class="slab" style="margin-top:40px">Available Device <span id="btRef" style="cursor:pointer">'+img(RS.set_refresh,36)+'</span></div>'+['lilly','GALAXY X','iPad Air'].map(function(n){return '<div class="dev" data-pair="'+n+'">'+img(RS.set_phone,40)+'<span class="sp">'+n+'</span></div>';}).join(''):'');
+  if(sMenu!=='connection'){$('setBody').innerHTML='<div class="soon">'+MENU.filter(function(m){return m[0]===sMenu;})[0][1]+' settings — coming soon</div>';return;}
+  renderConn();
 }
+
+/* ---------- Connections 시나리오 (Figma Shift_GUI > Settings 3857:100967 흐름, 현재 다크 디자인) ---------- */
+var BTD=[{id:'subin',name:"Subin's iPhone 15 Pro",os:'ios',paired:1,auto:1},{id:'lilly',name:'Lilly',os:'android',paired:1,auto:0},
+  {id:'sungji',name:"Sungji's Galaxy",os:'android',paired:0,auto:1},{id:'galaxy',name:'GALAXY X',os:'android',paired:0,auto:1},{id:'ipad',name:'iPad Air',os:'ipad',paired:0,auto:1}];
+BTD.forEach(function(d){d.media=0;d.phone=0;d.proj=0;});
+var cxView=null,MAX_BT=2;
+function cxDev(id){for(var i=0;i<BTD.length;i++)if(BTD[i].id===id)return BTD[i];return null;}
+function isConn(d){return !!(d&&d.paired&&(d.media||d.phone||d.proj));}
+function connList(){return BTD.filter(isConn);}
+function projName(d){return d.os==='ios'?'Apple CarPlay':'Android Auto';}
+function btMusicDev(){if(!conn.bt)return null;for(var i=0;i<BTD.length;i++){var d=BTD[i];if(isConn(d)&&d.media&&!d.proj)return d;}return null;}
+window.ShiftBT={musicDev:btMusicDev,list:function(){return BTD;}};
+function btChanged(){if(window.__phoneSync)window.__phoneSync();if(typeof window.__renderSrc==='function')window.__renderSrc();send('btConnected',connList().map(function(d){return d.name;}).join(',')||'none');}
+var CX={edit:svg('<path d="M7 25h5L25 12l-5-5L7 20z"/><path d="M18 9l5 5"/>',34),back:svg('<path d="M20 6L10 16l10 10"/>',38),
+  dev:svg('<rect x="10" y="4" width="12" height="24" rx="2.5"/><path d="M14.5 24h3"/>',40),tab:svg('<rect x="6" y="5" width="20" height="22" rx="2.5"/><path d="M14.5 23h3"/>',40)};
+(function(){var st=document.createElement('style');st.textContent=
+ '.srow .cxtx{flex:1}.cxe{cursor:pointer;opacity:.85;align-self:center;padding:6px}'+
+ '.dev .sp b{display:block;font-weight:500;font-size:26px}.dev .sp small{display:block;font-size:20px;color:#9aa0a8;margin-top:6px}.dev.con .sp small{color:#6b9bf2}'+
+ '.dev .dvi{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex:none}.dev.con .dvi{background:#4a86e8}'+
+ '.dvb.dis{opacity:.25;pointer-events:none}.dev .dvs{display:flex;gap:10px}'+
+ '.cxback{display:flex;align-items:center;gap:10px;font-size:30px;font-weight:600;margin:4px 0 44px;cursor:pointer}'+
+ '.cxbtns{display:flex;gap:20px;margin-top:10px}.cxb{flex:1;height:84px;border-radius:6px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:500;cursor:pointer}.cxb.red{color:#ff6b5f}'+
+ '.cxspin img{animation:cxsp .9s linear}@keyframes cxsp{to{transform:rotate(360deg)}}'+
+ '#cxPop{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:70;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center}#cxPop.show{display:flex}'+
+ '#cxPop .cxcard{width:840px;box-sizing:border-box;border-radius:16px;background:#3a3e46;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:46px 40px 32px;text-align:center;color:#e5e5e5}'+
+ '#cxPop h3{margin:0 0 22px;font-size:32px;font-weight:600}#cxPop p{margin:0 0 18px;font-size:24px;color:#b8bcc4;line-height:1.5}'+
+ '#cxPop .cxpk{font-size:60px;font-weight:600;letter-spacing:4px;margin:6px 0 24px;color:#fff}'+
+ '#cxPop .cxbt{display:flex;gap:16px;margin-top:24px}#cxPop .cxbt div{flex:1;height:84px;border-radius:8px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:500;cursor:pointer}#cxPop .cxbt div.pri{background:#2e60ff;color:#fff}'+
+ '#cxPop .cxopt{display:flex;align-items:center;gap:16px;padding:18px 26px;border-radius:8px;background:rgba(255,255,255,.06);margin:10px 0;font-size:25px;cursor:pointer;text-align:left}#cxPop .cxopt.on{background:rgba(46,96,255,.4)}'+
+ '#cxPop .cxck{display:inline-flex;align-items:center;gap:12px;font-size:22px;color:#b8bcc4;cursor:pointer;margin-top:4px}#cxPop .cxck i{width:26px;height:26px;border-radius:4px;border:2px solid #9aa0a8;box-sizing:border-box}#cxPop .cxck.on i{background:#2e60ff;border-color:#2e60ff}'+
+ '#cxPop .cxsp2{width:54px;height:54px;margin:4px auto 18px;border-radius:50%;border:5px solid rgba(255,255,255,.15);border-top-color:#6b9bf2;animation:cxsp .9s linear infinite}';
+ document.head.appendChild(st);})();
+var cxPop=document.createElement('div');cxPop.id='cxPop';stage.appendChild(cxPop);
+var cxT=null;
+function popClose(){clearTimeout(cxT);cxPop.classList.remove('show');cxPop.innerHTML='';}
+function pop(o){clearTimeout(cxT);var h='<div class="cxcard">'+(o.spin?'<div class="cxsp2"></div>':'')+'<h3></h3>'+(o.html||'');
+  if(o.btns&&o.btns.length)h+='<div class="cxbt">'+o.btns.map(function(b,i){return '<div class="'+(b.pri?'pri':'')+'" data-pb="'+i+'">'+b.t+'</div>';}).join('')+'</div>';
+  cxPop.innerHTML=h+'</div>';cxPop.querySelector('h3').textContent=o.title;cxPop.classList.add('show');
+  cxPop.onclick=function(e){var b=e.target.closest('[data-pb]');if(b){var f=o.btns[+b.getAttribute('data-pb')].fn;popClose();if(f)f();return;}
+    var op=e.target.closest('.cxopt');if(op){cxPop.querySelectorAll('.cxopt').forEach(function(x){x.classList.toggle('on',x===op);});return;}
+    var ck=e.target.closest('.cxck');if(ck)ck.classList.toggle('on');};
+  if(o.auto)cxT=setTimeout(function(){popClose();if(o.done)o.done();},o.auto);}
+function esc2(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+/* 최대 2대 연결: 새 기기 연결 전 끊을 기기 선택 */
+function ensureSlot(d,cb){if(isConn(d)||connList().length<MAX_BT){cb();return;}
+  var L=connList();pop({title:'Disconnect Device',html:'<p>A maximum of 2 Bluetooth devices can be connected. To connect a new device, select a device to disconnect.</p>'+
+    L.map(function(x,i){return '<div class="cxopt'+(i?'':' on')+'" data-o="'+x.id+'">'+CX.dev.replace('width="40" height="40"','width="30" height="30"')+esc2(x.name)+'</div>';}).join(''),
+    btns:[{t:'Cancel'},{t:'Okay',pri:1,fn:null}]});
+  var ok=cxPop.querySelector('[data-pb="1"]');ok.removeAttribute('data-pb');ok.onclick=function(){var s=cxPop.querySelector('.cxopt.on');var x=s&&cxDev(s.getAttribute('data-o'));popClose();
+    if(x){x.media=x.phone=x.proj=0;flash(x.name+' Disconnected');}cb();renderConn();btChanged();};}
+function setProfile(d,p){
+  if(p==='proj'){if(d.proj){d.proj=0;flash(projName(d)+' disconnected');renderConn();btChanged();return;}
+    ensureSlot(d,function(){BTD.forEach(function(x){if(x!==d&&x.proj)x.proj=0;});d.proj=1;flash(projName(d)+' connected');renderConn();btChanged();send('projection',projName(d));});return;}
+  if(d.proj)return;var was=isConn(d);
+  if(!d[p]){ensureSlot(d,function(){d[p]=1;if(!was)flash(d.name+' Connected');renderConn();btChanged();send('deviceProfile',d.name+':'+p+':on');});return;}
+  d[p]=0;if(was&&!isConn(d))flash(d.name+' Disconnected');renderConn();btChanged();send('deviceProfile',d.name+':'+p+':off');}
+function devIco(d){return d.os==='ipad'?CX.tab:CX.dev;}
+function renderConn(){var b=$('setBody');
+  if(cxView){var vd=cxDev(cxView);if(vd&&vd.paired){
+    b.innerHTML='<div class="cxback" data-cx="back">'+CX.back+'<span></span></div>'+
+     '<div class="srow"><div class="tg'+(vd.auto?' on':'')+'" data-cx="auto"></div><div class="cxtx"><b>Automatically Connect</b></div></div>'+
+     '<div class="cxbtns">'+(isConn(vd)?'<div class="cxb" data-cx="disc">Disconnect</div>':'')+'<div class="cxb red" data-cx="forget">Forget This Device</div></div>';
+    b.querySelector('.cxback span').textContent=vd.name;return;}cxView=null;}
+  var h='<div class="srow"><div class="tg'+(conn.hotspot?' on':'')+'" data-cx="hotspot"></div><div class="cxtx"><b>Wi-Fi Hotspot</b><small>Name : Kanavi Mobility  //  PW : Kanavi4ever</small></div><div class="cxe" data-cx="edit">'+CX.edit+'</div></div>'+
+   '<div class="srow"><div class="tg'+(conn.bt?' on':'')+'" data-cx="bt"></div><div class="cxtx"><b>Bluetooth</b><small>Name : Kanavi Mobility</small></div><div class="cxe" data-cx="edit">'+CX.edit+'</div></div>';
+  if(conn.bt){var my=BTD.filter(function(d){return d.paired;}),av=BTD.filter(function(d){return !d.paired;});
+    if(my.length){h+='<div class="slab">My Devices</div>'+my.map(function(d){var c=isConn(d),dis=d.proj?' dis':'';
+      return '<div class="dev'+(c?' con':'')+'" data-cxd="'+d.id+'"><div class="dvi">'+devIco(d)+'</div><div class="sp"><b>'+esc2(d.name)+'</b><small>'+(c?(d.proj?projName(d):'Connected'):'Not Connected')+'</small></div><div class="dvs">'+
+       '<div class="dvb'+(d.media?' on':'')+dis+'" data-cxp="media">'+img(RS.set_media,36)+'</div><div class="dvb'+(d.phone?' on':'')+dis+'" data-cxp="phone">'+img(RS.set_phone,36)+'</div>'+
+       (d.os==='ipad'?'':'<div class="dvb'+(d.proj?' on':'')+'" data-cxp="proj">'+img(IC.aa,30)+'</div>')+'</div></div>';}).join('');}
+    h+='<div class="slab" style="margin-top:40px">Available Devices <span data-cx="refresh" style="cursor:pointer;display:flex">'+img(RS.set_refresh,36)+'</span></div>'+
+      av.map(function(d){return '<div class="dev" data-cxa="'+d.id+'"><div class="dvi">'+devIco(d)+'</div><span class="sp">'+esc2(d.name)+'</span></div>';}).join('');}
+  b.innerHTML=h;}
+function pairFlow(d){var pk=String(100000+Math.floor(Math.random()*900000));
+  pop({title:'Bluetooth Pairing Request',html:'<p>In the Bluetooth device,<br>search for the ‘Kanavi Mobility’ shown and pair.</p><div class="cxpk">'+pk+'</div>',
+    btns:[{t:'Cancel',fn:function(){send('btPair','cancel');}},{t:'Connect',pri:1,fn:function(){
+      pop({title:'Checking Passkey',spin:1,html:'<p>Pay attention to prompts on device.</p>',btns:[{t:'Cancel'}],auto:1600,done:function(){
+        ensureSlot(d,function(){d.paired=1;d.media=1;d.phone=1;flash(d.name+' Connected');renderConn();btChanged();send('btPair',d.name);
+          if(d.os==='ipad')return;var cp=d.os==='ios';
+          pop({title:'Connect New Device',html:'<p>The device connected via Bluetooth supports '+(cp?'Apple CarPlay.<br>Start Apple CarPlay?':'Android Auto.<br>Start Android Auto?')+'</p>'+(cp?'<div class="cxck"><i></i>Do not show again</div>':''),
+            btns:[{t:'Cancel'},{t:'Connect',pri:1,fn:function(){BTD.forEach(function(x){if(x!==d)x.proj=0;});d.proj=1;flash(projName(d)+' connected');renderConn();btChanged();send('projection',projName(d));}}]});});}});}}]});}
+function discFlow(d,forget){pop({title:d.name,spin:1,html:'<p>Disconnecting Bluetooth device…<br>Please wait.</p>',auto:1500,done:function(){
+  d.media=d.phone=d.proj=0;if(forget){d.paired=0;flash(d.name+' removed');}else flash(d.name+' Disconnected');cxView=null;renderConn();btChanged();send(forget?'btForget':'btDisconnect',d.name);}});}
+settings.addEventListener('click',function(e){if(sMenu!=='connection')return;
+  var x=e.target.closest('[data-cx]'),k=x&&x.getAttribute('data-cx');
+  if(k==='hotspot'){conn.hotspot=!conn.hotspot;renderConn();send('hotspot',conn.hotspot?'on':'off');return;}
+  if(k==='bt'){conn.bt=!conn.bt;if(!conn.bt){BTD.forEach(function(d){d.media=d.phone=d.proj=0;});cxView=null;}renderConn();btChanged();send('bluetooth',conn.bt?'on':'off');return;}
+  if(k==='edit'){flash('Coming soon');return;}
+  if(k==='refresh'){x.classList.remove('cxspin');void x.offsetWidth;x.classList.add('cxspin');flash('Searching for nearby devices…');return;}
+  if(k==='back'){cxView=null;renderConn();return;}
+  var vd=cxView&&cxDev(cxView);
+  if(k==='auto'&&vd){vd.auto=vd.auto?0:1;renderConn();send('autoConnect',vd.name+':'+(vd.auto?'on':'off'));return;}
+  if(k==='disc'&&vd){discFlow(vd,false);return;}
+  if(k==='forget'&&vd){if(isConn(vd))discFlow(vd,true);else{vd.paired=0;flash(vd.name+' removed');cxView=null;renderConn();send('btForget',vd.name);}return;}
+  var pb=e.target.closest('[data-cxp]');if(pb){var dv=cxDev(pb.closest('[data-cxd]').getAttribute('data-cxd'));setProfile(dv,pb.getAttribute('data-cxp'));return;}
+  var row=e.target.closest('[data-cxd]');if(row){cxView=row.getAttribute('data-cxd');renderConn();return;}
+  var av=e.target.closest('[data-cxa]');if(av){pairFlow(cxDev(av.getAttribute('data-cxa')));return;}
+});
 function maskKey(k){return k?(k.length>8?'●●●●●●●●'+k.slice(-4):'●●●●'):'';}
 function renderSystem(){var info=window.Nav&&window.Nav.keyInfo?window.Nav.keyInfo():{key:''};
   $('setBody').innerHTML='<div class="slab">Navigation · TomTom API Key</div>'+
-   '<div class="kbox"><input id="ttKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="TomTom API Key 입력" value="'+esc(info.key||'')+'"><div class="kbtn" id="ttEye">보기</div></div>'+
-   '<div class="kact"><div class="kbtn pri" id="ttSave">저장</div><div class="kbtn" id="ttTest">연결 테스트</div><div class="kbtn" id="ttDel">삭제</div></div>'+
-   '<div class="kst" id="ttSt">'+(info.key?'저장된 키 사용 중 ('+maskKey(info.key)+')'+(info.fromUrl?' · 주소(?ttkey=)에서 받은 키':''):'저장된 키가 없습니다 — 무료 지도(OpenStreetMap)로 지도·검색·경로 안내가 동작합니다. TomTom 키를 넣으면 TomTom 지도로 바뀝니다.')+'</div>'+
-   '<div class="khelp">키는 이 브라우저에만 저장되며 HTML 파일에는 들어가지 않습니다. 키 발급: developer.tomtom.com</div>'+
+   '<div class="kbox"><input id="ttKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="Enter TomTom API key" value="'+esc(info.key||'')+'"><div class="kbtn" id="ttEye">Show</div></div>'+
+   '<div class="kact"><div class="kbtn pri" id="ttSave">Save</div><div class="kbtn" id="ttTest">Test</div><div class="kbtn" id="ttDel">Delete</div></div>'+
+   '<div class="kst" id="ttSt">'+(info.key?'Using saved key ('+maskKey(info.key)+')'+(info.fromUrl?' · from URL (?ttkey=)':''):'No saved key — maps, search and routing use the free OpenStreetMap service. Enter a TomTom key to switch to TomTom maps.')+'</div>'+
+   '<div class="khelp">The key is stored only in this browser, not in the HTML file. Get a key: developer.tomtom.com</div>'+
    '<div class="slab" style="margin-top:48px">Video · YouTube Data API Key</div>'+
-   '<div class="kbox"><input id="ytKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="YouTube Data API v3 Key 입력" value="'+esc(ytKey())+'"><div class="kbtn" id="ytEye">보기</div></div>'+
-   '<div class="kact"><div class="kbtn pri" id="ytSave">저장</div><div class="kbtn" id="ytTest">연결 테스트</div><div class="kbtn" id="ytDel">삭제</div></div>'+
-   '<div class="kst" id="ytSt">'+(ytKey()?'저장된 키 사용 중 ('+maskKey(ytKey())+')':'저장된 키가 없습니다. 인기 영상 목록을 쓰려면 키를 입력하세요.')+'</div>'+
-   '<div class="khelp">키 발급: Google Cloud Console → YouTube Data API v3 사용 설정 → 사용자 인증 정보 → API 키. 인기 목록 1회 = 1 유닛 (하루 무료 10,000 유닛)</div>';}
+   '<div class="kbox"><input id="ytKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="Enter YouTube Data API v3 key" value="'+esc(ytKey())+'"><div class="kbtn" id="ytEye">Show</div></div>'+
+   '<div class="kact"><div class="kbtn pri" id="ytSave">Save</div><div class="kbtn" id="ytTest">Test</div><div class="kbtn" id="ytDel">Delete</div></div>'+
+   '<div class="kst" id="ytSt">'+(ytKey()?'Using saved key ('+maskKey(ytKey())+')':'No saved key. Enter a key to load popular videos.')+'</div>'+
+   '<div class="khelp">Get a key: Google Cloud Console → enable YouTube Data API v3 → Credentials → API key. One popular list = 1 unit (10,000 free units/day)</div>';}
 function ytStatus(t,ok){var e=$('ytSt');if(!e)return;e.textContent=t;e.className='kst'+(ok===true?' ok':ok===false?' ng':'');}
-function ytTestKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:false,msg:'키를 입력하세요.'});
+function ytTestKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:false,msg:'Enter a key.'});
   return fetch('https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&regionCode=KR&maxResults=1&key='+encodeURIComponent(k)).then(function(r){return r.json().then(function(j){
-    return r.ok?{ok:true,msg:'정상 — 인기 영상 목록을 불러올 수 있습니다.'}:{ok:false,msg:'HTTP '+r.status+' — '+((j.error&&j.error.message)||'키를 확인하세요.')};});},function(){return {ok:false,msg:'YouTube 서버에 연결할 수 없습니다.'};});}
+    return r.ok?{ok:true,msg:'OK — popular videos can be loaded.'}:{ok:false,msg:'HTTP '+r.status+' — '+((j.error&&j.error.message)||'Check the key.')};});},function(){return {ok:false,msg:'Cannot connect to YouTube.'};});}
 function kStatus(t,ok){var e=$('ttSt');if(!e)return;e.textContent=t;e.className='kst'+(ok===true?' ok':ok===false?' ng':'');}
 window.ShiftSettings={open:function(m){sMenu=m||sMenu;renderSet();show('settings');send('settingsMenu',sMenu);}};
 settings.addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter'&&e.target.id==='ttKeyIn')$('ttSave').click();if(e.key==='Enter'&&e.target.id==='ytKeyIn')$('ytSave').click();});
 settings.addEventListener('click',function(e){
-  if(e.target.closest('#ttEye')){var i=$('ttKeyIn');i.type=i.type==='password'?'text':'password';e.target.closest('#ttEye').textContent=i.type==='password'?'보기':'숨기기';return;}
-  if(e.target.closest('#ttSave')){var v=$('ttKeyIn').value.trim();if(!v){kStatus('키를 입력하세요.',false);return;}window.Nav.setKey(v);kStatus('저장했습니다 ('+maskKey(v)+'). 연결 확인 중…');
+  if(e.target.closest('#ttEye')){var i=$('ttKeyIn');i.type=i.type==='password'?'text':'password';e.target.closest('#ttEye').textContent=i.type==='password'?'Show':'Hide';return;}
+  if(e.target.closest('#ttSave')){var v=$('ttKeyIn').value.trim();if(!v){kStatus('Enter a key.',false);return;}window.Nav.setKey(v);kStatus('Saved ('+maskKey(v)+'). Checking…');
     window.Nav.testKey(v).then(function(r){kStatus(r.msg,r.ok);});send('navKey','saved');return;}
-  if(e.target.closest('#ttTest')){kStatus('연결 확인 중…');window.Nav.testKey($('ttKeyIn').value).then(function(r){kStatus(r.msg,r.ok);});return;}
-  if(e.target.closest('#ytEye')){var yi=$('ytKeyIn');yi.type=yi.type==='password'?'text':'password';e.target.closest('#ytEye').textContent=yi.type==='password'?'보기':'숨기기';return;}
-  if(e.target.closest('#ytSave')){var yv=$('ytKeyIn').value.trim();if(!yv){ytStatus('키를 입력하세요.',false);return;}try{localStorage.setItem('shiftYTKey',yv);}catch(x){}ytStatus('저장했습니다 ('+maskKey(yv)+'). 연결 확인 중…');
+  if(e.target.closest('#ttTest')){kStatus('Checking…');window.Nav.testKey($('ttKeyIn').value).then(function(r){kStatus(r.msg,r.ok);});return;}
+  if(e.target.closest('#ytEye')){var yi=$('ytKeyIn');yi.type=yi.type==='password'?'text':'password';e.target.closest('#ytEye').textContent=yi.type==='password'?'Show':'Hide';return;}
+  if(e.target.closest('#ytSave')){var yv=$('ytKeyIn').value.trim();if(!yv){ytStatus('Enter a key.',false);return;}try{localStorage.setItem('shiftYTKey',yv);}catch(x){}ytStatus('Saved ('+maskKey(yv)+'). Checking…');
     ytTestKey(yv).then(function(r){ytStatus(r.msg,r.ok);});vItems=[];send('videoKey','saved');return;}
-  if(e.target.closest('#ytTest')){ytStatus('연결 확인 중…');ytTestKey($('ytKeyIn').value).then(function(r){ytStatus(r.msg,r.ok);});return;}
-  if(e.target.closest('#ytDel')){try{localStorage.removeItem('shiftYTKey');}catch(x){}renderSystem();ytStatus('키를 삭제했습니다.');vItems=[];send('videoKey','deleted');return;}
-  if(e.target.closest('#ttDel')){window.Nav.setKey('');renderSystem();kStatus('키를 삭제했습니다.');send('navKey','deleted');return;}
+  if(e.target.closest('#ytTest')){ytStatus('Checking…');ytTestKey($('ytKeyIn').value).then(function(r){ytStatus(r.msg,r.ok);});return;}
+  if(e.target.closest('#ytDel')){try{localStorage.removeItem('shiftYTKey');}catch(x){}renderSystem();ytStatus('Key deleted.');vItems=[];send('videoKey','deleted');return;}
+  if(e.target.closest('#ttDel')){window.Nav.setKey('');renderSystem();kStatus('Key deleted.');send('navKey','deleted');return;}
   var m=e.target.closest('[data-m]');if(m){sMenu=m.getAttribute('data-m');renderSet();send('settingsMenu',sMenu);return;}
   var g=e.target.closest('[data-tg]');if(g){var k=g.getAttribute('data-tg');conn[k]=!conn[k];renderSet();send(k==='bt'?'bluetooth':'hotspot',conn[k]?'on':'off');return;}
-  var d=e.target.closest('[data-dv]');if(d){var v=d.getAttribute('data-dv');if(v==='del'){flash('기기 삭제는 데모에서 지원하지 않습니다');return;}conn.dev[v]=!conn.dev[v];renderSet();send('deviceProfile',v+':'+(conn.dev[v]?'on':'off'));return;}
-  var pr=e.target.closest('[data-pair]');if(pr){flash(pr.getAttribute('data-pair')+' 연결 요청을 보냈습니다');send('btPair',pr.getAttribute('data-pair'));return;}
-  if(e.target.closest('#btRef'))flash('주변 기기를 검색했습니다');
+  var d=e.target.closest('[data-dv]');if(d){var v=d.getAttribute('data-dv');if(v==='del'){flash('Not supported in this demo');return;}conn.dev[v]=!conn.dev[v];renderSet();send('deviceProfile',v+':'+(conn.dev[v]?'on':'off'));return;}
+  var pr=e.target.closest('[data-pair]');if(pr){flash(pr.getAttribute('data-pair')+' — pairing request sent');send('btPair',pr.getAttribute('data-pair'));return;}
+  if(e.target.closest('#btRef'))flash('Searched for nearby devices');
 });
 
 /* ---------------- Camera (서라운드 뷰) ---------------- */
@@ -2472,17 +2637,17 @@ var camCss=document.createElement('style');camCss.textContent=`
 #camMenu .it:hover,#camMenu .it.on{background:rgba(46,96,255,.35)}
 #camMenu .msg{padding:12px 16px;font-size:19px;color:#f0a24e;line-height:1.5}`;
 document.head.appendChild(camCss);
-var CAMS={camFront:'후방',camLeft:'좌측',camRight:'우측',camTop:'탑뷰'};
+var CAMS={camFront:'Rear',camLeft:'Left',camRight:'Right',camTop:'Top view'};
 var camMap={};try{camMap=JSON.parse(localStorage.getItem('shiftCamMap')||'{}');}catch(e){}
 var streams={};
 Object.keys(CAMS).forEach(function(id){var box=$(id);box.insertAdjacentHTML('afterbegin','<video autoplay muted playsinline></video>');
-  box.insertAdjacentHTML('beforeend','<div class="camPick" data-cam="'+id+'"><i></i>'+CAMS[id]+' 카메라</div>');});
+  box.insertAdjacentHTML('beforeend','<div class="camPick" data-cam="'+id+'"><i></i>'+CAMS[id]+' camera</div>');});
 var camMenu=el('<div id="camMenu"></div>');stage.appendChild(camMenu);
 function saveMap(){try{localStorage.setItem('shiftCamMap',JSON.stringify(camMap));}catch(e){}}
 function stopCam(id){var s=streams[id];if(s){s.getTracks().forEach(function(tr){tr.stop();});delete streams[id];}var b=$(id);b.classList.remove('live');b.querySelector('video').srcObject=null;}
 function startCam(id){
   var dev=camMap[id];stopCam(id);if(!dev)return Promise.resolve();
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject(new Error('이 브라우저는 카메라를 지원하지 않습니다'));
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject(new Error('This browser does not support cameras'));
   return navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:dev},width:{ideal:1280},height:{ideal:720}},audio:false}).then(function(s){
     streams[id]=s;var b=$(id),v=b.querySelector('video');v.srcObject=s;b.classList.add('live');send('cameraLive',id+':on');
   }).catch(function(e){send('cameraLive',id+':error');throw e;});
@@ -2490,7 +2655,7 @@ function startCam(id){
 function startAll(){Object.keys(camMap).forEach(function(id){startCam(id).catch(function(){});});}
 function stopAll(){Object.keys(streams).forEach(stopCam);}
 function listCams(){
-  if(!navigator.mediaDevices)return Promise.reject(new Error('카메라 기능을 쓸 수 없는 환경입니다 (HTTPS 또는 권한 확인)'));
+  if(!navigator.mediaDevices)return Promise.reject(new Error('Camera is unavailable here (check HTTPS or permissions)'));
   // 권한을 먼저 받아야 카메라 이름이 보임
   return navigator.mediaDevices.getUserMedia({video:true,audio:false}).then(function(s){s.getTracks().forEach(function(t){t.stop();});
     return navigator.mediaDevices.enumerateDevices();}).then(function(ds){return ds.filter(function(d){return d.kind==='videoinput';});});
@@ -2498,13 +2663,13 @@ function listCams(){
 function openCamMenu(id,anchor){
   var r=anchor.getBoundingClientRect(),p=SD.toStage({clientX:r.right,clientY:r.bottom});
   camMenu.style.left=Math.max(20,Math.min(1380,p.x-520))+'px';camMenu.style.top=Math.min(480,p.y+10)+'px';
-  camMenu.innerHTML='<div class="hd">'+CAMS[id]+' 카메라 선택</div><div class="msg" style="color:#9aa0a8">카메라 목록을 불러오는 중…</div>';camMenu.style.display='block';shade.style.display='block';
+  camMenu.innerHTML='<div class="hd">'+CAMS[id]+' camera</div><div class="msg" style="color:#9aa0a8">Loading cameras…</div>';camMenu.style.display='block';shade.style.display='block';
   listCams().then(function(list){
-    var h='<div class="hd">'+CAMS[id]+' 카메라 선택</div>';
-    if(!list.length)h+='<div class="msg">연결된 카메라가 없습니다. 핸드폰 웹캠 앱(DroidCam 등)이나 Windows 휴대폰 연결을 먼저 켜 주세요.</div>';
-    list.forEach(function(d,i){h+='<div class="it'+(camMap[id]===d.deviceId?' on':'')+'" data-dev="'+esc(d.deviceId)+'">'+esc(d.label||('카메라 '+(i+1)))+'</div>';});
-    h+='<div class="it" data-dev="">사용 안 함 (이미지 표시)</div>';camMenu.innerHTML=h;
-  }).catch(function(e){camMenu.innerHTML='<div class="hd">'+CAMS[id]+' 카메라 선택</div><div class="msg">카메라에 접근할 수 없습니다: '+esc(e.message||e.name)+'<br>브라우저의 카메라 권한을 허용했는지 확인하세요.</div>';});
+    var h='<div class="hd">'+CAMS[id]+' camera</div>';
+    if(!list.length)h+='<div class="msg">No camera found. Turn on a phone webcam app (e.g. DroidCam) first.</div>';
+    list.forEach(function(d,i){h+='<div class="it'+(camMap[id]===d.deviceId?' on':'')+'" data-dev="'+esc(d.deviceId)+'">'+esc(d.label||('Camera '+(i+1)))+'</div>';});
+    h+='<div class="it" data-dev="">None (show image)</div>';camMenu.innerHTML=h;
+  }).catch(function(e){camMenu.innerHTML='<div class="hd">'+CAMS[id]+' camera</div><div class="msg">Cannot access the camera: '+esc(e.message||e.name)+'<br>Check the browser camera permission.</div>';});
   camMenu.setAttribute('data-for',id);
 }
 camScr.addEventListener('click',function(e){var b=e.target.closest('.camPick');if(b)openCamMenu(b.getAttribute('data-cam'),b);});
@@ -2512,7 +2677,7 @@ camMenu.addEventListener('click',function(e){var it=e.target.closest('[data-dev]
   // 같은 카메라를 다른 화면에서 쓰고 있으면 그쪽은 해제
   Object.keys(camMap).forEach(function(k){if(k!==id&&camMap[k]===dev&&dev){delete camMap[k];stopCam(k);}});
   if(dev)camMap[id]=dev;else{delete camMap[id];}saveMap();closeCamMenu();
-  startCam(id).catch(function(err){SD&&flash(CAMS[id]+' 카메라 연결 실패: '+(err.message||err.name));});});
+  startCam(id).catch(function(err){SD&&flash(CAMS[id]+' camera failed: '+(err.message||err.name));});});
 function closeCamMenu(){camMenu.style.display='none';}
 
 /* ---------------- Radio (Radio Browser API, 무료) ---------------- */
@@ -2565,12 +2730,12 @@ function rEmpty(msg){$('rEmpty').style.display=msg?'flex':'none';$('rEmpty').tex
 function rInCty(st){var c=rCode(rCty);return !c[1]||String(st.countrycode||'').toUpperCase()===c[1];}
 function loadRadio(tab){tab=({kr:'popular',top:'popular'})[tab]||tab;if(['popular','recent','fav'].indexOf(tab)<0)tab='popular';rTab=tab;
   radio.querySelectorAll('[data-rt]').forEach(function(d){d.classList.toggle('on',d.getAttribute('data-rt')===tab);});$('rCty').textContent=rCty;send('radioTab',tab);
-  if(tab==='fav'){rStations=Object.keys(rFav).map(function(k){return rFav[k];}).filter(rInCty);renderRadio();rEmpty(rStations.length?'':'즐겨찾기한 방송이 없습니다. 방송 목록에서 ☆를 눌러 추가하세요.');return;}
-  if(tab==='recent'){rStations=rRecent.filter(rInCty);renderRadio();rEmpty(rStations.length?'':'최근 들은 방송이 없습니다.');return;}
+  if(tab==='fav'){rStations=Object.keys(rFav).map(function(k){return rFav[k];}).filter(rInCty);renderRadio();rEmpty(rStations.length?'':'No favorites yet. Tap ☆ on a station to add it.');return;}
+  if(tab==='recent'){rStations=rRecent.filter(rInCty);renderRadio();rEmpty(rStations.length?'':'No recent stations.');return;}
   $('rList').innerHTML='';rEmpty('Loading stations…');var c=rCode(rCty),want=rCty+'|'+tab;
   var path=c[1]?'/json/stations/search?countrycode='+c[1]+'&hidebroken=true&order=clickcount&reverse=true&limit=150':'/json/stations/topclick/150';
-  rb(path).then(function(d){if(rCty+'|'+rTab!==want)return;rStations=d.filter(okStream).slice(0,60);renderRadio();rEmpty(rStations.length?'':'재생 가능한 방송을 찾지 못했습니다.');send('radioLoaded',rStations.length);})
-  .catch(function(){rEmpty('라디오 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.');});}
+  rb(path).then(function(d){if(rCty+'|'+rTab!==want)return;rStations=d.filter(okStream).slice(0,60);renderRadio();rEmpty(rStations.length?'':'No playable stations found.');send('radioLoaded',rStations.length);})
+  .catch(function(){rEmpty('Cannot reach the radio server. Check your internet connection.');});}
 function setCountry(c){var x=rCode(c);if(!x)return false;rCty=x[0];try{localStorage.setItem('shiftRadioCountry',rCty);}catch(e){}closeCty();send('radioCountry',rCty);loadRadio(rTab);return true;}
 function openCty(){$('rDD').innerHTML=R_CTY.map(function(c){return '<div data-cty="'+c[0]+'"'+(c[0]===rCty?' class="on"':'')+'>'+c[0]+'</div>';}).join('');$('rDD').classList.add('show');$('rFlt').classList.add('open');var on=$('rDD').querySelector('.on');if(on)$('rDD').scrollTop=Math.max(0,on.offsetTop-88);}
 function closeCty(){$('rDD').classList.remove('show');$('rFlt').classList.remove('open');}
@@ -2585,9 +2750,9 @@ function renderRadio(){var pl=!rAudio.paused;$('rList').innerHTML=rStations.map(
   $('rList').querySelectorAll('.rlg').forEach(function(l,i){rLogoFallback(l,rStations[i]);});}
 function rRenderNow(){var s=rCur,np=$('rNow');$('rName').textContent=s?s.name.trim():'Select a station';$('rSub').textContent=s?((s.tags||'').split(',').slice(0,3).join(' · ')||s.country||''):'';
   var lg=$('rLogo');lg.outerHTML=rLogoHtml(s,'rLogo');rLogoFallback($('rLogo'),s);np.classList.toggle('playing',!rAudio.paused);var on=$('rList').querySelector('.rs.on');if(on)on.classList.toggle('playing',!rAudio.paused);$('rPlay').innerHTML=img(rAudio.paused?IC.play:IC.pause,80);}
-function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('shiftRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('이 방송은 재생할 수 없습니다');});renderRadio();rRenderNow();}
+function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('shiftRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('This station cannot be played');});renderRadio();rRenderNow();}
 function stopRadio(){if(!rAudio.paused){rAudio.pause();send('radioStop','1');}rRenderNow();}
-rAudio.addEventListener('playing',rRenderNow);rAudio.addEventListener('pause',rRenderNow);rAudio.addEventListener('error',function(){if(rCur)flash('방송 연결이 끊겼습니다');rRenderNow();});
+rAudio.addEventListener('playing',rRenderNow);rAudio.addEventListener('pause',rRenderNow);rAudio.addEventListener('error',function(){if(rCur)flash('Station disconnected');rRenderNow();});
 $('rList').addEventListener('click',function(e){var f=e.target.closest('[data-fav]');if(f){var s=rStations[+f.getAttribute('data-fav')];if(rFav[s.stationuuid])delete rFav[s.stationuuid];else rFav[s.stationuuid]=s;try{localStorage.setItem('shiftRadioFav',JSON.stringify(rFav));}catch(x){}renderRadio();return;}
   var c=e.target.closest('[data-ri]');if(c)playStation(rStations[+c.getAttribute('data-ri')]);});
 $('rTabs').addEventListener('click',function(e){var d=e.target.closest('[data-rt]');if(d){closeCty();loadRadio(d.getAttribute('data-rt'));}});
@@ -2597,18 +2762,63 @@ radio.addEventListener('click',function(e){if(!e.target.closest('#rDD,#rFlt'))cl
 dragScroll($('rDD'),'y');
 $('rPlay').onclick=function(){if(!rCur){playStation(rStations[0]);return;}if(rAudio.paused)playStation(rCur);else stopRadio();};
 function rStep(k){if(!rStations.length)return;var i=rCur?rStations.findIndex(function(s){return s.stationuuid===rCur.stationuuid;}):-1;playStation(rStations[(i+k+rStations.length)%rStations.length]);}
-$('rPrev').onclick=function(){rStep(-1);};$('rNext').onclick=function(){rStep(1);};
+$('rPrev').onclick=function(){rStep(-1);};$('rNext').onclick=function(){rStep(1);};window.__radio={audio:rAudio,cur:function(){return rCur;},step:function(k){rStep(k);},play:function(){if(rCur)playStation(rCur);else if(rStations.length)playStation(rStations[0]);},stop:function(){stopRadio();}};
 dragScroll($('rList'),'y');
 
 /* ---------------- Video (YouTube IFrame Player API, 무료) ---------------- */
-var video=el('<div class="scr" id="scrVideo"><div class="rhd"><img alt="" src="'+RI.app_usbvideo+'">Video</div>'+
+var video=el('<div class="scr grid" id="scrVideo"><div class="rhd vhd"><span id="vBack"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#e5e5e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M25 8L13 20l12 12"/></svg></span><span class="ytl"><img alt="" src="'+RI.app_usbvideo+'" style="width:48px;height:48px;border-radius:16px"></span>Video</div>'+
  '<div class="rbar"><div class="rtabs" id="vTabs"><div data-vt="popular" class="on">Popular</div><div data-vt="links">My Links</div></div>'+
- '<div class="rflt" id="vLinkBtn">+ 링크 추가</div></div>'+
+ '<div class="rflt" id="vLinkBtn">+ Add link</div></div>'+
  '<div id="vList"></div>'+
- '<div id="vBox"><div id="vPlayer"></div><div class="empty" id="vEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;gap:20px;text-align:center;line-height:1.5;padding:0 40px">오른쪽 목록에서 영상을 고르세요<span class="pbtn" id="vEmptyBtn">링크 직접 입력</span></div></div>'+
+ '<div id="vBox"><div id="vPlayer"></div><div class="empty" id="vEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;gap:20px;text-align:center;line-height:1.5;padding:0 40px">Choose a video from the list<span class="pbtn" id="vEmptyBtn">Enter a link</span></div></div>'+
  '<div id="vBar"><img id="vThumb" alt=""><div id="vTitle">—</div><div class="ctl"><div id="vPrev">'+img(IC.prev,80)+'</div><div id="vPlay">'+img(IC.play,80)+'</div><div id="vNext">'+img(IC.next,80)+'</div></div></div>'+
- '<div id="vLinkPop"><b>YouTube 링크</b><small>재생목록 링크(list=…) 또는 영상 링크를 여러 개 넣을 수 있습니다 (줄바꿈/쉼표로 구분)</small><textarea id="vLinkIn" placeholder="https://www.youtube.com/playlist?list=..."></textarea><div class="nbtns"><div class="nbtn" id="vLinkCancel">취소</div><div class="nbtn pri" id="vLinkOk">재생</div></div></div></div>');
+ '<div id="vLinkPop"><b>YouTube links</b><small>Paste a playlist link (list=…) or several video links (one per line or comma-separated)</small><textarea id="vLinkIn" placeholder="https://www.youtube.com/playlist?list=..."></textarea><div class="nbtns"><div class="nbtn" id="vLinkCancel">Cancel</div><div class="nbtn pri" id="vLinkOk">Play</div></div></div></div>');
 scrWrap.appendChild(video);
+/* ---------------- Image (Figma 660:44120) — 데모 이미지는 코드로 생성 ---------------- */
+var imgScr=el('<div class="scr" id="scrImage"><div class="ih"><span id="iBack"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M25 8L13 20l12 12" stroke="#e5e5e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Image</b><em id="iCount"></em></div>'+
+ '<div id="iGrid"></div><div id="iView"><canvas id="iCanvas" width="1267" height="894"></canvas><div class="iv-nav" id="iPrev"><svg width="44" height="44" viewBox="0 0 44 44" fill="none"><path d="M27 9L14 22l13 13" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="iv-nav" id="iNext"><svg width="44" height="44" viewBox="0 0 44 44" fill="none"><path d="M17 9l13 13-13 13" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div>');
+scrWrap.appendChild(imgScr);
+(function(){var s=document.createElement('style');s.textContent=
+'#scrImage .ih{position:absolute;left:70px;right:70px;top:48px;height:80px;display:flex;align-items:center;gap:16px;z-index:3;color:#e5e5e5}'+
+'#scrImage .ih b{font-size:32px;font-weight:600;line-height:48px}#scrImage .ih em{margin-left:auto;font-style:normal;font-size:24px;color:#b2b2b2}'+
+'#iBack{display:none;cursor:pointer}#scrImage.view #iBack{display:flex}#scrImage:not(.view) #iCount{display:none}'+
+'#iGrid{position:absolute;left:72px;right:16px;top:128px;bottom:0;overflow-y:auto;scrollbar-width:none;touch-action:pan-y;padding-bottom:40px;box-sizing:border-box}#iGrid::-webkit-scrollbar{display:none}'+
+'#iGrid .sec{height:58px;display:flex;align-items:center;padding-left:7px;font-size:20px;font-weight:500;color:#b2b2b2;letter-spacing:.02em}#iGrid .sec:not(:first-child){margin-top:39px}'+
+'#iGrid .row{display:grid;grid-template-columns:repeat(5,211px);gap:13px}'+
+'#iGrid canvas{width:211px;height:211px;border-radius:8px;display:block;cursor:pointer;background:#2a2d33}#iGrid canvas:active{opacity:.8}'+
+'#iView{position:absolute;inset:0;display:none;background:#000;border-radius:8px;overflow:hidden;z-index:2}#scrImage.view #iView{display:block}#scrImage.view #iGrid{visibility:hidden}'+
+'#scrImage.view .ih{left:0;right:0;top:0;height:128px;padding:48px 70px 0;box-sizing:border-box;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,0))}'+
+'#iCanvas{position:absolute;inset:0;width:100%;height:100%}'+
+'.iv-nav{position:absolute;top:50%;margin-top:-45px;width:90px;height:90px;border-radius:45px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer}#iPrev{left:32px}#iNext{right:32px}.iv-nav:active{background:rgba(255,255,255,.2)}'+
+'#scrImage::after{content:"";position:absolute;inset:0;border:2px solid rgba(255,255,255,.1);border-radius:8px;pointer-events:none;z-index:6;box-sizing:border-box}';
+document.head.appendChild(s);})();
+var IMG_PAL=[['#f4f5f7','#c9ccd2','#ffffff','#e3e5e9','#b9bdc4'],['#eeeeee','#a9a9ad','#fafafa','#d6d6d9','#8e8e93'],['#f7f7f8','#dcdde0','#ffffff','#ececee','#c4c6ca'],
+ ['#8fa6cf','#41557d','#b9c9e6','#6d84b3','#34466b'],['#8fcfc4','#3f7f78','#c2ebe4','#68aaa0','#2e6660'],['#b3b4e6','#5c5f9c','#d6d7f5','#8b8dcc','#4b4e88'],
+ ['#a9d2f2','#4a86bd','#d3e9fb','#7bb2df','#3a73a8'],['#f2f2f2','#9a9a9a','#ffffff','#d0d0d0','#7a7a7a'],['#e9e9e9','#8c8c8c','#ffffff','#c8c8c8','#5f5f5f'],
+ ['#2b2b2e','#0b0b0c','#6e6e72','#1d1d20','#000000'],['#ececec','#202022','#ffffff','#5a5a5e','#0d0d0f'],['#1e1e20','#000000','#d9d9d9','#3c3c40','#0a0a0a'],
+ ['#dadada','#7d7d80','#f5f5f5','#b0b0b4','#5c5c60'],['#cfd3da','#7b8494','#eef0f4','#a3abb8','#5d6677']];
+var IMG_SEC=[['WED, APR 4',[0,1,2]],['FRI, MAR 28',[3,4,5,6,7,8,9,10,11,12,13]]];
+function imgRnd(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+function imgArt(cv,i){var w=cv.width,h=cv.height,x=cv.getContext('2d'),r=imgRnd(i*7919+13),p=IMG_PAL[i%IMG_PAL.length];
+  var g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,p[0]);g.addColorStop(1,p[1]);x.fillStyle=g;x.fillRect(0,0,w,h);
+  var rot=(r()-.5)*1.6,n=7+Math.floor(r()*6),S=Math.max(w,h);
+  x.save();x.translate(w/2,h/2);x.rotate(rot);x.translate(-S,-S);
+  for(var k=0;k<n;k++){var y0=S*2*(k/n)+(r()-.5)*S*.25,amp=S*(.06+r()*.2),fr=(.5+r()*1.6)*Math.PI*2/(S*2),ph=r()*6.28,fr2=fr*(1.8+r()*1.4);
+    x.beginPath();x.moveTo(0,S*2);for(var X=0;X<=S*2;X+=6){x.lineTo(X,y0+Math.sin(X*fr+ph)*amp+Math.sin(X*fr2+ph*1.3)*amp*.35);}x.lineTo(S*2,S*2);x.closePath();
+    var gg=x.createLinearGradient(0,y0-amp,0,y0+amp*1.6);gg.addColorStop(0,p[2]);gg.addColorStop(.45,p[3]);gg.addColorStop(1,p[4]);
+    x.fillStyle=gg;x.globalAlpha=.5+r()*.45;x.shadowColor='rgba(0,0,0,.28)';x.shadowBlur=S*.035;x.shadowOffsetY=-S*.01;x.fill();}
+  x.restore();x.globalAlpha=1;x.shadowBlur=0;}
+var iCur=0,iOrder=[];
+function imgGrid(){var h='';IMG_SEC.forEach(function(s){h+='<div class="sec">'+s[0]+'</div><div class="row">'+s[1].map(function(i){iOrder.push(i);return '<canvas width="422" height="422" data-ii="'+i+'"></canvas>';}).join('')+'</div>';});
+  $('iGrid').innerHTML=h;$('iGrid').querySelectorAll('canvas').forEach(function(c){imgArt(c,+c.getAttribute('data-ii'));});}
+imgGrid();
+function imgShow(k){iCur=(k+iOrder.length)%iOrder.length;imgArt($('iCanvas'),iOrder[iCur]);$('iCount').textContent=(iCur+1)+' / '+iOrder.length;imgScr.classList.add('view');send('imageView',String(iCur+1));}
+$('iGrid').addEventListener('click',function(e){var c=e.target.closest('canvas');if(c)imgShow(iOrder.indexOf(+c.getAttribute('data-ii')));});
+$('iBack').onclick=function(){imgScr.classList.remove('view');send('imageView','grid');};
+$('iPrev').onclick=function(){imgShow(iCur-1);};$('iNext').onclick=function(){imgShow(iCur+1);};
+(function(){var sx=null;$('iCanvas').addEventListener('pointerdown',function(e){sx=e.clientX;});$('iCanvas').addEventListener('pointerup',function(e){if(sx===null)return;var d=e.clientX-sx;sx=null;if(Math.abs(d)>60)imgShow(iCur+(d<0?1:-1));});})();
+if(typeof dragScroll==='function')dragScroll($('iGrid'),'y');
+
 (function(){var s=document.createElement('style');s.textContent=
 '#vBox{position:absolute;left:70px;top:216px;width:820px;height:461px;border-radius:8px;overflow:hidden;background:#000}'+
 '#vList{position:absolute;left:914px;right:70px;top:216px;bottom:154px;overflow-y:auto;scrollbar-width:none;touch-action:pan-y;display:flex;flex-direction:column;gap:18px;padding-bottom:12px}#vList::-webkit-scrollbar{display:none}'+
@@ -2622,26 +2832,28 @@ scrWrap.appendChild(video);
 '#vLinkPop{position:absolute;left:50%;top:180px;transform:translateX(-50%);width:760px;padding:30px;border-radius:12px;background:rgba(40,44,52,.98);box-shadow:0 10px 40px rgba(0,0,0,.5);display:none;z-index:6}#vLinkPop b{font-size:26px}#vLinkPop small{display:block;color:#9aa0a8;font-size:19px;margin:10px 0 16px}'+
 '#vLinkIn{width:100%;height:160px;border-radius:8px;border:2px solid #3c4350;background:#1e2127;color:#fff;font:20px Pretendard,sans-serif;padding:14px;resize:none;user-select:text;-webkit-user-select:text}';
 document.head.appendChild(s);})();
-var yt=null,ytReady=false,ytQueue=null,vIds=[],vList=null,vSaved='';try{var _vs=localStorage.getItem('shiftVideoLinks');vSaved=_vs===null?'https://youtu.be/ZbO9PBdFRdc':_vs;}catch(e){vSaved='https://youtu.be/ZbO9PBdFRdc';} /* 기본 데모 영상 (키 없이 재생) */
+var yt=null,ytReady=false,ytQueue=null,vIds=[],vList=null,vSaved='';try{vSaved=localStorage.getItem('shiftVideoLinks')||'';}catch(e){vSaved='';}
+function vAllLinks(){return (window.NEO_VIDEO_LINKS||[]).join('\n')+'\n'+vSaved;} /* 기본 데모 영상 (키 없이 재생) */
 /* ---- YouTube Data API: 인기 영상 / 내 링크 목록 (키는 설정 > System 에서 입력, 브라우저에만 저장) ---- */
-var vTab=(function(){try{return localStorage.getItem('shiftYTKey')?'popular':'links';}catch(e){return 'links';}})(),vItems=[],vCurId='',vReq=0;
-function ytKey(){try{return localStorage.getItem('shiftYTKey')||'';}catch(e){return '';}}
+var YT_SITE_KEY=''; /* 사이트 기본 YouTube Data API 키 — 직접 입력. Google Cloud에서 HTTP 리퍼러를 kanavimobility.github.io/* 로 제한 */
+var vTab=(function(){try{return (localStorage.getItem('shiftYTKey')||YT_SITE_KEY)?'popular':'links';}catch(e){return YT_SITE_KEY?'popular':'links';}})(),vItems=[],vCurId='',vReq=0;
+function ytKey(){try{return localStorage.getItem('shiftYTKey')||YT_SITE_KEY;}catch(e){return YT_SITE_KEY;}}
 function ytApi(path){var k=ytKey();if(!k)return Promise.reject({nokey:1});
   return fetch('https://www.googleapis.com/youtube/v3/'+path+'&key='+encodeURIComponent(k)).then(function(r){return r.json().then(function(j){if(!r.ok)throw {status:r.status,msg:(j.error&&j.error.message)||''};return j;});});}
 function isoDur(d){var m=/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(d||'');if(!m)return '';var h=+m[1]||0,mi=+m[2]||0,se=+m[3]||0;return (h?h+':'+('0'+mi).slice(-2):mi)+':'+('0'+se).slice(-2);}
 function vMap(it){var sn=it.snippet||{},th=sn.thumbnails||{};return {id:it.id,t:sn.title||it.id,c:sn.channelTitle||'',img:(th.medium||th.high||th.default||{}).url||'https://i.ytimg.com/vi/'+it.id+'/mqdefault.jpg',du:it.contentDetails?isoDur(it.contentDetails.duration):'',ok:!it.status||it.status.embeddable!==false};}
 function vMsg(html){$('vList').innerHTML='<div class="vmsg">'+html+'</div>';var b=$('vKeyGo');if(b)b.onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};}
 function renderVList(){if(!vItems.length)return;$('vList').innerHTML=vItems.map(function(v,i){return '<div class="vi'+(v.id===vCurId?' on':'')+'" data-vi="'+i+'"><div class="th" style="background-image:url(\''+v.img+'\')">'+(v.du?'<span class="du">'+v.du+'</span>':'')+'</div><b>'+esc(v.t)+'</b><small>'+esc(v.c)+'</small></div>';}).join('');}
-function vErr(e){if(e&&e.nokey)vMsg('YouTube API 키가 없습니다.<br>설정 → System 에서 키를 입력하면 인기 영상을 불러옵니다.<br><span class="pbtn" id="vKeyGo">설정 열기</span>');
-  else if(e&&e.status)vMsg('YouTube API 오류 (HTTP '+e.status+')<br>'+esc(e.msg||'키 또는 할당량을 확인하세요.')+'<br><span class="pbtn" id="vKeyGo">설정 열기</span>');
-  else vMsg('YouTube 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.');}
+function vErr(e){if(e&&e.nokey)vMsg('No YouTube API key.<br>Enter a key in Settings → System to load popular videos.<br><span class="pbtn" id="vKeyGo">Open Settings</span>');
+  else if(e&&e.status)vMsg('YouTube API error (HTTP '+e.status+')<br>'+esc(e.msg||'Check the key or quota.')+'<br><span class="pbtn" id="vKeyGo">Open Settings</span>');
+  else vMsg('Cannot connect to YouTube. Check your internet connection.');}
 function loadVTab(t){vTab=t;var my=++vReq;video.querySelectorAll('[data-vt]').forEach(function(d){d.classList.toggle('on',d.getAttribute('data-vt')===t);});send('videoTab',t);vItems=[];
-  if(t==='popular'){vMsg('인기 영상을 불러오는 중…');
-    ytApi('videos?part=snippet,contentDetails,status&chart=mostPopular&regionCode=KR&maxResults=50').then(function(j){if(my!==vReq)return;vItems=(j.items||[]).map(vMap).filter(function(v){return v.ok;});if(vItems.length)renderVList();else vMsg('불러온 영상이 없습니다.');send('videoLoaded',vItems.length);}).catch(function(e){if(my===vReq)vErr(e);});return;}
-  var p=parseLinks(vSaved);
-  if(!p.ids.length&&!p.list){vMsg('저장된 링크가 없습니다.<br><span class="pbtn" id="vAddGo">+ 링크 추가</span>');$('vAddGo').onclick=openLink;return;}
+  if(t==='popular'){vMsg('Loading popular videos…');
+    ytApi('videos?part=snippet,contentDetails,status&chart=mostPopular&regionCode=KR&maxResults=50').then(function(j){if(my!==vReq)return;vItems=(j.items||[]).map(vMap).filter(function(v){return v.ok;});if(vItems.length)renderVList();else vMsg('No videos loaded.');send('videoLoaded',vItems.length);}).catch(function(e){if(my===vReq)vErr(e);});return;}
+  var p=parseLinks(vAllLinks());
+  if(!p.ids.length&&!p.list){vMsg('No saved links.<br><span class="pbtn" id="vAddGo">+ Add link</span>');$('vAddGo').onclick=openLink;return;}
   vItems=p.ids.map(function(id){return {id:id,t:id,c:'',img:'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg',du:'',ok:true};});
-  if(p.list)vItems.unshift({id:'list:'+p.list,t:'재생목록 전체 재생',c:'playlist',img:'',du:'',ok:true,list:p.list});
+  if(p.list)vItems.unshift({id:'list:'+p.list,t:'Play entire playlist',c:'playlist',img:'',du:'',ok:true,list:p.list});
   renderVList();
   var oe=function(v){if(v.list)return;fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+v.id)).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&my===vReq){v.t=j.title;v.c=j.author_name;renderVList();}}).catch(function(){});};
   if(ytKey()&&p.ids.length)ytApi('videos?part=snippet,contentDetails&id='+p.ids.slice(0,50).join(',')).then(function(j){if(my!==vReq)return;var m={};(j.items||[]).forEach(function(it){m[it.id]=vMap(it);});vItems=vItems.map(function(v){return m[v.id]||v;});renderVList();vItems.forEach(function(v){if(v.t===v.id)oe(v);});}).catch(function(){vItems.forEach(oe);});
@@ -2649,30 +2861,105 @@ function loadVTab(t){vTab=t;var my=++vReq;video.querySelectorAll('[data-vt]').fo
 function playVItem(i){var v=vItems[i];if(!v)return;if(v.list){startVideos({ids:[],list:v.list});return;}
   var ids=vItems.filter(function(x){return !x.list;}).map(function(x){return x.id;});startVideos({ids:ids,start:ids.indexOf(v.id)});}
 function parseLinks(txt){var ids=[],list=null;(txt||'').split(/[\s,]+/).forEach(function(u){if(!u)return;var m=u.match(/[?&]list=([\w-]+)/);if(m&&!list)list=m[1];
-  var v=u.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);if(v)ids.push(v[1]);else if(/^[\w-]{11}$/.test(u))ids.push(u);});return {ids:ids,list:list};}
+  var v=u.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);if(v){if(ids.indexOf(v[1])<0)ids.push(v[1]);}else if(/^[\w-]{11}$/.test(u))ids.push(u);});return {ids:ids,list:list};}
 function loadYT(){if(window.YT&&window.YT.Player){ytInit();return;}if(document.getElementById('ytApi'))return;
   window.onYouTubeIframeAPIReady=ytInit;var s=document.createElement('script');s.id='ytApi';s.src='https://www.youtube.com/iframe_api';
-  s.onerror=function(){$('vEmpty').firstChild.textContent='YouTube에 연결할 수 없습니다 (인터넷 확인)';};document.head.appendChild(s);}
-function ytInit(){if(yt)return;yt=new YT.Player('vPlayer',{width:'100%',height:'100%',playerVars:Object.assign({playsinline:1,rel:0,modestbranding:1},/^https?:/.test(location.protocol)?{origin:location.origin}:{}),
-  events:{onReady:function(){ytReady=true;if(ytQueue){var q=ytQueue;ytQueue=null;startVideos(q);}},
+  s.onerror=function(){$('vEmpty').firstChild.textContent='Cannot connect to YouTube (check internet)';};document.head.appendChild(s);}
+function ytInit(){if(yt)return;yt=new YT.Player('vPlayer',{width:'100%',height:'100%',playerVars:Object.assign({playsinline:1,rel:0,modestbranding:1,controls:0,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0},/^https?:/.test(location.protocol)?{origin:location.origin}:{}),
+  events:{onReady:function(){ytReady=true;window.__ytPlayer=yt;if(ytQueue){var q=ytQueue;ytQueue=null;startVideos(q);}},
     onStateChange:function(e){var playing=e.data===1;$('vPlay').innerHTML=img(playing?IC.pause:IC.play,80);if(playing){P.pause();stopRadio();}vInfo();send('videoState',['ended','playing','paused','buffering','','cued'][e.data]||String(e.data));},
-    onError:function(e){if(e.data===153||(location.protocol==='file:'&&(e.data===2||e.data===5))){flash('PC 파일(file://)로 열면 YouTube가 재생을 막습니다 (오류 '+e.data+'). 웹 주소(http/https)로 여세요');send('videoError',String(e.data));return;}
-      flash(e.data===101||e.data===150?'이 영상은 외부 재생이 막혀 있어 다음 영상으로 넘어갑니다':'영상을 재생할 수 없습니다 (오류 '+e.data+')');send('videoError',String(e.data));setTimeout(function(){try{yt.nextVideo();}catch(x){}},1200);}}});}
+    onError:function(e){if(e.data===153||(location.protocol==='file:'&&(e.data===2||e.data===5))){flash('YouTube blocks playback from a local file (file://) (error '+e.data+'). Open it from a web address (http/https)');send('videoError',String(e.data));return;}
+      flash(e.data===101||e.data===150?'Embedding is disabled for this video — skipping to the next':'Cannot play this video (error '+e.data+')');send('videoError',String(e.data));setTimeout(function(){try{yt.nextVideo();}catch(x){}},1200);}}});}
 function vInfo(){if(!yt||!ytReady)return;var d=yt.getVideoData&&yt.getVideoData();if(d&&d.video_id&&d.video_id!==vCurId){vCurId=d.video_id;renderVList();}if(d&&d.video_id){$('vTitle').textContent=d.title||'';$('vThumb').src='https://i.ytimg.com/vi/'+d.video_id+'/mqdefault.jpg';send('videoTitle',d.title||'');}}
-function startVideos(p){if(!p.ids.length&&!p.list){flash('올바른 YouTube 링크가 아닙니다');return;}
+function startVideos(p){if(!p.ids.length&&!p.list){flash('Not a valid YouTube link');return;}
   $('vEmpty').style.display='none';if(!ytReady){ytQueue=p;loadYT();return;}
   if(p.list)yt.loadPlaylist({list:p.list,listType:'playlist',index:0});else yt.loadPlaylist(p.ids,Math.max(0,p.start||0));}
 function stopVideo(){try{if(yt&&ytReady&&yt.getPlayerState()===1)yt.pauseVideo();}catch(e){}}
 function openLink(){$('vLinkIn').value=vSaved;$('vLinkPop').style.display='block';setTimeout(function(){$('vLinkIn').focus();},50);}
 $('vLinkBtn').onclick=openLink;$('vEmptyBtn').onclick=openLink;$('vLinkCancel').onclick=function(){$('vLinkPop').style.display='none';};
-$('vLinkOk').onclick=function(){vSaved=$('vLinkIn').value.trim();try{localStorage.setItem('shiftVideoLinks',vSaved);}catch(e){}$('vLinkPop').style.display='none';loadVTab('links');var p=parseLinks(vSaved);if(p.ids.length||p.list)startVideos(p);else if(vSaved)flash('영상(watch?v= / youtu.be) 또는 재생목록(list=) 주소만 넣을 수 있습니다');};
+$('vLinkOk').onclick=function(){vSaved=$('vLinkIn').value.trim();try{localStorage.setItem('shiftVideoLinks',vSaved);}catch(e){}$('vLinkPop').style.display='none';loadVTab('links');var p=parseLinks(vSaved);if(!(p.ids.length||p.list)&&vSaved)flash('Only video (watch?v= / youtu.be) or playlist (list=) links are supported');};
 $('vLinkIn').addEventListener('pointerdown',function(e){e.stopPropagation();});
 $('vPlay').onclick=function(){if(!yt||!ytReady||!vCurId){if(vItems.length){playVItem(vItems[0].list&&vItems[1]?1:0);return;}openLink();return;}yt.getPlayerState()===1?yt.pauseVideo():yt.playVideo();};
 $('vPrev').onclick=function(){if(yt&&ytReady)yt.previousVideo();};$('vNext').onclick=function(){if(yt&&ytReady)yt.nextVideo();};
 function openVideo(){loadYT();if(!vItems.length)loadVTab(vTab);
-  if(location.protocol==='file:')$('vEmpty').firstChild.textContent='PC 파일(file://)로 열려 있어 YouTube 재생이 막힐 수 있습니다. 웹 주소(http/https)로 열어 주세요.';}
+  if(location.protocol==='file:')$('vEmpty').firstChild.textContent='Opened as a local file (file://) — YouTube may block playback. Open it from a web address (http/https).';}
 $('vTabs').addEventListener('click',function(e){var d=e.target.closest('[data-vt]');if(d)loadVTab(d.getAttribute('data-vt'));});
-$('vList').addEventListener('click',function(e){var d=e.target.closest('[data-vi]');if(d)playVItem(+d.getAttribute('data-vi'));});
+$('vList').addEventListener('click',function(e){var d=e.target.closest('[data-vi]');if(d){vMode('play');playVItem(+d.getAttribute('data-vi'));}});
+function vMode(m){video.classList.toggle('grid',m==='grid');video.classList.toggle('play',m==='play');send('videoView',m);}
+$('vBack').onclick=function(){stopVideo();vMode('grid');renderVList();};
+if(!ytKey()){var _vt=$('vTabs');if(_vt)_vt.style.display='none';}
+/* ---- 전체화면 재생 (Figma Shift GUI 13572:49100 / 49165) ---- */
+var VFS_BK='<svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M26 9L14 21l12 12"/></svg>';
+var VFS_RP='<svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M35 23a13 13 0 1 1-4.5-9.8"/><path d="M32 6v8h-8"/></svg>';
+var VFS_VOL='<svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17h7l9-7v24l-9-7H8z" fill="#e5e5e5"/><path d="M30 16a8 8 0 0 1 0 12M34.5 11.5a14 14 0 0 1 0 21"/></svg>';
+var VFS_MUTE='<svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17h7l9-7v24l-9-7H8z" fill="#e5e5e5"/><path d="M30 17l10 10M40 17L30 27"/></svg>';
+var VFS_ICO='<svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14V6h8M26 6h8v8M34 26v8h-8M14 34H6v-8"/></svg>';
+var vfs=document.createElement('div');vfs.id='vFs';
+vfs.innerHTML='<div class="fsd"></div><div class="fst"><div class="fsb" id="vFsBack">'+VFS_BK+'</div><b id="vFsTitle"></b></div>'+
+ '<div class="fsb" id="vFsRe">'+VFS_RP+'</div><div class="fsb" id="vFsRw">'+img(IC.prev,80)+'</div><div class="fsb" id="vFsPl"></div><div class="fsb" id="vFsFf">'+img(IC.next,80)+'</div>'+
+ '<div class="fsb" id="vFsVol"></div>'+
+ '<div class="fsp"><div id="vFsBar"><i id="vFsProg"></i></div><span id="vFsCur">0:00</span><span id="vFsDur">0:00</span></div>';
+$('vBox').appendChild(vfs);
+var vShield=document.createElement('div');vShield.id='vShield';$('vBox').appendChild(vShield);
+var vHdT=null;function vHdHide(){clearTimeout(vHdT);video.classList.remove('vhd-on');}vShield.onclick=function(){if(video.classList.contains('vhd-on')){vHdHide();return;}video.classList.add('vhd-on');clearTimeout(vHdT);vHdT=setTimeout(vHdHide,3500);};$('vBack').addEventListener('click',vHdHide);
+var vFsBtn=document.createElement('div');vFsBtn.id='vFsBtn';vFsBtn.innerHTML=VFS_ICO;$('vBar').appendChild(vFsBtn);
+var vStage=document.getElementById('stage'),vFsT=null,vFsTick=null;
+function vTf(s){s=Math.max(0,Math.floor(s||0));var hh=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (hh?hh+':'+('0'+m).slice(-2):m)+':'+('0'+x).slice(-2);}
+function vFsPlaying(){try{return !!(yt&&ytReady&&yt.getPlayerState()===1);}catch(e){return false;}}
+function vFsRender(){$('vFsPl').innerHTML=img(vFsPlaying()?IC.pause:IC.play,80);var mu=false;try{mu=!!(yt&&ytReady&&yt.isMuted());}catch(e){}
+  $('vFsVol').innerHTML=mu?VFS_MUTE:VFS_VOL;$('vFsTitle').textContent=($('vTitle').textContent||'').replace(/^—$/,'');
+  try{if(yt&&ytReady){var c=yt.getCurrentTime()||0,d=yt.getDuration()||0;$('vFsCur').textContent=vTf(c);$('vFsDur').textContent=vTf(d);$('vFsProg').style.width=(d?Math.min(100,c/d*100):0)+'%';}}catch(e){}}
+function vFsHide(){vfs.classList.add('fsoff');vStage.classList.remove('vctl');}
+function vFsShow(){vfs.classList.remove('fsoff');vStage.classList.add('vctl');clearTimeout(vFsT);vFsT=setTimeout(function(){if(vFsPlaying())vFsHide();},3500);}
+function vFull(on){video.classList.toggle('fs',on);vStage.classList.toggle('vfs',on);clearInterval(vFsTick);clearTimeout(vFsT);
+  if(on){vFsRender();vFsShow();vFsTick=setInterval(vFsRender,500);}else vStage.classList.remove('vctl');send('videoFullscreen',on?'on':'off');}
+window.__vFull=vFull;
+vFsBtn.onclick=function(){vFull(true);};
+$('vFsBack').onclick=function(e){e.stopPropagation();vFull(false);};
+vfs.addEventListener('click',function(e){if(e.target.closest('.fsb,#vFsBar'))return;if(vfs.classList.contains('fsoff'))vFsShow();else vFsHide();});
+$('vFsPl').onclick=function(e){e.stopPropagation();if(!yt||!ytReady)return;vFsPlaying()?yt.pauseVideo():yt.playVideo();setTimeout(vFsRender,250);vFsShow();};
+$('vFsRw').onclick=function(e){e.stopPropagation();try{yt.seekTo(Math.max(0,yt.getCurrentTime()-10),true);}catch(x){}vFsShow();};
+$('vFsFf').onclick=function(e){e.stopPropagation();try{yt.seekTo(yt.getCurrentTime()+10,true);}catch(x){}vFsShow();};
+$('vFsRe').onclick=function(e){e.stopPropagation();try{yt.seekTo(0,true);yt.playVideo();}catch(x){}vFsShow();};
+$('vFsVol').onclick=function(e){e.stopPropagation();try{yt.isMuted()?yt.unMute():yt.mute();}catch(x){}setTimeout(vFsRender,150);vFsShow();};
+$('vFsBar').onclick=function(e){e.stopPropagation();var r=this.getBoundingClientRect();try{yt.seekTo(yt.getDuration()*Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),true);}catch(x){}setTimeout(vFsRender,150);vFsShow();};
+$('vBack').addEventListener('click',function(){vFull(false);});
+new MutationObserver(function(){if(!video.classList.contains('on')&&video.classList.contains('fs'))vFull(false);}).observe(video,{attributes:true,attributeFilter:['class']});
+/* ---- 재생 화면 v2 : 영상 + 하단 재생바 + Up next 목록 (Figma 662:13357 / 664:13561) ---- */
+var VLIST_ICO='<svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M14 10h20M14 20h20M14 30h20" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round"/><circle cx="7" cy="10" r="2.2" fill="#e5e5e5"/><circle cx="7" cy="20" r="2.2" fill="#e5e5e5"/><circle cx="7" cy="30" r="2.2" fill="#e5e5e5"/></svg>';
+var vTop=document.createElement('div');vTop.id='vTopShade';video.appendChild(vTop);
+var vNp=document.createElement('div');vNp.id='vNp';
+vNp.innerHTML='<div id="vNpBar"><i id="vNpFill"></i><b id="vNpKnob"></b><span id="vNpTip">0:00</span></div>'+
+ '<div class="np-tx"><b id="vNpTi"></b><small id="vNpCh"></small></div>'+
+ '<div class="np-b" id="vNpPrev">'+img(IC.prev,80)+'</div><div class="np-b" id="vNpPlay">'+img(IC.play,80)+'</div><div class="np-b" id="vNpNext">'+img(IC.next,80)+'</div>'+
+ '<div class="np-b" id="vNpList">'+VLIST_ICO+'</div><div class="np-b" id="vNpFs">'+VFS_ICO+'</div>';
+video.appendChild(vNp);
+var vDr=document.createElement('div');vDr.id='vDrawer';vDr.innerHTML='<b class="dh">Up next</b><div id="vDrList"></div>';video.appendChild(vDr);
+function vCurItem(){for(var i=0;i<vItems.length;i++)if(vItems[i].id===vCurId)return vItems[i];return null;}
+function vDrRender(){$('vDrList').innerHTML=vItems.filter(function(v){return !v.list;}).map(function(v){var i=vItems.indexOf(v),on=v.id===vCurId;
+  return '<div class="dri'+(on?' on':'')+'" data-vi="'+i+'"><div class="th" style="background-image:url(\''+v.img+'\')">'+(on?'<span class="pl">&#9654; Playing</span>':'')+'</div><div class="tx"><b>'+esc(v.t)+'</b><small>'+esc(v.c)+'</small></div></div>';}).join('');}
+$('vDrList').addEventListener('click',function(e){var d=e.target.closest('[data-vi]');if(d)playVItem(+d.getAttribute('data-vi'));});
+dragScroll($('vDrList'),'y');
+$('vNpList').onclick=function(){var on=!video.classList.contains('vlist');video.classList.toggle('vlist',on);if(on)vDrRender();send('videoList',on?'open':'close');};
+$('vNpFs').onclick=function(){video.classList.remove('vlist');vFull(true);};
+$('vNpPrev').onclick=function(){try{yt.previousVideo();}catch(e){}};
+$('vNpNext').onclick=function(){try{yt.nextVideo();}catch(e){}};
+$('vNpPlay').onclick=function(){if(!yt||!ytReady)return;try{yt.getPlayerState()===1?yt.pauseVideo():yt.playVideo();}catch(e){}setTimeout(vNpRender,200);};
+var vTipT=null,vLastId='';
+function vTipShow(ms){vNp.classList.add('tip');clearTimeout(vTipT);if(ms)vTipT=setTimeout(function(){vNp.classList.remove('tip');},ms);}
+
+
+$('vNpBar').addEventListener('pointerdown',function(e){e.stopPropagation();var r=this.getBoundingClientRect();try{yt.seekTo(yt.getDuration()*Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),true);}catch(x){}vTipShow(1500);setTimeout(vNpRender,150);});
+function vNpRender(){var it=vCurItem(),pl=false;try{pl=!!(yt&&ytReady&&yt.getPlayerState()===1);}catch(e){}
+  $('vNpPlay').innerHTML=img(pl?IC.pause:IC.play,80);
+  var ti=($('vTitle').textContent||'').replace(/^—$/,'');$('vNpTi').textContent=ti||(it?it.t:'');$('vNpCh').textContent=it?it.c:'';
+  try{if(yt&&ytReady){var c=yt.getCurrentTime()||0,d=yt.getDuration()||0,pc=d?Math.min(100,c/d*100):0;$('vNpFill').style.width=pc+'%';$('vNpKnob').style.left=pc+'%';$('vNpTip').style.left=pc+'%';$('vNpTip').textContent=vTf(c);}}catch(e){}
+  if(vCurId&&vCurId!==vLastId&&pl){vLastId=vCurId;vTipShow(3000);if(video.classList.contains('vlist'))vDrRender();}}
+window.__vNpRender=vNpRender;
+setInterval(function(){if(video.classList.contains('play')&&video.classList.contains('on'))vNpRender();},500);
+$('vBack').addEventListener('click',function(){video.classList.remove('vlist');});
+
+
 dragScroll($('vList'),'y');
 
 /* ================= Climate 팝업 ================= */
@@ -2719,15 +3006,15 @@ climate.addEventListener('click',function(e){
 
 /* ================= Seat 팝업 (롱프레스) ================= */
 var seatM={L:{mode:'vent',vent:SD.seat.vent,heat:0},R:{mode:'heat',vent:0,heat:SD.seat.heat}};
-var seatPop=el('<div id="seatPop"><div class="hd"><span id="spT"></span><span id="spIco"></span></div><div class="md"><div data-md="vent">통풍</div><div data-md="heat">열선</div></div><div class="lv" id="spLv"></div></div>');
+var seatPop=el('<div id="seatPop"><div class="hd"><span id="spT"></span><span id="spIco"></span></div><div class="md"><div data-md="vent">Ventilation</div><div data-md="heat">Heating</div></div><div class="lv" id="spLv"></div></div>');
 stage.appendChild(seatPop);
 var seatSide=null,suppress={};
 function seatImg(s){var m=seatM[s];return m.mode==='vent'?I.vent(m.vent):I.heat(m.heat);}
 function applySeat(s){$(s==='L'?'seatLIco':'seatRIco').src=uri(seatImg(s));}
 function renderSeatPop(){var m=seatM[seatSide],max=m.mode==='vent'?4:3;
-  $('spT').textContent=seatSide==='L'?'운전석 시트':'동승석 시트';$('spIco').innerHTML='<div style="transform:'+(seatSide==='L'?'scaleX(-1)':'none')+'">'+img(seatImg(seatSide),72)+'</div>';
+  $('spT').textContent=seatSide==='L'?'Driver seat':'Passenger seat';$('spIco').innerHTML='<div style="transform:'+(seatSide==='L'?'scaleX(-1)':'none')+'">'+img(seatImg(seatSide),72)+'</div>';
   seatPop.querySelectorAll('[data-md]').forEach(function(d){d.classList.toggle('on',d.getAttribute('data-md')===m.mode);});
-  var h='';for(var i=0;i<=max;i++)h+='<div data-lv="'+i+'" class="'+(m[m.mode]===i?'on':'')+'">'+(i===0?'끄기':i)+'</div>';$('spLv').innerHTML=h;}
+  var h='';for(var i=0;i<=max;i++)h+='<div data-lv="'+i+'" class="'+(m[m.mode]===i?'on':'')+'">'+(i===0?'Off':i)+'</div>';$('spLv').innerHTML=h;}
 function openSeat(s){closeClimate();seatSide=s;renderSeatPop();seatPop.style.left=s==='L'?'300px':'';seatPop.style.right=s==='R'?'300px':'';seatPop.classList.add('show');shade.style.display='block';send('seatPopup',(s==='L'?'left':'right'));}
 function closeSeat(){if(!seatPop.classList.contains('show'))return;seatPop.classList.remove('show');shade.style.display='none';send('seatPopup','close');}
 seatPop.addEventListener('click',function(e){var m=seatM[seatSide];
@@ -2761,6 +3048,7 @@ window.Screens={
   handle:function(id,v){var s=String(v==null?'':v);
     switch(id){
       case 'screen':if(['home','music','phone','settings','camera'].indexOf(s)>=0)show(s);return true;
+      case 'musicSource':mSrc=/^b/i.test(s)?'bt':'usb';show('music');renderSrc();return true;
       case 'climatePopup':s==='close'?closeClimate():openClimate();return true;
       case 'fanSpeed':clim.fan=Math.max(0,Math.min(8,parseInt(s,10)||0));renderClim();return true;
       case 'phoneCall':show('phone');call(s);return true;
@@ -2781,5 +3069,110 @@ case 'radioCountry':setCountry(s);return true;
 };
 })();
 </script>
+<script id="figmaSync1013">(function(){var s=document.createElement("style");s.textContent='\n/* Figma sync 2026-10-13 : 통합형 디자인 / HTML 신규 화면 */\n#toast{top:857px!important;height:113px;box-sizing:border-box;padding:32px 80px!important;border-radius:16px!important;background:#3a3e46!important;font-size:26px!important;font-weight:500;color:#e5e5e5;line-height:49px;white-space:nowrap;box-shadow:0 12px 40px rgba(0,0,0,.35)}\n/* BT music */\n#mBt{top:0!important;bottom:154px!important;justify-content:flex-start!important;padding-top:364px;gap:0!important;box-sizing:border-box}\n#mBt b{font-size:32px!important;font-weight:600;color:#e6e6e6;margin:0!important;line-height:39px}\n#mBt span{font-size:24px;color:#b8bdc4!important;margin-top:18px;line-height:29px}\n#mBt .pbtn{width:400px;height:88px;min-width:0!important;margin-top:102px!important;padding:0!important;border-radius:8px!important;background:rgba(255,255,255,.12)!important;font-size:26px!important;font-weight:600;color:#fff;display:flex!important}\n#scrMusic.bt.btc #mBt{display:none!important}\n#scrMusic.bt #btNow{display:block!important}\n#btNow{background:rgba(255,255,255,.05)!important;border-radius:0 0 8px 8px}\n#btNow .bar{height:6px!important;background:#333!important}#btProg{background:#7c9ac3!important}\n#btNow .art{border-radius:4px!important}\n#btNow.nodev .art{border-radius:8px!important;background:rgba(255,255,255,.12)!important}\n#btNow.nodev .ti{top:0;height:154px;display:flex;align-items:center}\n#btNow.nodev .bar{background:rgba(255,255,255,.1)!important}#btNow.nodev #btProg{width:0!important}\n#btNow.nodev .ctl div{cursor:default}\n#btList{position:absolute;left:70px;right:70px;top:160px;bottom:154px;overflow-y:auto;scrollbar-width:none;display:none}\n#btList::-webkit-scrollbar{display:none}\n#scrMusic.bt.btc #btList{display:block}\n#btList .btr{height:113px;box-sizing:border-box;padding:13px 24px;display:flex;align-items:center;gap:20px;cursor:pointer;border-radius:8px}\n#btList .btr:active{background:rgba(255,255,255,.06)}\n#btList .ba{width:72px;height:72px;border-radius:4px;flex:none;display:flex;align-items:center;justify-content:center}\n#btList .bt2{flex:1;min-width:0}\n#btList .bt2 b,#btList .bt2 span{display:block;font-size:24px;font-weight:500;line-height:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#btList .bt2 b{color:#e5e5e5}#btList .bt2 span{color:#b2b2b2}\n#btList .btr.cur .bt2 b{color:#79b2ff}\n#btList i{font-style:normal;font-size:20px;font-weight:500;color:#b2b2b2;line-height:30px}\n#mBtDev{display:none!important;font-size:24px;color:#b2b2b2;gap:14px}\n#scrMusic.bt.btc #mBtDev{display:flex!important}\n/* Settings > Connection */\n.tg{background:rgba(255,255,255,.1)!important}\n.tg:after{left:8px!important;top:8px!important;height:32px!important}\n.tg.on{background:linear-gradient(90deg,#4b7bbc,#79b2ff)!important}\n.tg.on:after{left:64px!important}\n.cxe{display:none!important}\n.srow{padding:24px 0;margin:0!important;gap:32px;align-items:center}\n#setBody>.srow:first-child{margin-top:28px!important}\n#setBody>.cxback{margin-top:44px!important}\n.srow b{font-size:28px!important;line-height:42px;margin:0!important;color:#fff}\n.srow small{font-size:24px!important;line-height:36px;color:#b2b2b2!important;margin:0!important}\n.slab{font-size:24px!important;height:61px;margin:24px 0 8px!important;color:#b2b2b2}\n.slab img,.slab svg{width:28px;height:28px}\n.dev{height:103px!important;border-radius:8px!important;background:rgba(255,255,255,.1)!important;padding:0 24px!important;gap:16px!important;margin-bottom:8px!important}\n.dev[data-cxa]{padding-left:29px!important}\n.dev .dvi{width:40px!important;height:40px!important;background:none!important;border-radius:0!important}\n.dev .sp b{font-size:26px!important;color:#e5e5e5;line-height:31px}\n.dev .sp small{font-size:20px!important;color:#9ea3ab!important;margin-top:2px!important;line-height:24px}\n.dev.con .sp small{color:#6b9cf2!important}\n.dev .dvs{gap:12.8px!important}\n.dvb{width:64px!important;height:60px!important;border-radius:3.2px!important;background:rgba(255,255,255,.1)!important}\n.dvb.on{background:linear-gradient(180deg,#79b2ff,#4b7bbc)!important}\n.cxback{font-size:32px!important;gap:16px!important;margin:16px 0 0!important;line-height:39px}\n.cxbtns{gap:20px!important;margin-top:24px!important}\n.cxb{border-radius:6px!important;background:rgba(255,255,255,.1)!important}\n.cxb.red{color:#ff6b61!important}\n/* Popups */\n#cxPop h3{margin:0 0 20px!important;line-height:39px;color:#e6e6e6}\n#cxPop p{margin:0 0 20px!important;line-height:36px!important;color:#b8bdc4!important}\n#cxPop .cxpk{margin:0 0 20px!important;line-height:100px;letter-spacing:4px}\n#cxPop .cxbt{margin-top:8px!important}\n#cxPop .cxbt div.pri{background:linear-gradient(90deg,#4b7bbc,#79b2ff)!important;border-radius:4px!important}\n#cxPop .cxsp2{margin:0 auto 20px!important}\n#cxPop .cxopt{background:none!important;height:88px;box-sizing:border-box;padding:18px 26px!important;margin:0 0 20px!important}\n#cxPop .cxopt.on{color:#79b2ff}\n';document.head.appendChild(s);})();</script>
+<script id="videoGrid1013">(function(){var s=document.createElement("style");s.textContent='\n/* Video : Figma 649:15478 (YouTube grid) */\n#scrVideo .vhd{left:70px!important;top:48px!important;height:80px!important;gap:16px!important;font-size:32px!important;font-weight:600!important;color:#e5e5e5!important}\n#scrVideo .vhd .ytl{display:flex}\n#vBack{display:none;cursor:pointer;margin-right:2px}\n#scrVideo.play #vBack{display:flex}\n#scrVideo .rbar{left:auto!important;right:70px!important;top:48px!important;height:80px!important;gap:16px}\n#scrVideo .rtabs div{padding:0 22px!important;font-size:24px!important;font-weight:500!important}\n#scrVideo .rtabs .on{color:#e5e5e5}\n#scrVideo .rflt{height:56px!important;font-size:22px!important}\n#scrVideo.play .rbar{display:none}\n#scrVideo.grid #vBox,#scrVideo.grid #vBar{display:none!important}\n#scrVideo.play #vList{display:none!important}\n#scrVideo.grid #vList{left:72px!important;right:72px!important;top:160px!important;bottom:0!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px 16px!important;align-content:start;padding-bottom:40px!important}\n#scrVideo.grid .vi .th{width:100%;height:200px;aspect-ratio:auto!important;border-radius:6px!important}\n#scrVideo.grid .vi b{margin-top:8px!important;padding:0 8px;font-size:24px!important;line-height:36px!important;-webkit-line-clamp:2}\n#scrVideo.grid .vi small{margin-top:0!important;padding:0 8px 16px;font-size:24px!important;line-height:36px;font-weight:500}\n#scrVideo.grid .vi.on .th{outline:none!important}\n#scrVideo.grid .vmsg{grid-column:1/-1;font-size:24px}\n#scrVideo.play #vBox{left:70px!important;top:140px!important;width:1108px!important;height:600px!important}\n';document.head.appendChild(s);})();</script>
+<script id="videoFs1013">(function(){var s=document.createElement("style");s.textContent="#vShield{position:absolute;inset:0;z-index:2;cursor:pointer;background:transparent}#scrVideo.fs #vShield{display:none}#vEmpty{z-index:3}\n/* Video fullscreen */\n#vFs{display:none}\n#scrVideo.fs #vBox{position:fixed!important;left:0!important;top:0!important;width:1920px!important;height:1080px!important;border-radius:0!important;z-index:1}\n#scrVideo.fs #vFs{display:block;position:absolute;inset:0;z-index:5;cursor:pointer}\n#scrVideo.fs #vEmpty{display:none!important}\n#stage.vfs #appScr{z-index:35!important}\n#stage.vfs.vctl #appScr{z-index:29!important}\n#vFs>*{transition:opacity .25s}\n#vFs.fsoff>*{opacity:0;pointer-events:none}\n#vFs .fsd{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.4),rgba(0,0,0,.9))}\n#vFs .fst{position:absolute;left:0;right:0;top:0;height:183px;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;gap:8px;padding:0 96px 10px;box-sizing:border-box}\n#vFs .fst b{font-size:36px;font-weight:600;color:#e5e5e5;line-height:50px;margin-bottom:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#vFs .fsb{position:absolute;top:487px;width:114px;height:104px;border-radius:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}\n#vFs .fsb:active{background:rgba(255,255,255,.2)}\n#vFs .fst .fsb{position:static;width:96px;height:94px}\n#vFsRe{left:339px}#vFsRw{left:621px}#vFsPl{left:903px}#vFsFf{left:1185px}\n#vFsVol{left:1692px;top:697px!important;width:132px!important;height:105px!important}\n#vFs .fsp{position:absolute;left:96px;right:96px;top:802px;height:126px}\n#vFsBar{position:absolute;left:0;right:0;top:34px;height:28px;cursor:pointer}\n#vFsBar:before{content:'';position:absolute;left:0;right:0;top:10px;height:8px;border-radius:4px;background:rgba(255,255,255,.2)}\n#vFsProg{position:absolute;left:0;top:10px;height:8px;border-radius:4px;background:linear-gradient(90deg,#4b7bbc,#79b2ff);width:0}\n#vFsCur,#vFsDur{position:absolute;top:72px;font-size:24px;font-weight:500;color:#fff;line-height:34px}\n#vFsCur{left:16px}#vFsDur{right:16px}\n#vFsBtn{width:80px;height:80px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-left:20px;flex:none}\n";document.head.appendChild(s);})();</script>
+<script id="videoPlay2">(function(){var s=document.createElement("style");s.textContent="#scrVideo.play.fs #vBox{left:0!important;top:0!important;width:1920px!important;height:1080px!important;border-radius:0!important}#scrVideo.play .vhd,#scrVideo.play #vTopShade{opacity:0;pointer-events:none;transition:opacity .25s}#scrVideo.play.vhd-on .vhd,#scrVideo.play.vhd-on #vTopShade{opacity:1}#scrVideo.play.vhd-on .vhd{pointer-events:auto}\n/* Video play v2 */\n#scrVideo.play #vBox{left:0!important;top:0!important;width:1248px!important;height:740px!important;border-radius:8px 8px 0 0!important}\n#scrVideo.play #vBar{display:none!important}\n#scrVideo.play .vhd{z-index:4}\n#vTopShade{display:none;position:absolute;left:0;top:0;width:1248px;height:170px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0));z-index:3;pointer-events:none}\n#scrVideo.play #vTopShade{display:block}\n#vNp{display:none;position:absolute;left:0;bottom:0;width:1248px;height:154px;background:rgba(255,255,255,.05);border-radius:0 0 8px 8px;z-index:4}\n#scrVideo.play #vNp{display:block}\n#scrVideo.fs #vNp,#scrVideo.fs #vDrawer,#scrVideo.fs #vTopShade{display:none!important}\n#vNpBar{position:absolute;left:0;right:0;top:-12px;height:28px;cursor:pointer;z-index:2}\n#vNpBar:before{content:'';position:absolute;left:0;right:0;top:12px;height:8px;background:#333}\n#vNpFill{position:absolute;left:0;top:12px;height:6px;width:0;background:#7c9ac3}\n#vNpKnob{position:absolute;left:0;top:8px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#79b2ff;border:2px solid #fff;box-sizing:border-box;opacity:0;transition:opacity .2s}\n#vNpTip{position:absolute;left:0;bottom:34px;transform:translateX(-50%);padding:6px 14px;border-radius:8px;background:rgba(26,28,31,.92);font-size:20px;font-weight:500;color:#e6e6e6;line-height:24px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}\n#vNp.tip #vNpKnob,#vNp.tip #vNpTip{opacity:1}\n#vNp .np-tx{position:absolute;left:70px;top:49px;width:520px}\n#vNpTi{display:block;font-size:28px;font-weight:600;color:#e6e6e6;line-height:34px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#vNpCh{display:block;margin-top:10px;font-size:22px;font-weight:500;color:#b3b3b3;line-height:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#vNp .np-b{position:absolute;top:32px;width:112px;height:90px;border-radius:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}\n#vNp .np-b:active{background:rgba(255,255,255,.12)}\n#vNpPrev{left:609px}#vNpPlay{left:737px}#vNpNext{left:865px}#vNpList{left:984px}#vNpFs{left:1096px}\n#scrVideo.vlist #vNpList{background:rgba(255,255,255,.12)}\n#vDrawer{display:none;position:absolute;right:0;top:0;width:440px;height:740px;border-radius:0 8px 0 0;background:rgba(58,62,70,.82);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);z-index:5;box-shadow:-12px 0 40px rgba(0,0,0,.4)}\n#scrVideo.play.vlist #vDrawer{display:block}\n#vDrawer .dh{position:absolute;left:32px;top:40px;font-size:26px;font-weight:600;color:#e6e6e6;line-height:31px}\n#vDrList{position:absolute;left:32px;right:24px;top:100px;bottom:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:16px;padding-bottom:20px;box-sizing:border-box}\n#vDrList::-webkit-scrollbar{display:none}\n.dri{display:flex;gap:16px;cursor:pointer;flex:none}\n.dri .th{position:relative;width:160px;height:90px;border-radius:6px;background:#3a3e45 center/cover no-repeat;flex:none}\n.dri.on .th{box-shadow:inset 0 0 0 3px #79b2ff}\n.dri .pl{position:absolute;left:8px;bottom:8px;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,.7);font-size:14px;font-weight:600;color:#79b2ff}\n.dri .tx{min-width:0;flex:1}\n.dri b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:20px;font-weight:500;line-height:28px;color:#e6e6e6}\n.dri.on b{color:#79b2ff}\n.dri small{display:block;margin-top:4px;font-size:18px;color:#b2b2b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n";document.head.appendChild(s);})();</script>
+<script id="videoFill">(function(){var s=document.createElement("style");s.textContent="#scrVideo.play #vBox{width:auto!important;right:0!important}#vNp,#vTopShade{width:auto!important;right:0!important}#scrVideo.play:not(.fs) #vPlayer{inset:auto!important;left:50%!important;top:0!important;width:calc(740px * 16 / 9)!important;height:740px!important;transform:translateX(-50%)}#scrVideo.fs #vPlayer{inset:0!important;width:100%!important;height:100%!important;transform:none!important}#vBox{background:#000}";document.head.appendChild(s);})();</script>
+<script id="videoDrawer2">(function(){var s=document.createElement("style");s.textContent="#vNpList{left:1096px!important}#vNpFs{left:984px!important}#scrVideo.play:not(.fs) #vDrawer{display:block;transform:translateX(100%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s;box-shadow:none}#scrVideo.play.vlist:not(.fs) #vDrawer{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s;box-shadow:-12px 0 40px rgba(0,0,0,.4)}";document.head.appendChild(s);})();(function(){var v=document.getElementById('scrVideo'),dr=document.getElementById('vDrawer'),box=document.getElementById('vBox');if(!v||!dr||!box)return;box.appendChild(dr);var sh=document.getElementById('vShield'),old=sh&&sh.onclick,justClosed=false;v.addEventListener('pointerdown',function(e){if(!v.classList.contains('vlist'))return;if(e.target.closest('#vDrawer')||e.target.closest('#vNpList'))return;v.classList.remove('vlist');justClosed=true;setTimeout(function(){justClosed=false;},400);},true);if(sh)sh.onclick=function(e){if(justClosed){justClosed=false;return;}if(old)old.call(this,e);};})();</script>
+<script id="videoBorder">(function(){var s=document.createElement("style");s.textContent="#scrVideo::after{content:'';position:absolute;inset:0;border:2px solid rgba(255,255,255,.1);border-radius:8px;pointer-events:none;z-index:6;box-sizing:border-box}#scrVideo.fs::after{display:none}";document.head.appendChild(s);})();</script>
+<script id="videoBgAudio">(function(){var op=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){try{var p=window.__ytPlayer;if(p&&p.getPlayerState&&p.getPlayerState()===1)p.pauseVideo();}catch(e){}return op.apply(this,arguments);};})();</script>
+<script id="mediaCluster2">(function(){
+var card=document.querySelector('.card[data-card="music"]');if(!card)return;
+var ICON=window.ICONS||{};function u(s){return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);}
+var VID_ICO='<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="3" y="6" width="22" height="16" rx="3" stroke="#fff" stroke-width="2.2"/><path d="M12 10.5v7l6-3.5z" fill="#fff"/></svg>';
+var RAD_ICO='<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="10" width="22" height="14" rx="3"/><path d="M8 10L20 4"/><circle cx="10" cy="17" r="3"/><path d="M17 15h5M17 19h5"/></svg>';
+var q=function(s){return card.querySelector(s);};
+var ti=document.getElementById('mTitle'),ar=document.getElementById('mArtist'),pr=document.getElementById('mProg'),pi=document.getElementById('mPlayIco'),art=q('.m-art'),src=q('.m-usb');
+var active=null,snap=null,lastArt='';
+function Y(){return window.__ytPlayer;}function R(){return window.__radio;}
+function save(){var im=pi.querySelector('img');snap={t:ti.textContent,tt:ti.style.top,a:ar.textContent,pw:pr.style.width,pi:im?im.src:'',ab:art.style.backgroundImage,ah:art.classList.contains('has'),src:src.innerHTML};}
+function restore(){if(!snap)return;ti.textContent=snap.t;ti.style.top=snap.tt;ar.textContent=snap.a;pr.style.width=snap.pw;var im=pi.querySelector('img');if(im&&snap.pi)im.src=snap.pi;art.style.backgroundImage=snap.ab;art.classList.toggle('has',snap.ah);src.innerHTML=snap.src;snap=null;card.classList.remove('xsrc');}
+function activate(k){if(active===k)return;if(!active)save();active=k;window.__vidActive=(k==='video');card.classList.add('xsrc');src.innerHTML=k==='video'?VID_ICO:RAD_ICO;lastArt='';}
+function deactivate(){if(!active)return;active=null;window.__vidActive=false;restore();}
+function setPlayIcon(pl){var im=pi.querySelector('img');if(im&&ICON.mPause){var w=u(pl?ICON.mPause:ICON.mPlay);if(im.src!==w)im.src=w;}}
+function setArt(url){if(url===lastArt)return;lastArt=url;if(url){art.style.backgroundImage="url('"+url+"')";art.classList.add('has');}else{art.style.backgroundImage='';art.classList.remove('has');}}
+function render(){var y=Y(),s=-9;try{if(y&&y.getPlayerState)s=y.getPlayerState();}catch(e){}
+  if(s===1&&active!=='video')activate('video');
+  if(active==='video'&&y){var d={},c=0,du=0;try{d=y.getVideoData()||{};c=y.getCurrentTime()||0;du=y.getDuration()||0;}catch(e){}
+    ti.textContent=d.title||'';ti.style.top='';ar.textContent=d.author||'';setArt(d.video_id?'https://i.ytimg.com/vi/'+d.video_id+'/mqdefault.jpg':'');
+    pr.style.width=(du?557*Math.min(1,c/du):0)+'px';setPlayIcon(s===1);}
+  else if(active==='radio'&&R()){var st=R().cur(),a=R().audio;if(!st)return;
+    ti.textContent=(st.name||'').trim();ti.style.top='';ar.textContent=(st.tags||'').split(',').filter(Boolean).slice(0,3).join(' · ')||st.country||'Radio';
+    setArt(st.favicon||'');pr.style.width=a.paused?'0px':'557px';setPlayIcon(!a.paused);}}
+setInterval(render,400);
+/* 미디어 재생 감지: 라디오면 라디오 표시, USB 음악 등 다른 소리면 원래 카드로 */
+var op=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){var r=R();
+  if(r&&this===r.audio){activate('radio');setTimeout(render,50);}else if(active){deactivate();}
+  return op.apply(this,arguments);};
+/* 카드 버튼이 현재 소스를 조작 */
+card.addEventListener('pointerdown',function(e){if(!active)return;var t=e.target.closest('[data-tap]');if(!t)return;var n=t.getAttribute('data-tap');
+  e.stopPropagation();e.preventDefault();
+  try{if(active==='video'){var y=Y();if(!y)return;
+      if(n==='mediaPlay'){y.getPlayerState()===1?y.pauseVideo():y.playVideo();}else if(n==='mediaNext')y.nextVideo();
+      else if(n==='mediaPrev'){if((y.getCurrentTime()||0)>3)y.seekTo(0,true);else y.previousVideo();}
+      else if(window.Screens)window.Screens.openApp('video');}
+    else{var r=R();if(!r)return;
+      if(n==='mediaPlay'){r.audio.paused?r.play():r.stop();}else if(n==='mediaNext')r.step(1);else if(n==='mediaPrev')r.step(-1);
+      else if(window.Screens)window.Screens.openApp('radio');}}catch(x){}
+  if(window.ShiftDisplay)window.ShiftDisplay.send('tap_'+n,active);setTimeout(render,200);},true);
+})();</script>
+<script id="imageApp">/* image app marker */</script>
+<script id="imageAutoHide">(function(){var st=document.createElement("style");st.textContent="#scrImage.view .ih,#scrImage.view .iv-nav{transition:opacity .3s}#scrImage.view.idle .ih,#scrImage.view.idle .iv-nav{opacity:0;pointer-events:none}";document.head.appendChild(st);})();(function(){var s=document.getElementById('scrImage'),cv=document.getElementById('iCanvas');if(!s||!cv)return;var t=null,sx=0;function wake(){if(s.classList.contains('idle'))s.classList.remove('idle');clearTimeout(t);t=setTimeout(function(){if(s.classList.contains('view'))s.classList.add('idle');},3000);}var wasV=false;new MutationObserver(function(){var v=s.classList.contains('view');if(v===wasV)return;wasV=v;if(v)wake();else{clearTimeout(t);if(s.classList.contains('idle'))s.classList.remove('idle');}}).observe(s,{attributes:true,attributeFilter:['class']});['iPrev','iNext'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',wake);});cv.addEventListener('pointerdown',function(e){sx=e.clientX;});cv.addEventListener('pointerup',function(e){if(Math.abs(e.clientX-sx)>60){wake();return;}if(s.classList.contains('idle'))wake();else{clearTimeout(t);s.classList.add('idle');}});})();</script>
+<script id="phoneBT">(function(){
+var ph=document.getElementById('scrPhone');if(!ph)return;var head=ph.querySelector('.ph');
+var tn=null;head.childNodes.forEach(function(n){if(n.nodeType===3&&n.nodeValue.trim())tn=n;});
+var em=document.createElement('div');em.id='phEmpty';em.innerHTML='<b>No connected phone</b><span>Connect your phone via Bluetooth to make calls.</span><div class="pbtn" id="phConn">Connect</div>';ph.appendChild(em);
+var sy=document.createElement('div');sy.id='phSync';sy.innerHTML='<i></i><span>Syncing contacts and call history…</span>';ph.appendChild(sy);
+document.getElementById('phConn').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('connection');if(window.ShiftDisplay)window.ShiftDisplay.send('phone','connect');};
+var st=document.createElement('style');st.textContent=
+ '#scrPhone.nodev .tabs,#scrPhone.nodev #plWrap,#scrPhone.nodev #dial,#scrPhone.nodev #callBtn,#scrPhone.nodev #bksp,#scrPhone.nodev #dialNum,#scrPhone.nodev #calling,#scrPhone.nodev .ph svg{display:none!important}'+
+ '#scrPhone.sync #plWrap{visibility:hidden}'+
+ '#phEmpty{display:none;position:absolute;left:0;right:0;top:0;bottom:0;flex-direction:column;align-items:center;padding-top:364px;box-sizing:border-box;color:#e6e6e6;z-index:2}#scrPhone.nodev #phEmpty{display:flex}'+
+ '#phEmpty b{font-size:32px;font-weight:600;line-height:39px;color:#e6e6e6}#phEmpty span{margin-top:18px;font-size:24px;line-height:29px;color:#b8bdc4}'+
+ '#phEmpty .pbtn{width:400px;height:88px;margin-top:102px;padding:0;border-radius:8px;background:rgba(255,255,255,.12);font-size:26px;font-weight:600;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}'+
+ '#phSync{display:none;position:absolute;right:70px;top:230px;width:520px;flex-direction:column;align-items:center;gap:22px;color:#b2b2b2;font-size:22px;z-index:2}#scrPhone.sync #phSync{display:flex}'+
+ '#phSync i{width:48px;height:48px;border-radius:50%;border:5px solid rgba(255,255,255,.15);border-top-color:#79b2ff;box-sizing:border-box;animation:phsp .9s linear infinite}@keyframes phsp{to{transform:rotate(360deg)}}';
+document.head.appendChild(st);
+var lastName,syncT=null;
+function phones(){var L=(window.ShiftBT&&window.ShiftBT.list&&window.ShiftBT.list())||[];return L.filter(function(d){return d.phone;});}function dev(){var P=phones();for(var i=0;i<P.length;i++)if(P[i].id===window.__phoneActive)return P[i];return P[0]||null;}window.__phones=phones;window.__phoneDev=dev;
+window.__phoneSync=function(){if(window.__phMenu)window.__phMenu();var d=dev(),name=d?d.name:null;if(name===lastName)return;var was=lastName;lastName=name;
+  ph.classList.toggle('nodev',!d);if(tn)tn.nodeValue=d?d.name:'Phone';
+  clearTimeout(syncT);ph.classList.remove('sync');
+  if(d){ph.classList.add('sync');syncT=setTimeout(function(){ph.classList.remove('sync');},1300);}
+  if(window.ShiftDisplay)window.ShiftDisplay.send('phoneDevice',name||'none');if(window.__phMenu)window.__phMenu();};
+window.__phoneSync();
+})();</script>
+<script id="phoneSwitch">(function(){
+var ph=document.getElementById('scrPhone');if(!ph)return;var head=ph.querySelector('.ph');
+var menu=document.createElement('div');menu.id='phMenu';ph.appendChild(menu);
+var st=document.createElement('style');st.textContent=
+ '#scrPhone .ph{cursor:default}#scrPhone.multi .ph{cursor:pointer}#scrPhone:not(.multi) .ph>svg{display:none}'+
+ '#scrPhone .ph>svg{transition:transform .2s}#scrPhone.mopen .ph>svg{transform:rotate(180deg)}'+
+ '#phMenu{position:absolute;left:70px;top:120px;min-width:420px;box-sizing:border-box;padding:28px 32px;border-radius:8px;background:rgba(58,62,70,.97);box-shadow:0 16px 48px rgba(0,0,0,.45);z-index:30;display:none;flex-direction:column;gap:20px}'+
+ '#scrPhone.mopen #phMenu{display:flex}'+
+ '#phMenu .pm{display:flex;align-items:center;gap:20px;height:56px;font-size:27px;font-weight:500;color:#e5e5e5;cursor:pointer}'+
+ '#phMenu .pm i{width:48px;height:48px;border-radius:16px;background:linear-gradient(180deg,#4cd964,#2fb24c);display:flex;align-items:center;justify-content:center;flex:none}'+
+ '#phMenu .pm.on{color:#79b2ff}#phMenu .pm em{margin-left:auto;font-style:normal;font-size:20px;color:#79b2ff}'+
+ '#scrPhone #bksp{transition:opacity .15s}#scrPhone.nonum #bksp{opacity:0;pointer-events:none}';
+document.head.appendChild(st);
+var PH='<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg>';
+function esc2(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function close(){ph.classList.remove('mopen');}
+window.__phMenu=function(){var P=window.__phones?window.__phones():[],cur=window.__phoneDev?window.__phoneDev():null;
+  ph.classList.toggle('multi',P.length>1);if(P.length<2)close();
+  menu.innerHTML=P.map(function(d){var on=cur&&d.id===cur.id;return '<div class="pm'+(on?' on':'')+'" data-pid="'+esc2(d.id)+'"><i>'+PH+'</i>'+esc2(d.name)+(on?'<em>Active</em>':'')+'</div>';}).join('');};
+head.addEventListener('click',function(e){if(!ph.classList.contains('multi'))return;e.stopPropagation();window.__phMenu();ph.classList.toggle('mopen');});
+menu.addEventListener('click',function(e){e.stopPropagation();var it=e.target.closest('[data-pid]');if(!it)return;var id=it.getAttribute('data-pid');close();
+  if(window.__phoneDev&&window.__phoneDev()&&window.__phoneDev().id===id)return;window.__phoneActive=id;if(window.__phoneSync)window.__phoneSync();
+  if(window.ShiftDisplay)window.ShiftDisplay.send('phoneSwitch',id);});
+document.addEventListener('pointerdown',function(e){if(ph.classList.contains('mopen')&&!e.target.closest('#phMenu')&&!e.target.closest('#scrPhone .ph'))close();},true);
+window.__phMenu();
+/* 번호 입력 없으면 delete 버튼 숨김 */
+var dn=document.getElementById('dialNum');function nn(){ph.classList.toggle('nonum',!(dn&&dn.textContent.trim()));}
+if(dn){new MutationObserver(nn).observe(dn,{childList:true,characterData:true,subtree:true});}nn();
+})();</script>
+<script id="toggleAnim">(function(){var s=document.createElement("style");s.textContent=".tg{transition:background-color .25s}.tg.ta-on:after{animation:tgOn .55s cubic-bezier(.34,1.56,.64,1)}.tg.ta-off:after{animation:tgOff .55s cubic-bezier(.34,1.56,.64,1)}.tg.ta-on{animation:tgBg .35s ease-out}@keyframes tgOn{0%{transform:translateX(-56px) scaleX(1)}35%{transform:translateX(-30px) scaleX(1.9)}70%{transform:translateX(4px) scaleX(.85)}100%{transform:translateX(0) scaleX(1)}}@keyframes tgOff{0%{transform:translateX(56px) scaleX(1)}35%{transform:translateX(30px) scaleX(1.9)}70%{transform:translateX(-4px) scaleX(.85)}100%{transform:translateX(0) scaleX(1)}}@keyframes tgBg{0%{filter:brightness(.6) saturate(.4)}100%{filter:none}}";document.head.appendChild(s);})();(function(){document.addEventListener('click',function(e){var t=e.target.closest('.tg');if(!t)return;var k=t.getAttribute('data-cx')||t.getAttribute('data-k')||'',wasOn=t.classList.contains('on'),par=t.parentNode,idx=par?[].indexOf.call(par.children,t):-1;setTimeout(function(){var n=k?document.querySelector('.tg[data-cx="'+k+'"]'):null;if(!n&&par)n=par.children[idx];if(!n||!n.classList.contains('tg'))n=t;var on=n.classList.contains('on');if(on===wasOn)return;n.classList.remove('ta-on','ta-off');void n.offsetWidth;n.classList.add(on?'ta-on':'ta-off');setTimeout(function(){n.classList.remove('ta-on','ta-off');},600);},0);},true);})();</script>
+<style id="camNoDoor">body.cam #doorV{visibility:hidden!important;pointer-events:none!important}</style>
 </body>
 </html>

@@ -1179,6 +1179,9 @@ function log(t){if(!DEBUG)return;dbgLog.textContent=new Date().toLocaleTimeStrin
 var socket=null,connected=false;
 function connect(){
   if(typeof io==='undefined'){dbgState.textContent='socket.io 로드 실패';return;}
+  /* 웹 배포(GitHub Pages 등)에서는 ProtoPie Connect(localhost) 연결을 시도하지 않음 — 브라우저의 '로컬 네트워크 접근' 권한 팝업 방지. 사용하려면 ?pp=1 또는 ?server=주소 */
+  var isLocal=location.protocol==='file:'||/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  if(!isLocal&&!qs.get('server')&&qs.get('pp')!=='1'){dbgState.textContent='ProtoPie 연결 안 함 (웹 배포 모드 · ?pp=1 로 사용)';return;}
   socket=io(SERVER,{transports:['websocket'],reconnection:true,reconnectionDelay:1000,reconnectionDelayMax:3000});
   socket.on('connect',function(){connected=true;dbg.classList.add('ok');dbgState.textContent='연결됨 '+SERVER;$('hint').classList.remove('show');socket.emit('ppBridgeApp',{name:'ShiftPlusDisplay'});send('htmlReady','1');});
   socket.on('disconnect',function(){connected=false;dbg.classList.remove('ok');dbgState.textContent='재연결 중… '+SERVER;});

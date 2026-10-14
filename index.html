@@ -1818,6 +1818,13 @@ if(typeof L==='undefined'){console.warn('Leaflet 없음');window.Nav={
 var map=L.map('map',{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([CUR.lat,CUR.lon],15);
 map.attributionControl.setPrefix(false);
 var tiles=null,tileOk=false;
+/* 지도는 어둡게(타일 dim) 하되 지명·도로명 글자는 밝게: 글자만 있는 레이어를 dim 없이 위에 한번 더 올림 */
+map.createPane('lblPane');map.getPane('lblPane').style.zIndex=250;map.getPane('lblPane').style.pointerEvents='none';
+var lbl=null;
+function navLabels(){if(lbl){map.removeLayer(lbl);lbl=null;}
+  if(KEY)lbl=L.tileLayer('https://'+host()+'/map/1/tile/labels/night/{z}/{x}/{y}.png?key='+KEY+'&tileSize=256&language='+LANG,{maxZoom:20,pane:'lblPane'});
+  else if(freeTry<1)lbl=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,pane:'lblPane'});
+  if(lbl)lbl.addTo(map);}
 var freeTry=0; /* 키 없음 → 무료 지도 (CARTO Dark → OpenStreetMap 순서) */
 function loadFreeTiles(){
   if(tiles)map.removeLayer(tiles);
@@ -1826,7 +1833,7 @@ function loadFreeTiles(){
            :L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:16,attribution:'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'});
   tiles.on('tileload',function(){if(!tileOk){tileOk=true;$('nav').style.backgroundImage='none';}});
   tiles.on('tileerror',function(){if(tileOk)return;if(freeTry<1){freeTry++;loadFreeTiles();}else diagnose();});
-  tiles.addTo(map);
+  tiles.addTo(map);navLabels();
 }
 function loadTiles(){
   if(!KEY){loadFreeTiles();return;}
@@ -1834,7 +1841,7 @@ function loadTiles(){
   tiles=L.tileLayer('https://'+host()+'/map/1/tile/basic/night/{z}/{x}/{y}.png?key='+KEY+'&tileSize=256&language='+LANG+'',{maxZoom:20,attribution:'© TomTom'});
   tiles.on('tileload',function(){if(!tileOk){tileOk=true;$('nav').style.backgroundImage='none';}});
   tiles.on('tileerror',function(){if(tileOk)return;if(hostIdx<HOSTS.length-1){hostIdx++;loadTiles();}else if(!siteKeyFail())diagnose();});
-  tiles.addTo(map);
+  tiles.addTo(map);navLabels();
 }
 loadTiles();
 (function(){var s=document.createElement('style');s.textContent='.osmDark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6)}';document.head.appendChild(s);})();
@@ -1957,8 +1964,8 @@ function renderChips(){
 function near(){var p=st.origin||CUR;return 'lat='+p.lat+'&lon='+p.lon;}
 function search(q){
   if(!KEY)return freeSearch(q);
-  return tt('/search/2/search/'+encodeURIComponent(q)+'.json','countrySet=KR&language='+LANG+'&limit=6&'+near()).then(function(d){
-    return (d.results||[]).map(function(r){return {lat:r.position.lat,lon:r.position.lon,name:(r.poi&&r.poi.name)||r.address.freeformAddress,addr:r.address.freeformAddress||'',dist:r.dist};});
+  return tt('/search/2/search/'+encodeURIComponent(q)+'.json','countrySet=KR&language='+LANG+'&limit=6&openingHours=nextSevenDays&'+near()).then(function(d){
+    return (d.results||[]).map(function(r){return {lat:r.position.lat,lon:r.position.lon,name:(r.poi&&r.poi.name)||r.address.freeformAddress,addr:r.address.freeformAddress||'',dist:r.dist,phone:(r.poi&&r.poi.phone)||'',hours:window.__nsHours?window.__nsHours(r.poi&&r.poi.openingHours):''};});
   });
 }
 function renderResults(list,f){
@@ -1997,30 +2004,30 @@ map.on('click',function(e){
 });
 
 /* ---------- 경로 ---------- */
-function clearRoute(){stopSim(true);if(line)map.removeLayer(line);if(lineDone)map.removeLayer(lineDone);line=lineDone=null;st.route=null;}
+function clearRoute(){setTimeout(function(){if(window.__trafLine)window.__trafLine(true);},0);stopSim(true);if(line)map.removeLayer(line);if(lineDone)map.removeLayer(lineDone);line=lineDone=null;st.route=null;}
 function calcRoute(){
   var o=st.origin,d=st.dest;clearRoute();
   $('navResults').innerHTML='<div class="nmsg" style="color:#9aa0a8">Calculating route…</div>';
-  (KEY?tt('/routing/1/calculateRoute/'+o.lat+','+o.lon+':'+(st.via?st.via.lat+','+st.via.lon+':':'')+d.lat+','+d.lon+'/json','instructionsType=text&language='+LANG+'&traffic=true&travelMode=car&routeRepresentation=polyline&sectionType=traffic'):freeRoute(o,d)).then(function(res){
+  (KEY?ttRoute('/routing/1/calculateRoute/'+o.lat+','+o.lon+':'+(st.via?st.via.lat+','+st.via.lon+':':'')+d.lat+','+d.lon+'/json','instructionsType=text&language='+LANG+'&traffic=true&travelMode=car&routeRepresentation=polyline&sectionType=traffic'):freeRoute(o,d)).then(function(res){
     var r=res.routes&&res.routes[0];if(!r)throw new Error('No route');
     var pts=[];r.legs.forEach(function(l){l.points.forEach(function(p){pts.push(L.latLng(p.latitude,p.longitude));});});
     var cum=[0];for(var i=1;i<pts.length;i++)cum.push(cum[i-1]+pts[i-1].distanceTo(pts[i]));
     var ins=((r.guidance&&r.guidance.instructions)||[]).map(function(x){return {off:x.routeOffsetInMeters,man:x.maneuver||'STRAIGHT',road:x.street||(x.roadNumbers&&x.roadNumbers.join(', '))||'',msg:x.message||''};});
-    st.route={pts:pts,cum:cum,total:cum[cum.length-1],time:r.summary.travelTimeInSeconds,len:r.summary.lengthInMeters,ins:ins};st.route.traffic=(r.sections||[]).filter(function(s){return s.sectionType==='TRAFFIC'&&s.startPointIndex<cum.length;}).map(function(s){return {a:cum[s.startPointIndex]||0,b:cum[Math.min(s.endPointIndex,cum.length-1)]||0,m:s.magnitudeOfDelay||0,c:s.simpleCategory};});if(window.__navRouteReady)window.__navRouteReady();
-    line=L.polyline(pts,{color:'#2e7bff',weight:9,opacity:.95}).addTo(map);
+    st.route={pts:pts,cum:cum,total:cum[cum.length-1],time:r.summary.travelTimeInSeconds,len:r.summary.lengthInMeters,ins:ins};st.route.traffic=(r.sections||[]).filter(function(s){return s.sectionType==='TRAFFIC'&&s.startPointIndex<cum.length;}).map(function(s){return {a:cum[s.startPointIndex]||0,b:cum[Math.min(s.endPointIndex,cum.length-1)]||0,m:s.magnitudeOfDelay||0,c:s.simpleCategory};});st.route.secs=(r.sections||[]).filter(function(s){return s.startPointIndex<cum.length;}).map(function(s){return {t:s.sectionType,a:cum[s.startPointIndex]||0,b:cum[Math.min(s.endPointIndex,cum.length-1)]||0,v:s.maxSpeedLimitInKmh||s.speedLimitInKmh};});if(window.__navRouteReady)window.__navRouteReady();
+    line=L.polyline(pts,{color:'#2e7bff',weight:14,opacity:1}).addTo(map);
     if(!st.reroute)map.fitBounds(line.getBounds(),{paddingTopLeft:[560,60],paddingBottomRight:[60,60]});
     var km=(r.summary.lengthInMeters/1000).toFixed(1),min=Math.round(r.summary.travelTimeInSeconds/60);
     $('pvT').innerHTML=min+' min<span>'+km+' km</span>';
     $('pvR').innerHTML='<div><i style="background:#16e484"></i></div><div><i style="background:#f0534e"></i></div>';
     $('pvR').children[0].appendChild(document.createTextNode(o.name));$('pvR').children[1].appendChild(document.createTextNode(d.name));
-    if(st.reroute){st.reroute=false;window.__navRerouted();}else show('preview');
+    if(st.reroute){st.reroute=false;window.__navRerouted();}else if(window.__navDetailRoute&&window.__navDetailRoute())0;else show('preview');
     send('navRoute',km+'km,'+min+'min');send('navDestination',d.name);
   }).catch(function(e){if(st.reroute){st.reroute=false;window.__navRerouteFail(e);return;}$('navResults').innerHTML='<div class="nmsg">Route not found: '+e.message+'</div>';});
 }
 $('pvEdit').onclick=function(){clearRoute();show('setup');};
 $('pvGo').onclick=function(){startSim();};
 /* 안내 종료/도착 후 초기 화면으로 복귀: 경로선·지나온 선·출발/도착 핀 제거, 입력값 초기화, 차량은 현재 위치로 */
-function resetNav(){st.via=null;if(window.__navViaClear)window.__navViaClear();
+function resetNav(){if(window.__tbCollapse)window.__tbCollapse();if(window.__navDetailClose)window.__navDetailClose();if(window.__freeReset)window.__freeReset();st.via=null;setTimeout(function(){if(window.__navLimit)window.__navLimit();},0);if(window.__navViaClear)window.__navViaClear();
   if(sim.s>0||sim.drive){var c=carMk.getLatLng();CUR={lat:c.lat,lon:c.lng,name:'Current location'};}
   stopSim();clearRoute();sim.s=0;
   if(oMk){map.removeLayer(oMk);oMk=null;}if(dMk){map.removeLayer(dMk);dMk=null;}
@@ -2032,7 +2039,9 @@ $('stStop').onclick=function(){resetNav();};
 /* ---------- 회전 아이콘 / 한국어 안내 ---------- */
 var ANG={TURN_LEFT:-90,TURN_RIGHT:90,SHARP_LEFT:-135,SHARP_RIGHT:135,BEAR_LEFT:-45,BEAR_RIGHT:45,KEEP_LEFT:-30,KEEP_RIGHT:30,MOTORWAY_EXIT_LEFT:-45,MOTORWAY_EXIT_RIGHT:45,TAKE_EXIT:45,ROUNDABOUT_LEFT:-90,ROUNDABOUT_RIGHT:90,ROUNDABOUT_CROSS:0};
 var KO={TURN_LEFT:'좌회전',TURN_RIGHT:'우회전',SHARP_LEFT:'급좌회전',SHARP_RIGHT:'급우회전',BEAR_LEFT:'왼쪽 방향',BEAR_RIGHT:'오른쪽 방향',KEEP_LEFT:'왼쪽 차로 유지',KEEP_RIGHT:'오른쪽 차로 유지',MAKE_UTURN:'유턴',STRAIGHT:'직진',DEPART:'출발',ARRIVE:'목적지',ARRIVE_LEFT:'목적지 (왼쪽)',ARRIVE_RIGHT:'목적지 (오른쪽)',MOTORWAY_EXIT_LEFT:'왼쪽 출구',MOTORWAY_EXIT_RIGHT:'오른쪽 출구',TAKE_EXIT:'출구로 나가기',ENTER_MOTORWAY:'고속도로 진입',ENTER_HIGHWAY:'고속도로 진입',ROUNDABOUT_LEFT:'회전교차로 좌회전',ROUNDABOUT_RIGHT:'회전교차로 우회전',ROUNDABOUT_CROSS:'회전교차로 직진',ROUNDABOUT_BACK:'회전교차로 유턴',TAKE_FERRY:'페리 탑승'};
-function arrow(man){
+/* TBT 아이콘: Figma 'TBT icon list – TomTom' (690:25572) navi_xxx, 우측통행 기준 */
+var TBT_SVG={"004_002":"<circle cx=\"16\" cy=\"16\" r=\"16\" transform=\"matrix(-1 0 0 1 74 18)\" stroke=\"#A8A8A8\" stroke-width=\"11\" stroke-linejoin=\"round\"/><path d=\"M58 12.5C48 12.5 39.6 19.3 37.2 28.5H26.9C28 23.7 28.2 21 26.6 19.8C26.5 19.7 26.5 19.6 26.4 19.6C24.3 18.2 21.1 20 14.6 23.6L8.5 27C3 30.1 0.2 31.7 0.2 34C0.2 36.3 3 37.9 8.5 41L14.6 44.4C21.1 48 24.3 49.8 26.4 48.4C26.5 48.4 26.5 48.3 26.6 48.2C28.2 47 28 44.3 26.9 39.5H42C45 39.5 47.5 37 47.5 34C47.5 28.2 52.2 23.5 58 23.5C63.8 23.5 68.5 28.2 68.5 34C68.5 39.8 63.8 44.5 58 44.5C55 44.5 52.5 47 52.5 50V80H63.5V54.8C72.7 52.4 79.5 44 79.5 34C79.5 22.1 69.9 12.5 58 12.5Z\" fill=\"white\"/>","001_010":"<path d=\"M44.9 8.5C60.6 8.5 73.2 21.4 73.2 37.2L73.2 80L62.2 80L62.2 37.2C62.2 27.3 54.4 19.5 44.9 19.5C35.5 19.5 27.6 27.3 27.6 37.2L27.6 40C32.3 39 34.9 38.8 36.1 40.4C36.2 40.5 36.3 40.5 36.3 40.6C37.7 42.7 35.9 45.9 32.3 52.4L28.9 58.5C25.8 64 24.2 66.8 21.9 66.8C19.5 66.8 18 64 14.9 58.5L11.5 52.4C7.9 45.9 6.1 42.7 7.5 40.6C7.5 40.5 7.6 40.5 7.7 40.4C8.9 38.8 11.6 39.1 16.6 40.1L16.6 37.2C16.6 21.4 29.2 8.5 44.9 8.5Z\" fill=\"white\"/>","004_009":"<path d=\"M18.9 67.4C22.4 65.4 26.6 65.3 30.1 67L34.9 69.3C38.1 70.9 41.9 70.9 45.2 69.4L50.3 67C53.9 65.3 58.2 65.5 61.6 67.6L66 70.3C67.9 71.4 70 72 72.2 72H74C75.1 72 76 72.9 76 74C76 75.1 75.1 76 74 76H72.2C69.3 76 66.4 75.2 63.9 73.7L59.5 71C57.3 69.6 54.4 69.5 52 70.6L46.9 73C42.5 75 37.5 75 33.1 72.9L28.4 70.6C26 69.5 23.2 69.6 20.9 70.9L15.7 73.9C13.3 75.3 10.6 76 7.8 76H5C3.9 76 3 75.1 3 74C3 72.9 3.9 72 5 72H7.8C9.9 72 11.9 71.4 13.7 70.4L18.9 67.4ZM68.2 54C72.3 54 74.4 54 75.5 54.9C76.4 55.6 76.9 56.7 77 57.8C77.1 59.2 75.9 60.9 73.5 64.2L70 69C69.8 69.3 69.5 69.4 69.2 69.2L61.5 64.8C58 62.9 53.7 62.7 50.1 64.4L44.8 66.9C41.7 68.4 38.1 68.4 34.9 66.8L30.2 64.6C26.5 62.8 22.2 62.9 18.6 65L11.4 69.2C10.8 69.5 10.1 69.1 9.7 68.6L6.5 64.2C4.1 60.9 2.9 59.2 3 57.8C3.1 56.7 3.6 55.6 4.5 54.9C5.6 54 7.7 54 11.8 54H68.2ZM48.8 14C53.1 14 57 16.5 58.8 20.4L61.2 25.7C61.3 25.7 61.3 25.7 61.4 25.7H65C66.1 25.7 67 26.5 67 27.6C67 29.3 65.7 30.6 64 30.6H62.9C64.5 33.2 65.3 36.1 65.3 39.1V44.2C65.3 44.3 65.3 44.3 65.3 44.4C65.3 44.5 65.3 44.5 65.3 44.6V50.2C65.3 51.9 65.3 52.7 64.8 53.3C64.8 53.4 64.7 53.5 64.6 53.5C64 54 63.2 54 61.5 54C59.8 54 59 54 58.4 53.5C58.3 53.5 58.3 53.4 58.2 53.3C57.7 52.7 57.7 51.9 57.7 50.2V49.2H22.3V50.2C22.3 51.9 22.3 52.7 21.8 53.3C21.7 53.4 21.7 53.5 21.6 53.5C21 54 20.2 54 18.5 54C16.8 54 15.9 54 15.4 53.5C15.3 53.5 15.2 53.4 15.2 53.3C14.7 52.7 14.7 51.9 14.7 50.2V44.6C14.7 44.2 14.7 43.8 14.7 43.5V39.1C14.7 36.1 15.5 33.2 17.1 30.6H16C14.3 30.6 13 29.3 13 27.6C13 26.5 13.9 25.7 15 25.7H18.6C18.7 25.7 18.7 25.7 18.8 25.7L21.2 20.4C23 16.5 26.9 14 31.2 14H48.8ZM34.5 39C33.1 39 32 40.1 32 41.5C32 42.9 33.1 44 34.5 44H44.5C45.9 44 47 42.9 47 41.5C47 40.1 45.9 39 44.5 39H34.5ZM21.1 37.4C20 37.2 19 38 19 39.1V40.4C19 42.3 20.7 43.8 22.6 43.7L25.7 43.4C27 43.2 28 42.1 28 40.8C28 39.6 27.1 38.6 26 38.4L21.1 37.4ZM60 39.1C60 38 59 37.2 57.9 37.4L53 38.4C51.9 38.6 51 39.6 51 40.8C51 42.1 52 43.2 53.3 43.4L56.4 43.7C58.3 43.8 60 42.3 60 40.4V39.1ZM31.2 18C28.4 18 25.9 19.6 24.8 22.1L22.8 26.4H57.1L55.2 22.1C54 19.6 51.5 18 48.8 18H31.2Z\" fill=\"url(#paint0_linear_004_009)\" shape-rendering=\"crispEdges\"/><path d=\"M18.9 67.4C22.4 65.4 26.6 65.3 30.1 67L34.9 69.3C38.1 70.9 41.9 70.9 45.2 69.4L50.3 67C53.9 65.3 58.2 65.5 61.6 67.6L66 70.3C67.9 71.4 70 72 72.2 72H74C75.1 72 76 72.9 76 74C76 75.1 75.1 76 74 76H72.2C69.3 76 66.4 75.2 63.9 73.7L59.5 71C57.3 69.6 54.4 69.5 52 70.6L46.9 73C42.5 75 37.5 75 33.1 72.9L28.4 70.6C26 69.5 23.2 69.6 20.9 70.9L15.7 73.9C13.3 75.3 10.6 76 7.8 76H5C3.9 76 3 75.1 3 74C3 72.9 3.9 72 5 72H7.8C9.9 72 11.9 71.4 13.7 70.4L18.9 67.4ZM68.2 54C72.3 54 74.4 54 75.5 54.9C76.4 55.6 76.9 56.7 77 57.8C77.1 59.2 75.9 60.9 73.5 64.2L70 69C69.8 69.3 69.5 69.4 69.2 69.2L61.5 64.8C58 62.9 53.7 62.7 50.1 64.4L44.8 66.9C41.7 68.4 38.1 68.4 34.9 66.8L30.2 64.6C26.5 62.8 22.2 62.9 18.6 65L11.4 69.2C10.8 69.5 10.1 69.1 9.7 68.6L6.5 64.2C4.1 60.9 2.9 59.2 3 57.8C3.1 56.7 3.6 55.6 4.5 54.9C5.6 54 7.7 54 11.8 54H68.2ZM48.8 14C53.1 14 57 16.5 58.8 20.4L61.2 25.7C61.3 25.7 61.3 25.7 61.4 25.7H65C66.1 25.7 67 26.5 67 27.6C67 29.3 65.7 30.6 64 30.6H62.9C64.5 33.2 65.3 36.1 65.3 39.1V44.2C65.3 44.3 65.3 44.3 65.3 44.4C65.3 44.5 65.3 44.5 65.3 44.6V50.2C65.3 51.9 65.3 52.7 64.8 53.3C64.8 53.4 64.7 53.5 64.6 53.5C64 54 63.2 54 61.5 54C59.8 54 59 54 58.4 53.5C58.3 53.5 58.3 53.4 58.2 53.3C57.7 52.7 57.7 51.9 57.7 50.2V49.2H22.3V50.2C22.3 51.9 22.3 52.7 21.8 53.3C21.7 53.4 21.7 53.5 21.6 53.5C21 54 20.2 54 18.5 54C16.8 54 15.9 54 15.4 53.5C15.3 53.5 15.2 53.4 15.2 53.3C14.7 52.7 14.7 51.9 14.7 50.2V44.6C14.7 44.2 14.7 43.8 14.7 43.5V39.1C14.7 36.1 15.5 33.2 17.1 30.6H16C14.3 30.6 13 29.3 13 27.6C13 26.5 13.9 25.7 15 25.7H18.6C18.7 25.7 18.7 25.7 18.8 25.7L21.2 20.4C23 16.5 26.9 14 31.2 14H48.8ZM34.5 39C33.1 39 32 40.1 32 41.5C32 42.9 33.1 44 34.5 44H44.5C45.9 44 47 42.9 47 41.5C47 40.1 45.9 39 44.5 39H34.5ZM21.1 37.4C20 37.2 19 38 19 39.1V40.4C19 42.3 20.7 43.8 22.6 43.7L25.7 43.4C27 43.2 28 42.1 28 40.8C28 39.6 27.1 38.6 26 38.4L21.1 37.4ZM60 39.1C60 38 59 37.2 57.9 37.4L53 38.4C51.9 38.6 51 39.6 51 40.8C51 42.1 52 43.2 53.3 43.4L56.4 43.7C58.3 43.8 60 42.3 60 40.4V39.1ZM31.2 18C28.4 18 25.9 19.6 24.8 22.1L22.8 26.4H57.1L55.2 22.1C54 19.6 51.5 18 48.8 18H31.2Z\" fill=\"url(#paint1_linear_004_009)\" fill-opacity=\"0.2\" shape-rendering=\"crispEdges\"/><defs><linearGradient id=\"paint0_linear_004_009\" x1=\"3.6\" y1=\"40.2\" x2=\"76.2\" y2=\"40.2\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#222934\"/><stop offset=\"1\" stop-color=\"#0B1636\" stop-opacity=\"0.7\"/></linearGradient><linearGradient id=\"paint1_linear_004_009\" x1=\"40\" y1=\"14\" x2=\"40\" y2=\"39\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#1B1446\"/><stop offset=\"1\" stop-color=\"#4564B5\" stop-opacity=\"0\"/></linearGradient></defs>","003_008":"<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M29 53.2C29 59 33.7 63.7 39.5 63.7C45.3 63.7 50 59 50 53.2C50 47.4 45.3 42.7 39.5 42.7C33.7 42.7 29 47.4 29 53.2ZM39.5 74.7C27.6 74.7 18 65 18 53.2C18 41.3 27.6 31.7 39.5 31.7C51.4 31.7 61 41.3 61 53.2C61 65 51.4 74.7 39.5 74.7Z\" fill=\"#A8A8A8\"/><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M39.4 2C41.7 2 43.3 4.8 46.3 10.3L49.7 16.4C53.4 22.9 55.2 26.1 53.8 28.2C53.7 28.3 53.7 28.3 53.6 28.4C52.3 30 49.7 29.8 45 28.7V32.4C54.2 34.8 61 43.2 61 53.2C61 63.1 54.2 71.5 45 73.9V80.2H34V69.2C34 66.1 36.5 63.7 39.5 63.7C45.3 63.7 50 59 50 53.2C50 47.4 45.3 42.7 39.5 42.7C38 42.7 36.6 42.1 35.6 41C34.6 40 34 38.6 34 37.2V28.7C29.1 29.7 26.4 30 25.1 28.4C25.1 28.3 25 28.3 24.9 28.2C23.5 26.1 25.3 22.9 29 16.4L32.4 10.3C35.5 4.8 37 2 39.4 2Z\" fill=\"white\"/>","002_001":"<path d=\"M4.8 20C16.6 31.5 23.3 47.3 23.3 63.8V80\" stroke=\"#A8A8A8\" stroke-width=\"11\"/><path d=\"M45.8 8.4C47.4 6.5 51.1 7.4 58.3 9.3L60 9.7L65 11C71.2 12.5 74.3 13.3 74.9 15.6C75.5 17.8 73.2 20 68.7 24.5V24.6H68.5L63.7 29.3C58.3 34.5 55.6 37.1 53.3 36.3C53.2 36.2 53.1 36.2 53 36.2C51.2 35.3 50.7 32.8 50.5 27.9C37.9 33.7 29.2 46.4 29.2 61.1V80.1H18.2V61.1C18.2 41.3 30.3 24.3 47.6 17.2C45.4 12.8 44.5 10.3 45.7 8.6C45.7 8.6 45.8 8.5 45.8 8.4Z\" fill=\"white\"/>","002_004":"<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M58 0L58 80L69 80L69 9.6e-07L58 0Z\" fill=\"#A8A8A8\"/><path d=\"M41.1 8.3C39.5 6.4 35.9 7.3 28.6 9.1L26.9 9.6L21.9 10.8C15.8 12.4 12.7 13.2 12.1 15.4C11.5 17.7 13.8 19.9 18.3 24.3V24.5H18.5L23.3 29.2C28.6 34.4 31.3 37 33.7 36.1C33.8 36.1 33.8 36.1 33.9 36C35.8 35.2 36.2 32.7 36.5 27.8C49.1 33.6 57.8 46.3 57.8 61V80H68.8V61C68.8 41.1 56.6 24.1 39.3 17C41.6 12.6 42.5 10.2 41.3 8.5C41.2 8.4 41.2 8.4 41.1 8.3Z\" fill=\"white\"/>","003_004":"<circle cx=\"22\" cy=\"34\" r=\"16\" stroke=\"#A8A8A8\" stroke-width=\"11\" stroke-linejoin=\"round\"/><path d=\"M53.6 19.6C55.7 18.2 58.9 20 65.4 23.6L71.5 27C77 30.1 79.8 31.7 79.8 34C79.8 36.3 77 37.9 71.5 41L65.4 44.4C58.9 48 55.7 49.8 53.6 48.4C53.5 48.4 53.5 48.3 53.4 48.2C51.8 47 52.1 44.3 53.1 39.5H42.8C40.8 47 35 52.8 27.5 54.8V79.5H16.5V50C16.5 47 19 44.5 22 44.5C27.8 44.5 32.5 39.8 32.5 34C32.5 31 35 28.5 38 28.5H53.1C52.1 23.7 51.8 21 53.4 19.8C53.5 19.7 53.5 19.6 53.6 19.6Z\" fill=\"white\"/>","001_005":"<path d=\"M70 25C70 22.7 67.2 21.1 61.7 18L55.6 14.6C49.1 11 45.9 9.2 43.8 10.6C43.7 10.7 43.7 10.7 43.6 10.8C42 12 42.3 14.7 43.3 19.5L28.6 19.5C18.9 19.5 11.1 27.3 11.1 37L11.1 80L22.1 80L22.1 37C22.1 33.4 25 30.5 28.6 30.5L43.3 30.5C42.3 35.3 42 38 43.6 39.3C43.7 39.3 43.7 39.4 43.8 39.4C45.9 40.8 49.1 39 55.6 35.4L61.7 32C67.2 28.9 70 27.4 70 25Z\" fill=\"white\"/>","001_007":"<path d=\"M27.8 18.6C20.1 14.1 10.5 19.7 10.5 28.5L10.5 79.8L21.5 79.8L21.5 28.5C21.5 28.4 21.6 28.3 21.6 28.3C21.6 28.2 21.7 28.1 21.8 28.1C21.9 28 22 28 22 28C22.1 28 22.1 28 22.3 28.1L43.1 40.1C39.5 44 37.9 46.2 38.6 48.2C38.7 48.3 38.7 48.4 38.7 48.5C39.8 50.7 43.5 50.8 51 50.9L57.9 51C64.3 51.1 67.4 51.1 68.6 49.1C69.8 47 68.2 44.3 64.9 38.9L61.4 32.9C57.5 26.5 55.6 23.3 53.1 23.5C53 23.5 53 23.5 52.9 23.5C50.9 23.8 49.8 26.1 48.4 30.4L27.8 18.6Z\" fill=\"white\"/>","001_006":"<path d=\"M11 25C11 22.7 13.8 21.1 19.3 18L25.4 14.6C31.9 11 35.1 9.2 37.2 10.6C37.3 10.7 37.3 10.7 37.4 10.8C39 12 38.7 14.7 37.7 19.5L52.4 19.5C62.1 19.5 69.9 27.3 69.9 37L69.9 80L58.9 80L58.9 37C58.9 33.4 56 30.5 52.4 30.5L37.7 30.5C38.7 35.3 39 38 37.4 39.3C37.3 39.3 37.3 39.4 37.2 39.4C35.1 40.8 31.9 39 25.4 35.4L19.3 32C13.8 28.9 11 27.4 11 25Z\" fill=\"white\"/>","007_001":"<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M34.3 34.8C30.1 29.3 25 21.7 25 16.9C25 8.7 31.7 2 39.9 2C48.1 2 54.8 8.7 54.8 16.9C54.8 21.7 49.7 29.3 45.5 34.8C43.1 38 41.9 39.5 39.9 39.5C37.9 39.5 36.7 38 34.3 34.8ZM39.9 22.1C36.5 22.1 33.8 19.4 33.8 16.1C33.8 12.7 36.5 10 39.9 10C43.3 10 46 12.7 46 16.1C46 19.4 43.3 22.1 39.9 22.1Z\" fill=\"url(#paint0_radial_007_001)\"/><path d=\"M24.5 42.5C24.7 42.2 25 42 25.4 42H53.9C54.3 42 54.6 42.2 54.8 42.5L73.3 78.5C73.6 79.2 73.1 80 72.4 80H6.6C5.9 80 5.4 79.2 5.8 78.5L24.5 42.5Z\" fill=\"url(#paint1_linear_007_001)\"/><path d=\"M37.1 45H40.9L41.3 49.8H36.7L37.1 45Z\" fill=\"white\"/><path d=\"M36.5 53.1H41.5L42 59.5H36L36.5 53.1Z\" fill=\"white\"/><path d=\"M42.3 64.3L43 74H35L35.7 64.3H42.3Z\" fill=\"white\"/><defs><radialGradient id=\"paint0_radial_007_001\" cx=\"0\" cy=\"0\" r=\"1\" gradientTransform=\"matrix(1.5 -35.8 -68.7 -2.6 38.6 37.8)\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#CE2329\"/><stop offset=\"0.4\" stop-color=\"#FF4545\"/><stop offset=\"1\" stop-color=\"#FF5858\"/></radialGradient><linearGradient id=\"paint1_linear_007_001\" x1=\"40.7\" y1=\"80\" x2=\"40.7\" y2=\"42\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#2E2E2E\"/><stop offset=\"1\" stop-color=\"#383838\" stop-opacity=\"0.7\"/></linearGradient></defs>","002_007":"<path d=\"M39.5 3.1C41.8 3.1 43.4 5.8 46.5 11.4L49 15.9L49.9 17.5C53.5 24 55.3 27.3 53.9 29.3C53.9 29.4 53.8 29.5 53.8 29.5C52.5 31.1 49.8 30.9 45 29.8V30C45 35.9 47.6 41.6 52.2 45.4C59.7 51.8 64 61.1 64 70.8V80H53V70.8C53 64.3 50.1 58.1 45.1 53.9C42.9 52 41.1 49.9 39.5 47.7C37.9 49.9 36.1 52 33.9 53.9C28.9 58.1 26 64.3 26 70.8V80H15V70.8C15 61.1 19.3 51.8 26.8 45.4C31.4 41.6 34 35.9 34 30V29.8C29.2 30.9 26.5 31.1 25.3 29.5C25.2 29.5 25.1 29.4 25.1 29.3C23.7 27.3 25.5 24 29.1 17.5L32.5 11.4C35.6 5.8 37.2 3.1 39.5 3.1Z\" fill=\"white\"/>","001_003":"<path d=\"M58.3 8.2C64.7 8.1 67.8 8 69 10.1C70.2 12.1 68.6 14.8 65.3 20.2L61.8 26.2C57.9 32.6 56 35.8 53.5 35.6C53.4 35.6 53.4 35.6 53.3 35.6C51.3 35.3 50.2 32.9 48.7 28.3L25.2 41.8C23.2 42.9 22 45.1 22 47.4V80H11V47.4C11 41.2 14.3 35.4 19.7 32.3L43.2 18.7C39.8 15 38.3 12.8 39 10.9C39.1 10.8 39.1 10.8 39.1 10.7C40.2 8.4 43.9 8.4 51.4 8.2L58.3 8.2Z\" fill=\"white\"/>","001_002":"<path d=\"M39.9 3.2C42.2 3.2 43.8 6 46.9 11.5L50.3 17.6C53.9 24.1 55.7 27.3 54.3 29.4C54.3 29.5 54.2 29.5 54.1 29.6C52.9 31.2 50.2 30.9 45.4 29.9V80C45.4 83 42.9 85.5 39.9 85.5C36.9 85.5 34.4 83 34.4 80V29.9C29.6 30.9 26.9 31.2 25.7 29.6C25.6 29.5 25.5 29.5 25.5 29.4C24.1 27.3 25.9 24.1 29.5 17.6L32.9 11.5C36 6 37.5 3.2 39.9 3.2Z\" fill=\"white\"/>","001_004":"<path d=\"M21.7 8.2C15.3 8.1 12.2 8 11 10.1C9.8 12.1 11.4 14.8 14.7 20.2L18.2 26.2C22.1 32.6 24 35.8 26.5 35.6C26.6 35.6 26.6 35.6 26.7 35.6C28.7 35.3 29.8 32.9 31.3 28.3L54.8 41.8C56.8 42.9 58 45.1 58 47.4V80H69V47.4C69 41.2 65.7 35.4 60.3 32.3L36.8 18.7C40.2 15 41.7 12.8 41 10.9C40.9 10.8 40.9 10.8 40.9 10.7C39.8 8.4 36.1 8.4 28.6 8.2L21.7 8.2Z\" fill=\"white\"/>","002_003":"<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M23 0L23 80L12 80L12 9.6e-07L23 0Z\" fill=\"#A8A8A8\"/><path d=\"M39.9 8.3C41.5 6.4 45.1 7.3 52.4 9.1L54.1 9.6L59.1 10.8C65.2 12.4 68.3 13.2 68.9 15.4C69.5 17.7 67.2 19.9 62.7 24.3V24.5H62.5L57.7 29.2C52.4 34.4 49.7 37 47.3 36.1C47.2 36.1 47.2 36.1 47.1 36C45.2 35.2 44.8 32.7 44.5 27.8C31.9 33.6 23.2 46.3 23.2 61V80H12.2V61C12.2 41.1 24.4 24.1 41.7 17C39.4 12.6 38.5 10.2 39.7 8.5C39.8 8.4 39.8 8.4 39.9 8.3Z\" fill=\"white\"/>","004_006":"<circle cx=\"43\" cy=\"25\" r=\"16\" stroke=\"#A8A8A8\" stroke-width=\"11\" stroke-linejoin=\"round\"/><path d=\"M42.2 3.5C54.1 3.5 63.7 13.1 63.7 25C63.7 29.6 62.2 33.9 59.8 37.4V80H48.8V35.5C48.8 34.2 49.3 32.9 50.1 31.9C51.7 30 52.7 27.6 52.7 25C52.7 19.2 48 14.5 42.2 14.5C36.4 14.5 31.7 19.2 31.7 25C31.7 27.6 32.7 30 34.3 31.9C35.1 32.9 35.6 34.2 35.6 35.5V51.8C41.1 50.6 44.1 50.2 45.4 51.9C45.5 52 45.6 52 45.6 52.1C47 54.2 45.2 57.4 41.6 63.9L38.2 70C35.1 75.5 33.5 78.3 31.2 78.3C28.9 78.3 27.3 75.5 24.2 70L20.8 63.9C17.2 57.4 15.4 54.2 16.8 52.1C16.8 52 16.9 52 17 51.9C18.1 50.4 20.5 50.5 24.6 51.4V37.4C22.2 33.9 20.7 29.6 20.7 25C20.7 13.1 30.3 3.5 42.2 3.5Z\" fill=\"white\"/>","001_001":"<path d=\"M45.9 80.1H34.9V77.1H45.9V80.1ZM45.9 73H34.9V65H45.9V73ZM39.9 3.2C42.2 3.2 43.8 6 46.9 11.5L50.3 17.6C53.9 24.1 55.7 27.3 54.3 29.4C54.3 29.5 54.2 29.5 54.1 29.6C52.9 31.1 50.4 31 45.9 30V62.1H34.9V29.8C29.7 30.9 27 31.2 25.7 29.6C25.6 29.5 25.5 29.5 25.5 29.4C24.1 27.3 25.9 24.1 29.5 17.6L32.9 11.5C36 6 37.6 3.2 39.9 3.2Z\" fill=\"white\"/>","005_001":"<path d=\"M21.5 32.6C21.7 32.2 22.1 32 22.5 32H50.8C51.2 32 51.6 32.2 51.8 32.6L70.4 78.6C70.7 79.3 70.2 80 69.5 80H3.5C2.8 80 2.3 79.3 2.6 78.6L21.5 32.6Z\" fill=\"url(#paint0_linear_005_001)\"/><path d=\"M35.1 36H38.9L39.3 42.2H34.7L35.1 36Z\" fill=\"white\"/><path d=\"M34.5 46.3H39.5L40 54.5H34L34.5 46.3Z\" fill=\"white\"/><path d=\"M40.3 60.7L41 73H33L33.7 60.7H40.3Z\" fill=\"white\"/><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M57.5 32.8C53.3 27.3 48.2 19.7 48.2 14.9C48.2 6.7 54.9 0 63.1 0C71.3 0 78 6.7 78 14.9C78 19.7 73 27.3 68.7 32.8C66.3 36 65.1 37.5 63.1 37.5C61.1 37.5 59.9 36 57.5 32.8ZM63.1 20.1C59.7 20.1 57 17.4 57 14.1C57 10.7 59.7 8 63.1 8C66.5 8 69.2 10.7 69.2 14.1C69.2 17.4 66.5 20.1 63.1 20.1Z\" fill=\"url(#paint1_radial_005_001)\"/><defs><linearGradient id=\"paint0_linear_005_001\" x1=\"37.7\" y1=\"80\" x2=\"37.7\" y2=\"32\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#2E2E2E\"/><stop offset=\"1\" stop-color=\"#383838\" stop-opacity=\"0.7\"/></linearGradient><radialGradient id=\"paint1_radial_005_001\" cx=\"0\" cy=\"0\" r=\"1\" gradientTransform=\"matrix(1.5 -35.8 -68.7 -2.6 61.8 35.8)\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#CE2329\"/><stop offset=\"0.4\" stop-color=\"#FF4545\"/><stop offset=\"1\" stop-color=\"#FF5858\"/></radialGradient></defs>","006_010":"<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M34.3 64.1C27.7 55.9 17.8 42.2 17.8 34C17.8 21.6 27.7 11.7 40 11.7C52.3 11.7 62.2 21.6 62.2 34C62.2 42.2 52.3 55.9 45.7 64.1C43.2 67.3 41.9 68.9 40 68.9C38.1 68.9 36.8 67.3 34.3 64.1ZM40 41.8C35 41.8 30.9 37.7 30.9 32.7C30.9 27.7 35 23.6 40 23.6C45 23.6 49.1 27.7 49.1 32.7C49.1 37.7 45 41.8 40 41.8Z\" fill=\"url(#paint0_radial_006_010)\"/><defs><radialGradient id=\"paint0_radial_006_010\" cx=\"0\" cy=\"0\" r=\"1\" gradientTransform=\"matrix(2.2 -54.6 -102.3 -4 37.9 66.1)\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#CE2329\"/><stop offset=\"0.7\" stop-color=\"#FF4545\"/><stop offset=\"0.9\" stop-color=\"#FF8181\"/><stop offset=\"1\" stop-color=\"#FF5858\"/></radialGradient></defs>","005_002":"<path d=\"M58.5 32.6C58.3 32.2 57.9 32 57.5 32H29.2C28.8 32 28.4 32.2 28.2 32.6L9.6 78.6C9.3 79.3 9.8 80 10.5 80H76.5C77.2 80 77.7 79.3 77.4 78.6L58.5 32.6Z\" fill=\"url(#paint0_linear_005_002)\"/><path d=\"M44.9 36H41.1L40.7 42.2H45.3L44.9 36Z\" fill=\"white\"/><path d=\"M45.5 46.3H40.5L40 54.5H46L45.5 46.3Z\" fill=\"white\"/><path d=\"M39.7 60.7L39 73H47L46.3 60.7H39.7Z\" fill=\"white\"/><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M22.5 32.8C26.7 27.3 31.8 19.7 31.8 14.9C31.8 6.7 25.1 0 16.9 0C8.7 0 2 6.7 2 14.9C2 19.7 7 27.3 11.3 32.8C13.7 36 14.9 37.5 16.9 37.5C18.9 37.5 20.1 36 22.5 32.8ZM16.9 20.1C20.3 20.1 23 17.4 23 14.1C23 10.7 20.3 8 16.9 8C13.5 8 10.8 10.7 10.8 14.1C10.8 17.4 13.5 20.1 16.9 20.1Z\" fill=\"url(#paint1_radial_005_002)\"/><defs><linearGradient id=\"paint0_linear_005_002\" x1=\"42.3\" y1=\"80\" x2=\"42.3\" y2=\"32\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#2E2E2E\"/><stop offset=\"1\" stop-color=\"#383838\" stop-opacity=\"0.7\"/></linearGradient><radialGradient id=\"paint1_radial_005_002\" cx=\"0\" cy=\"0\" r=\"1\" gradientTransform=\"matrix(-1.5 -35.8 68.7 -2.6 18.2 35.8)\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#CE2329\"/><stop offset=\"0.4\" stop-color=\"#FF4545\"/><stop offset=\"1\" stop-color=\"#FF5858\"/></radialGradient></defs>","005_003":"<path d=\"M26.4 3.7C26.7 3.7 27.1 3.7 27.4 3.7C29.3 4 30.7 6.3 33.4 10.8L39 20.4C42.7 26.6 44.6 29.7 44.5 30.9C44.4 33.3 42.4 35 40.1 34.7C39 34.6 36.7 32.8 32.4 29.1V35.6C32.4 41.8 34.4 47.7 38.2 52.6C43.2 59.1 46 67 46.2 75.1L46.4 79.9L35.4 80.2L35.2 75.5C35.1 69.6 33 64 29.5 59.3C24.2 52.5 21.4 44.2 21.4 35.6V29.1C17.1 32.8 14.8 34.6 13.7 34.7C11.4 35 9.4 33.3 9.3 30.9C9.2 29.7 11.1 26.6 14.8 20.4L20.4 10.8C23.1 6.3 24.5 4 26.4 3.7Z\" fill=\"white\"/><path d=\"M45.8 2H67.8V9.4C67.8 17.4 65.9 25.4 62.4 32.6C60.1 37.3 53.5 37.3 51.2 32.6C47.6 25.4 45.8 17.4 45.8 9.4V2Z\" fill=\"white\"/>","001_008":"<path d=\"M52.2 18.6C59.9 14.1 69.5 19.7 69.5 28.5L69.5 79.8L58.5 79.8L58.5 28.5C58.5 28.4 58.4 28.3 58.4 28.3C58.4 28.2 58.3 28.1 58.2 28.1C58.1 28 58 28 58 28C57.9 28 57.9 28 57.7 28.1L36.9 40.1C40.5 44 42.1 46.2 41.4 48.2C41.3 48.3 41.3 48.4 41.3 48.5C40.2 50.7 36.5 50.8 29 50.9L22.1 51C15.7 51.1 12.6 51.1 11.4 49.1C10.2 47 11.8 44.3 15.1 38.9L18.6 32.9C22.5 26.5 24.4 23.3 26.9 23.5C27 23.5 27 23.5 27.1 23.5C29.1 23.8 30.2 26.1 31.6 30.4L52.2 18.6Z\" fill=\"white\"/>","005_006":"<path d=\"M12.8 20C24.6 31.5 31.3 47.3 31.3 63.8V80\" stroke=\"#A8A8A8\" stroke-width=\"11\"/><path d=\"M64.3 5.3C62.4 4 59.5 5.4 53.8 8.1L47.6 11.2C40.8 14.4 37.5 16 37.5 18.5C37.5 18.6 37.5 18.7 37.5 18.8C37.6 20.8 39.9 22.1 44.5 24.1L38 33C30.1 43.8 25.8 57 25.8 70.4V81.5H36.8V70.4C36.8 59.3 40.3 48.5 46.9 39.5L53.5 30.4C56.9 34 58.9 35.7 60.8 35.1C60.9 35.1 61 35.1 61.1 35.1C63.4 34.2 63.8 30.5 64.6 23L65.3 16.1C65.9 9.8 66.2 6.7 64.3 5.3Z\" fill=\"white\"/>","005_004":"<path d=\"M53.1 4.1C50.8 4.1 49.2 6.8 46.1 12.3L42.7 18.4C39.1 24.9 37.3 28.2 38.7 30.2C38.7 30.3 38.8 30.4 38.9 30.5C40.1 32 42.8 31.8 47.6 30.8V35.6C47.6 41.8 45.6 47.7 41.8 52.6C36.8 59.1 34 67 33.8 75.1L33.6 79.9L44.6 80.2L44.8 75.5C44.9 69.6 47 64 50.5 59.3C55.8 52.5 58.6 44.2 58.6 35.6V30.8C63.4 31.8 66.1 32 67.3 30.5C67.4 30.4 67.5 30.3 67.5 30.2C68.9 28.2 67.1 24.9 63.5 18.4L60.1 12.3C57 6.8 55.4 4.1 53.1 4.1Z\" fill=\"white\"/><path d=\"M34.2 2H12.2V9.4C12.2 17.4 14.1 25.4 17.6 32.6C19.9 37.3 26.5 37.3 28.8 32.6C32.4 25.4 34.2 17.4 34.2 9.4V2Z\" fill=\"white\"/>"},TBT_MAP={"ARRIVE":"007_001","ARRIVE_LEFT":"005_002","ARRIVE_RIGHT":"005_001","DEPART":"001_001","STRAIGHT":"001_002","FOLLOW":"001_002","KEEP_RIGHT":"005_004","BEAR_RIGHT":"001_003","TURN_RIGHT":"001_005","SHARP_RIGHT":"001_007","KEEP_LEFT":"005_003","BEAR_LEFT":"001_004","TURN_LEFT":"001_006","SHARP_LEFT":"001_008","MAKE_UTURN":"001_010","TRY_MAKE_UTURN":"001_010","ENTER_MOTORWAY":"002_001","ENTER_FREEWAY":"002_001","ENTER_HIGHWAY":"002_001","TAKE_EXIT":"002_003","MOTORWAY_EXIT_LEFT":"002_004","MOTORWAY_EXIT_RIGHT":"002_003","TAKE_FERRY":"004_009","ROUNDABOUT_CROSS":"003_008","ROUNDABOUT_RIGHT":"003_004","ROUNDABOUT_LEFT":"004_002","ROUNDABOUT_BACK":"004_006","SWITCH_PARALLEL_ROAD":"005_004","SWITCH_MAIN_ROAD":"002_007","ENTRANCE_RAMP":"005_006","WAYPOINT_LEFT":"006_010","WAYPOINT_RIGHT":"006_010","WAYPOINT_REACHED":"006_010"};
+function arrow(man){var _tk=TBT_MAP[man];if(_tk&&TBT_SVG[_tk])return '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 80 80" fill="none" overflow="hidden"><defs><filter id="tbSh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity=".25"/></filter><clipPath id="tbCl"><rect width="80" height="80"/></clipPath></defs><g clip-path="url(#tbCl)"><g filter="url(#tbSh)">'+TBT_SVG[_tk].replace(/<defs>[\s\S]*<\/defs>/,'')+'</g></g>'+((TBT_SVG[_tk].match(/<defs>[\s\S]*<\/defs>/)||[''])[0])+'</svg>';
   var w='<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">';
   if(/^ARRIVE/.test(man))return w+'<path d="M32 58C32 58 50 40 50 26A18 18 0 0 0 14 26C14 40 32 58 32 58Z" fill="#fff" stroke="none"/><circle cx="32" cy="26" r="7" fill="#2c323a" stroke="none"/></svg>';
   if(man==='MAKE_UTURN'||man==='ROUNDABOUT_BACK')return w+'<path d="M40 58V26A10 10 0 0 0 20 26V44"/><path d="M12 36L20 46L28 36" /></svg>';
@@ -2056,7 +2065,7 @@ function setCluster(kmh,gear,force){var sp=$('speed'),rp=$('rpm'),g=$('gear'),no
 function once(k,v){if(sim.sent[k]!==v){sim.sent[k]=v;send(k,v);}}
 function loop(){if(!sim.raf){sim.last=performance.now();sim.raf=requestAnimationFrame(step);}}
 /* 안내 시작: 모의주행 없이 현재(출발) 위치에 정지한 채 안내 화면 표시 */
-function startSim(){
+function startSim(){if(window.__freeReset)window.__freeReset();
   if(!st.route)return;show('guide');sim.guide=true;sim.s=0;sim.sent={};
   carMk.setLatLng(st.route.pts[0]);map.setView(st.route.pts[0],17);hu.lock=true;if(oMk)oMk.setOpacity(0);if(window.__navHd&&st.route.pts[1])window.__navHd(st.route.pts[0],st.route.pts[1],true);send('navStart',st.dest.name);
   document.body.classList.add('guiding');renderGuide();loop();
@@ -2065,7 +2074,7 @@ function stopSim(silent){if(!sim.guide)return;sim.guide=false;if(oMk)oMk.setOpac
 /* 클러스터에서 호출: 주행 시작/정지 */
 function drive(on){
   if(on===sim.drive)return;sim.drive=on;
-  if(on){sim.go=performance.now()+1500;setCluster(sim.kmh,null,true);send('driveState','drive');}else send('driveState','stop'); // 출발 1.5초 지연 (차량 회전 전환 후 가속)
+  if(on){sim.go=performance.now()+1500;if(window.__freePrefetch)window.__freePrefetch();setCluster(sim.kmh,null,true);send('driveState','drive');}else send('driveState','stop'); // 출발 1.5초 지연 (차량 회전 전환 후 가속)
   loop();
 }
 function nextIns(){var R=st.route;for(var k=0;k<R.ins.length;k++){if(R.ins[k].off>sim.s+1)return [R.ins[k],R.ins[k+1]||null];}return [null,null];}
@@ -2075,9 +2084,10 @@ function renderGuide(){
   $('stEta').textContent=('0'+eta.getHours()).slice(-2)+':'+('0'+eta.getMinutes()).slice(-2);
   var rd=fmtDist(remain);$('stRemain').textContent=rd.v;$('stRemainU').textContent=rd.u;$('stTime').textContent=Math.max(0,Math.round(rt/60));
   if(nxt){
-    var d=fmtDist(toTurn),ico=uri(arrow(nxt.man));$('tbIco').src=ico;$('tbDist').innerHTML=d.v+'<span>'+d.u+'</span>';$('tbRoad').textContent=label(nxt);
+    var d=fmtDist(toTurn),ico=uri(arrow(nxt.man));$('tbIco').src=ico;$('tbDist').innerHTML=d.v+'<span>'+d.u+'</span>';(window.__mq||function(e,t){e.textContent=t;})($('tbRoad'),label(nxt));
     if(nxt2){$('tbBot').style.display='';$('tbIco2').src=uri(arrow(nxt2.man));var d2=fmtDist(nxt2.off-nxt.off);$('tbDist2').innerHTML=d2.v+'<span>'+d2.u+'</span>';$('tbLbl2').textContent=MAN[nxt2.man]||'';}
     else $('tbBot').style.display='none';
+    if(window.__tbList)window.__tbList(nxt,nxt2);
     clusterTbt(ico,d,label(nxt));
     once('tbtDistance',d.v+d.u);once('tbtRoad',label(nxt));once('tbtType',nxt.man);
   }
@@ -2086,7 +2096,7 @@ function renderGuide(){
 function step(now){
   var dt=Math.min(.1,(now-sim.last)/1000);sim.last=now;
   var target=0;
-  if(sim.drive){target=60;if(sim.guide){var n=nextIns()[0],tt=n?n.off-sim.s:1e9;target=tt<60?25:(tt<200?40:60);}}
+  if(sim.drive){target=60;if(sim.guide){var n=nextIns()[0],tt=n?n.off-sim.s:1e9;target=tt<60?25:(tt<200?40:60);var _lm=window.__navLimitNow&&window.__navLimitNow();if(_lm)target=Math.min(target,_lm);}}
   if(sim.drive&&now<(sim.go||0))target=0; // 스와이프 후 대기
   // 부드러운 가감속: 목표가 바뀌면 현재 속도→목표 속도를 S자 곡선(smootherstep)으로 일정 시간에 이동
   //  (천천히 출발 → 가속 → 목표에 매끄럽게 정확히 안착). 0→60km/h 약 4.3초, 감속은 조금 더 빠르게
@@ -2095,12 +2105,12 @@ function step(now){
   var meters=sim.kmh/3.6*dt*sim.mult,ll;
   if(sim.guide){
     var R=st.route;sim.s=Math.min(R.total,sim.s+meters);var p=posAt(sim.s);ll=p.ll;
-    if(line)line.setLatLngs([p.ll].concat(R.pts.slice(p.i))); /* 지나온 길(회색)은 표시하지 않고, 남은 경로만 차 위치부터 그림 */
+    if(line){line.setLatLngs([p.ll].concat(R.pts.slice(p.i)));if(window.__trafLine)window.__trafLine();} /* 지나온 길(회색)은 표시하지 않고, 남은 경로만 차 위치부터 그림 */
     renderGuide();
     if(sim.s>=R.total){arrive(p.ll);}
   }else{
     // 목적지 미설정: 현재 위치에서 북쪽으로 조금씩 이동
-    var c=carMk.getLatLng();ll=L.latLng(c.lat+meters/111320,c.lng);CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};
+    ll=(meters>0&&window.__freeStep)?window.__freeStep(meters):null;if(!ll){var c=carMk.getLatLng();ll=meters>0&&!(window.__freeBusy&&window.__freeBusy())?L.latLng(c.lat+meters/111320,c.lng):c;}CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};
   }
   if(window.__navHd)window.__navHd(carMk.getLatLng(),ll);carMk.setLatLng(ll);
   if(meters>0&&hu.lock){var _cp=map.latLngToContainerPoint(ll),_cc=map.getSize().divideBy(2),_dx=Math.round(_cp.x-_cc.x),_dy=Math.round(_cp.y-_cc.y);if(_dx||_dy)map.panBy([_dx,_dy],{animate:false,noMoveStart:true});}
@@ -2111,7 +2121,7 @@ function step(now){
 }
 function arrive(ll){
   sim.drive=false;sim.guide=false;document.body.classList.remove('guiding');hideClusterTbt();
-  $('tbIco').src=uri(arrow('ARRIVE'));$('tbDist').textContent=/^ko/i.test(LANG)?'도착':'Arrived';$('tbRoad').textContent=st.dest.name;$('tbBot').style.display='none';
+  $('tbIco').src=uri(arrow('ARRIVE'));$('tbDist').textContent=/^ko/i.test(LANG)?'도착':'Arrived';(window.__mq||function(e,t){e.textContent=t;})($('tbRoad'),st.dest.name);$('tbBot').style.display='none';
   send('navArrived',st.dest.name);send('driveState','stop');
   setTimeout(function(){if(st.mode==='guide'){CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};resetNav();}},4000);
 }
@@ -2120,7 +2130,7 @@ var ctbt=document.createElement('div');ctbt.id='clTbt';
 ctbt.innerHTML='<img id="ctIco" alt=""><div><div id="ctDist"></div><div id="ctRoad"></div></div>';
 (function(){var s=document.createElement('style');s.textContent='#clTbt{position:absolute;left:135px;top:150px;width:330px;height:119px;border-radius:6px;background:rgba(150,156,168,.38);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);display:none;align-items:center;gap:16px;padding:0 18px;z-index:3}#clTbt img{width:60px;height:60px;flex:none}#ctDist{font-weight:600;font-size:34px;line-height:1.1}#ctDist span{font-size:20px;margin-left:4px}#ctRoad{font-size:18px;line-height:1.3;margin-top:4px;color:#e5e5e5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';document.head.appendChild(s);})();
 $('cluster').appendChild(ctbt);
-function clusterTbt(ico,d,road){$('ctIco').src=ico;$('ctDist').innerHTML=d.v+'<span>'+d.u+'</span>';$('ctRoad').textContent=road;updateClusterTbtVis();}
+function clusterTbt(ico,d,road){$('ctIco').src=ico;$('ctDist').innerHTML=d.v+'<span>'+d.u+'</span>';(window.__mq||function(e,t){e.textContent=t;})($('ctRoad'),road);updateClusterTbtVis();}
 function updateClusterTbtVis(){var other=window.Screens&&window.Screens.current&&window.Screens.current()!=='home';ctbt.style.display=(sim.guide&&other)?'flex':'none';}
 function hideClusterTbt(){ctbt.style.display='none';}
 function recenter(){if(window.__navLoc&&window.__navLoc())return;var ll=carMk.getLatLng();map.setView(ll,16);}
@@ -2136,7 +2146,7 @@ bCur.insertAdjacentHTML('beforeend','<img class="nlc" alt="" src="'+NAV_IC_CUR+'
 var bCmp=document.createElement('div');bCmp.id='btnCompass';bCmp.className='abs';bCmp.innerHTML='<img alt="" src="'+NAV_IC_CMP+'">';bCur.parentNode.insertBefore(bCmp,bCur);
 var cmpImg=bCmp.firstChild;
 function huRot(){return (hu.on&&!hu.leave)?-hu.cur:0;}
-function huApply(){var rot=huRot();huMap.style.transform=hu.on?'rotate('+rot.toFixed(2)+'deg)':'';cmpImg.style.transform='rotate('+rot.toFixed(2)+'deg)';
+function huApply(){var rot=huRot();huMap.style.transform=hu.on?'rotate('+rot.toFixed(2)+'deg)':'';huMap.style.setProperty('--hur',(hu.on?rot:0).toFixed(2)+'deg');cmpImg.style.transform='rotate('+rot.toFixed(2)+'deg)';
   var e=carMk.getElement&&carMk.getElement(),k=e&&e.querySelector('.carMk');if(k)k.style.transform='rotate('+hu.cur.toFixed(2)+'deg)';}
 function huSize(on){var W=huNav.clientWidth,H=huNav.clientHeight;
   if(on){var D=Math.ceil(Math.sqrt(W*W+H*H));huMap.style.inset='auto';huMap.style.left=((W-D)/2)+'px';huMap.style.top=((H-D)/2)+'px';huMap.style.width=D+'px';huMap.style.height=D+'px';}
@@ -2172,7 +2182,7 @@ window.addEventListener('pointermove',function(e){if(!tp)return;var s=navScale()
     map.panBy([-(dx*Math.cos(a)-dy*Math.sin(a)),-(dx*Math.sin(a)+dy*Math.cos(a))],{animate:false,noMoveStart:true});}
   tp.lx=e.clientX;tp.ly=e.clientY;},true);
 window.addEventListener('pointerup',function(e){if(!tp)return;var t=tp;tp=null;
-  if(t.mv||Date.now()-t.t>600)return;if(st.mode!=='guide'&&st.mode!=='browse')return;
+  if(t.mv||Date.now()-t.t>600)return;if(st.mode!=='guide'&&st.mode!=='browse')return;if(window.__navPanelOpen&&window.__navPanelOpen())return;
   pickAt(map.containerPointToLatLng(scrToMapPt(e.clientX,e.clientY)));},true);
 window.addEventListener('pointercancel',function(){tp=null;},true);
 
@@ -2180,7 +2190,7 @@ var pickMk=null,pickP=null,pick=document.createElement('div');pick.id='navPick';
 pick.innerHTML='<div class="np-t"><b id="npName">Selected location</b><small id="npDist"></small></div><div class="np-b"><div class="nbtn np-no" id="npNo">Cancel</div><div class="nbtn np-go" id="npGo">Set as destination</div></div>';
 huNav.appendChild(pick);
 function pickClose(){pick.classList.add('nhide');if(pickMk){map.removeLayer(pickMk);pickMk=null;}pickP=null;}
-function pickAt(ll){var p={lat:ll.lat,lon:ll.lng,name:'Selected location'};pickP=p;
+function pickAt(ll){if(window.__navMapDetail){window.__navMapDetail(ll);return;}var p={lat:ll.lat,lon:ll.lng,name:'Selected location'};pickP=p;
   if(pickMk)map.removeLayer(pickMk);pickMk=L.marker(ll,{icon:pin('#ffb020'),interactive:false}).addTo(map);
   var c=carMk.getLatLng(),d=hav({lat:c.lat,lon:c.lng},p),dd=fmtDist(d);
   $('npName').textContent='Selected location';$('npDist').textContent=dd.v+' '+dd.u;$('npGo').textContent=sim.guide?'New destination':'Set as destination';
@@ -2214,12 +2224,12 @@ function trafficBar(){var R=st.route;if(!R)return;var s0=sim.s,tot=Math.max(1,R.
   function pc(v){return (Math.max(0,Math.min(1,(v-s0)/tot))*100).toFixed(2)+'%';}
   secs.forEach(function(x){var a=Math.max(x.a,s0),c=TC[x.m]||TC[0];if(a>pos+s0)g.push('#1fa83a '+pc(pos+s0)+' '+pc(a));g.push(c+' '+pc(a)+' '+pc(x.b));pos=x.b-s0;});
   g.push('#1fa83a '+pc(pos+s0)+' 100%');$('ntBar').style.background='linear-gradient(90deg,'+g.join(',')+')';}
-window.__navTrip=function(remain,rt){
+window.__navTrip=function(remain,rt){if(window.__navLimit)window.__navLimit();
   $('ntEta').textContent=$('stEta').textContent;
   var H=Math.floor(rt/3600),M=Math.round((rt%3600)/60);if(M===60){H++;M=0;}
   $('ntTime').innerHTML=(H?'<b>'+H+'</b><small>h</small> ':'')+'<b>'+M+'</b><small>min</small>';
   var d=fmtDist(remain);$('ntDist').innerHTML='<b>'+d.v+'</b><small>'+d.u+'</small>';
-  $('ntDest').textContent=st.dest?(st.via?'Via '+st.via.name+'  ›  ':'')+st.dest.name:'';
+  (window.__mq||function(e,t){e.textContent=t;})($('ntDest'),st.dest?(st.via?'Via '+st.via.name+'  ›  ':'')+st.dest.name:'');
   var now=performance.now();if(now-barT>400||Math.abs(sim.s-barS)>30){barT=now;barS=sim.s;trafficBar();}
   if(st.via&&st.viaOff!=null&&sim.s>=st.viaOff-25){st.via=null;st.viaOff=null;if(viaMk){map.removeLayer(viaMk);viaMk=null;}flashNav('Waypoint reached');}};
 window.__navRouteReady=function(){var R=st.route;if(!R)return;st.viaOff=null;
@@ -2243,7 +2253,7 @@ var _rf=window.__navRerouteFail;window.__navRerouteFail=function(e){if(refreshin
 (function(){var vb=document.createElement('div');vb.className='nbtn np-via';vb.id='npVia';vb.textContent='Add waypoint';$('npGo').parentNode.insertBefore(vb,$('npGo'));
   vb.onclick=function(e){e.stopPropagation();var p=pickP;if(!p)return;pickClose();applyChoice(p,'via');};})();
 /* 검색 (경유지 또는 새 목적지) */
-var gs=document.createElement('div');gs.id='navGS';gs.className='navCard nhide';
+var GS_ICONS={"Home": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE4Ljk2NTYgNC44MDcyMUMxOC4zNzY0IDQuNDMyNjIgMTcuNjIzNiA0LjQzMjYyIDE3LjAzNDQgNC44MDcyMUwyLjIyNjEzIDE0LjIyMDdDMS41NzgwMSAxNC42MzI3IDEuODY5ODUgMTUuNjM1OCAyLjYzNzg0IDE1LjYzNThINS4xOTc1MkM1LjYyMTM3IDE1LjYzNTggNS45NjQ5NyAxNS45Nzk0IDUuOTY0OTcgMTYuNDAzMlYzMC4wMDY4QzUuOTY0OTcgMzEuMDAwOSA2Ljc3MDg2IDMxLjgwNjggNy43NjQ5NyAzMS44MDY4SDE0LjAzMjRDMTUuMDI2NSAzMS44MDY4IDE1LjgzMjQgMzEuMDAwOSAxNS44MzI0IDMwLjAwNjhWMjMuNjU1QzE1LjgzMjQgMjMuMjMxMSAxNi4xNzYgMjIuODg3NSAxNi41OTk5IDIyLjg4NzVIMTkuNDYyNUMxOS44ODY0IDIyLjg4NzUgMjAuMjMgMjMuMjMxMSAyMC4yMyAyMy42NTVWMzAuMDA2OEMyMC4yMyAzMS4wMDA5IDIxLjAzNTkgMzEuODA2OCAyMi4wMyAzMS44MDY4SDI4LjIzNUMyOS4yMjkxIDMxLjgwNjggMzAuMDM1IDMxLjAwMDkgMzAuMDM1IDMwLjAwNjhWMTYuNDAzMkMzMC4wMzUgMTUuOTc5NCAzMC4zNzg2IDE1LjYzNTggMzAuODAyNSAxNS42MzU4SDMzLjM2MjJDMzQuMTMwMSAxNS42MzU4IDM0LjQyMiAxNC42MzI3IDMzLjc3MzkgMTQuMjIwN0wxOC45NjU2IDQuODA3MjFaIiBmaWxsPSIjRTVFNUU1Ii8+Cjwvc3ZnPgo=", "Work": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyLjQ3NDYgMTAuODY5NFY5LjQ2ODE2QzEyLjQ3NDYgNy40Nzk5NCAxNC4wODY0IDUuODY4MTYgMTYuMDc0NiA1Ljg2ODE2SDE5LjkyNTNDMjEuOTEzNSA1Ljg2ODE2IDIzLjUyNTMgNy40Nzk5NCAyMy41MjUzIDkuNDY4MTZWMTAuODY5NCIgc3Ryb2tlPSIjRTVFNUU1IiBzdHJva2Utd2lkdGg9IjIuNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yOC41NzcxIDEwLjg2OTFDMzAuNTY1MiAxMC44NjkyIDMyLjE3NjUgMTIuNDgwNyAzMi4xNzY4IDE0LjQ2ODhWMjguMTI3QzMyLjE3NjcgMzAuMTE1MSAzMC41NjUzIDMxLjcyNjUgMjguNTc3MSAzMS43MjY2SDcuNDIxODhDNS40MzM4NSAzMS43MjY0IDMuODIyMyAzMC4xMTUgMy44MjIyNyAyOC4xMjdWMTQuNDY4OEMzLjgyMjQ4IDEyLjQ4MDggNS40MzM5NiAxMC44Njk0IDcuNDIxODggMTAuODY5MUgyOC41NzcxWk0xNy4xMTYyIDE3LjMyNjJDMTYuNjE5MiAxNy4zMjYyIDE2LjIxNTggMTcuNzI5NSAxNi4yMTU4IDE4LjIyNjZWMjMuNjI2QzE2LjIxNTggMjQuMTIzIDE2LjYxOTIgMjQuNTI2NCAxNy4xMTYyIDI0LjUyNjRIMTguODgyOEMxOS4zNzk5IDI0LjUyNjQgMTkuNzgzMiAyNC4xMjMgMTkuNzgzMiAyMy42MjZWMTguMjI2NkMxOS43ODMyIDE3LjcyOTUgMTkuMzc5OSAxNy4zMjYyIDE4Ljg4MjggMTcuMzI2MkgxNy4xMTYyWiIgZmlsbD0iI0U1RTVFNSIvPgo8L3N2Zz4K", "Favorite": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE3LjI2OTcgMS4zNDU5OUMxNy40OTk1IDAuNjM4OTI2IDE4LjQ5OTggMC42Mzg5MjcgMTguNzI5NSAxLjM0NTk5TDIyLjA3MDYgMTEuNjI4OUMyMi4xNzM0IDExLjk0NTEgMjIuNDY4IDEyLjE1OTIgMjIuODAwNSAxMi4xNTkySDMzLjYxMjZDMzQuMzU2IDEyLjE1OTIgMzQuNjY1MiAxMy4xMTA1IDM0LjA2MzcgMTMuNTQ3NUwyNS4zMTY1IDE5LjkwMjdDMjUuMDQ3NiAyMC4wOTgxIDI0LjkzNSAyMC40NDQ1IDI1LjAzNzcgMjAuNzYwOEwyOC4zNzg5IDMxLjA0MzZDMjguNjA4NiAzMS43NTA3IDI3Ljc5OTMgMzIuMzM4NyAyNy4xOTc5IDMxLjkwMTdMMTguNDUwNyAyNS41NDY1QzE4LjE4MTcgMjUuMzUxMSAxNy44MTc1IDI1LjM1MTEgMTcuNTQ4NSAyNS41NDY1TDguODAxMzYgMzEuOTAxN0M4LjE5OTg5IDMyLjMzODcgNy4zOTA2MiAzMS43NTA3IDcuNjIwMzYgMzEuMDQzNkwxMC45NjE1IDIwLjc2MDdDMTEuMDY0MiAyMC40NDQ1IDEwLjk1MTcgMjAuMDk4MSAxMC42ODI3IDE5LjkwMjdMMS45MzU1MyAxMy41NDc1QzEuMzM0MDYgMTMuMTEwNSAxLjY0MzE4IDEyLjE1OTIgMi4zODY2MyAxMi4xNTkySDEzLjE5ODdDMTMuNTMxMiAxMi4xNTkyIDEzLjgyNTkgMTEuOTQ1MSAxMy45Mjg2IDExLjYyODlMMTcuMjY5NyAxLjM0NTk5WiIgZmlsbD0iI0U1RTVFNSIvPgo8L3N2Zz4K", "Charging": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI2LjEwNCAxNS44MTM4QzI2LjY4NDcgMTUuODEzOCAyNy4wNTUgMTYuNDMzNyAyNi43Nzk4IDE2Ljk0NUwxOC4wMzE5IDMzLjE5NzVDMTcuNjU0IDMzLjg5OTcgMTYuNTg4NyAzMy42MzEyIDE2LjU4ODcgMzIuODMzOFYyMC43MTE0QzE2LjU4ODcgMjAuMjg3NiAxNi4yNDUxIDE5Ljk0NCAxNS44MjEyIDE5Ljk0NEgxMC42NzMzQzEwLjA5MjcgMTkuOTQ0IDkuNzIyMzMgMTkuMzI0MSA5Ljk5NzU0IDE4LjgxMjhMMTguNzQ1NCAyLjU2MDI3QzE5LjEyMzQgMS44NTgxNCAyMC4xODg3IDIuMTI2NjMgMjAuMTg4NyAyLjkyNDAxVjE1LjA0NjRDMjAuMTg4NyAxNS40NzAyIDIwLjUzMjMgMTUuODEzOCAyMC45NTYxIDE1LjgxMzhIMjYuMTA0WiIgZmlsbD0iI0U1RTVFNSIvPgo8L3N2Zz4K"};var gs=document.createElement('div');gs.id='navGS';gs.className='navCard nhide';
 gs.innerHTML='<div class="ns-head"><div class="ns-back" id="gsBack"></div>Search</div><div class="fld active"><i style="background:#a46bff"></i><input id="gsIn" placeholder="Waypoint or new destination" autocomplete="off"><div class="clr" id="gsClr">✕</div></div>'+
   '<div class="chips" id="gsChips"></div><div id="gsRes"></div>'+
   '<div class="gs-ask nhide" id="gsAsk"><div class="gs-q"><b id="gsName"></b><small id="gsAddr"></small></div><div class="gs-t">Add this place as a waypoint, or set it as the new destination?</div>'+
@@ -2252,7 +2262,7 @@ huNav.appendChild(gs);
 gs.addEventListener('pointerdown',function(e){e.stopPropagation();});
 var gsSel=null,gsT=null;
 function gsOpen(){gs.classList.remove('nhide');$('gsIn').value='';$('gsRes').innerHTML='';$('gsAsk').classList.add('nhide');gsSel=null;
-  var ch=$('gsChips');ch.innerHTML='';CHIPS.forEach(function(c){if(c.cur)return;var d=document.createElement('div');d.className='chip';d.textContent=c.n;d.onclick=function(){gsFind(c.q,true);};ch.appendChild(d);});
+  var ch=$('gsChips');ch.innerHTML='';CHIPS.forEach(function(c){if(c.cur)return;var d=document.createElement('div');d.className='chip gsIco';d.title=c.n;d.innerHTML='<img alt="'+c.n+'" src="'+(GS_ICONS[c.n]||'')+'">';d.onclick=function(){gsFind(c.q,true);};ch.appendChild(d);});
   setTimeout(function(){$('gsIn').focus();},50);send('navSearch','open');}
 function gsClose(){gs.classList.add('nhide');$('gsIn').blur();}
 function gsList(l){var box=$('gsRes');box.innerHTML='';$('gsAsk').classList.add('nhide');
@@ -2272,7 +2282,268 @@ $('gsClr').onclick=function(){$('gsIn').value='';$('gsRes').innerHTML='';$('gsAs
 $('gsBack').onclick=function(){gsClose();if(pickMk){map.removeLayer(pickMk);pickMk=null;}};
 $('gsVia').onclick=function(){var p=gsSel;if(!p)return;gsClose();if(pickMk){map.removeLayer(pickMk);pickMk=null;}applyChoice(p,'via');};
 $('gsDest').onclick=function(){var p=gsSel;if(!p)return;gsClose();if(pickMk){map.removeLayer(pickMk);pickMk=null;}applyChoice(p,'dest');};
-$('ntSch').onclick=function(e){e.stopPropagation();pickClose();gsOpen();};
+$('ntSch').onclick=function(e){e.stopPropagation();pickClose();if(window.__navSearch)window.__navSearch();else gsOpen();};
+
+/* ---- 속도제한 (클러스터 좌측 표지판 Figma ic_road_sign_3.24 / 683:27040) ----
+   TomTom 경로의 speedLimit 구간 → 없으면 도로 종류(고속도로 100 / 시내 50 / 그 외 80) → 무료 경로는 60 */
+function ttRoute(path,params){
+  return tt(path,params+'&sectionType=speedLimit&sectionType=motorway&sectionType=urban').catch(function(e){
+    if(!/HTTP 400/.test(String(e&&e.message)))throw e;
+    return tt(path,params+'&sectionType=motorway&sectionType=urban').catch(function(e2){if(!/HTTP 400/.test(String(e2&&e2.message)))throw e2;return tt(path,params);});});}
+var limEl=document.createElement('div');limEl.id='limSign';var s1=$('sign1');if(s1&&s1.parentNode)s1.parentNode.insertBefore(limEl,s1.nextSibling);
+var limCur=null;
+function limitAt(s){var R=st.route;if(!R)return null;var S=R.secs||[],i,x;
+  for(i=0;i<S.length;i++){x=S[i];if(x.t==='SPEED_LIMIT'&&x.v&&s>=x.a&&s<x.b)return Math.round(x.v);}
+  for(i=0;i<S.length;i++){x=S[i];if(x.t==='MOTORWAY'&&s>=x.a&&s<x.b)return 100;}
+  for(i=0;i<S.length;i++){x=S[i];if(x.t==='URBAN'&&s>=x.a&&s<x.b)return 50;}
+  return S.length?80:60;}
+function setLimit(v){var over=v&&sim.kmh>v+3;
+  if(v!==limCur){limCur=v;document.documentElement.classList.toggle('hasLim',!!v);
+    if(v){var t=String(v),fs=t.length>2?22:28;limEl.innerHTML='<svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#fff"/><circle cx="32" cy="32" r="30" fill="none" stroke="#DA241C" stroke-width="4"/>'+
+      '<text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="Pretendard,Inter,sans-serif" font-weight="700" font-size="'+fs+'" fill="#000" letter-spacing="-.5">'+t+'</text></svg>';}
+    send('speedLimit',v?String(v):'none');}
+  limEl.classList.toggle('over',!!over);}
+window.__navLimitNow=function(){return sim.guide?limitAt(sim.s):null;};
+window.__navLimit=function(){setLimit(sim.guide?limitAt(sim.s):null);};
+
+/* ---- 안내 없이 주행할 때: 진행방향 앞쪽(약 3km)까지 실제 도로 경로를 받아 그 길을 따라감, 끝나가면 다시 이어 붙임 ---- */
+var fr={pts:null,cum:null,s:0,busy:false,fail:0};
+function frDest(from,deg,km){var R=6371,t=Math.PI/180,d=km/R,b=deg*t,la=from.lat*t,lo=from.lng*t;
+  var la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b)),lo2=lo+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+  return L.latLng(la2/t,lo2/t);}
+function frFetch(from,deg){var to=frDest(from,deg,3);
+  if(KEY)return tt('/routing/1/calculateRoute/'+from.lat+','+from.lng+':'+to.lat+','+to.lng+'/json','travelMode=car&routeRepresentation=polyline&traffic=false').then(function(d){
+    var r=d.routes&&d.routes[0],p=[];if(!r)throw new Error('no route');r.legs.forEach(function(l){l.points.forEach(function(x){p.push(L.latLng(x.latitude,x.longitude));});});return p;});
+  return jget('https://router.project-osrm.org/route/v1/driving/'+from.lng+','+from.lat+';'+to.lng+','+to.lat+'?overview=full&geometries=geojson').then(function(d){
+    var r=d.routes&&d.routes[0];if(!r)throw new Error('no route');return r.geometry.coordinates.map(function(c){return L.latLng(c[1],c[0]);});});}
+function frSet(p){var c=[0];for(var i=1;i<p.length;i++)c.push(c[i-1]+p[i-1].distanceTo(p[i]));fr.pts=p;fr.cum=c;}
+function frLoad(extend){if(fr.busy||fr.fail>2)return;fr.busy=true;
+  var from,deg;if(extend&&fr.pts){var n=fr.pts.length;from=fr.pts[n-1];deg=bearOf(fr.pts[Math.max(0,n-4)],from);}else{from=carMk.getLatLng();deg=hu.cur||0;}
+  frFetch(from,deg).then(function(p){fr.busy=false;fr.fail=0;if(p.length<2)return;
+    if(extend&&fr.pts){var i=0;while(i<fr.cum.length-1&&fr.cum[i+1]<fr.s)i++;var keep=fr.pts.slice(i);fr.s-=fr.cum[i];frSet(keep.concat(p.slice(1)));}
+    else{fr.s=0;frSet(p);}}).catch(function(){fr.busy=false;fr.fail++;});}
+function frReset(){fr.pts=null;fr.cum=null;fr.s=0;fr.fail=0;}
+window.__freeStep=function(meters){
+  if(!fr.pts){frLoad(false);return null;}
+  var tot=fr.cum[fr.cum.length-1];if(tot-fr.s<800)frLoad(true);
+  fr.s=Math.min(fr.s+meters,tot);if(fr.s>=tot){frReset();return null;}
+  var c=fr.cum,i=1;while(i<c.length&&c[i]<fr.s)i++;var a=fr.pts[i-1],b=fr.pts[i],t=(fr.s-c[i-1])/Math.max(1e-6,c[i]-c[i-1]);
+  return L.latLng(a.lat+(b.lat-a.lat)*t,a.lng+(b.lng-a.lng)*t);};
+window.__freeReset=frReset;
+window.__freePrefetch=function(){if(!sim.guide&&!fr.pts)frLoad(false);};
+window.__freeBusy=function(){return fr.busy&&!fr.pts;};
+
+/* ==== 검색 / 상세 / 화면 키보드 (Figma 679:18170, 689:15932, 689:16280, 684:33567, 684:27500) ==== */
+var NS_PIN='<svg width="36" height="36" viewBox="0 0 36 36"><path d="M18 3C11.9 3 7 7.8 7 13.8c0 7.9 9.4 17.5 10 18.1.5.5 1.4.5 1.9 0 .6-.6 10.1-10.2 10.1-18.1C29 7.8 24.1 3 18 3Zm0 15a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z" fill="#fff"/></svg>';
+var NS_FLAG='<svg width="32" height="32" viewBox="0 0 24 24"><path d="M5 21V4M5 4h13l-2.5 4L18 12H5" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M8 4h3v4H8zM14 4h3l-1.5 2.4V8H14zM11 8h3v4h-3zM5 8h3v4H5z" fill="#fff"/></svg>';
+var ns={open:false,ctx:'browse',sel:null,where:null,want:false,results:[]};
+function nsEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+/* 영업시간 (TomTom openingHours=nextSevenDays) */
+function nsHours(oh){if(!oh||!oh.timeRanges||!oh.timeRanges.length)return '';var now=new Date(),pad=function(n){return ('0'+n).slice(-2);},td=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  var r=oh.timeRanges.filter(function(x){return x.startTime&&x.startTime.date===td;})[0];if(!r)return 'Closed today';
+  var s=r.startTime,e=r.endTime,hm=function(t){return pad(t.hour)+':'+pad(t.minute);},open=(now.getHours()*60+now.getMinutes())>=(s.hour*60+s.minute)&&(e.date!==td||(now.getHours()*60+now.getMinutes())<(e.hour*60+e.minute));
+  return (open?'Open now · ':'Closed · ')+hm(s)+' – '+hm(e);}
+/* 패널 */
+var sp=document.createElement('div');sp.id='navSP';sp.className='nhide';
+sp.innerHTML='<div class="sp-head"><div class="sp-back" id="spBack"></div><b id="spTitle">Search</b><div class="sp-x" id="spX">✕</div></div>'+
+ '<div id="spSearch"><div class="sp-in"><input id="spInput" placeholder="Search" autocomplete="off" spellcheck="false"><div class="sp-clr" id="spClr">✕</div></div>'+
+ '<div class="sp-quick" id="spQuick"></div><div id="spRes"></div></div><div id="spDetail" class="nhide"></div>';
+huNav.appendChild(sp);sp.addEventListener('pointerdown',function(e){e.stopPropagation();});
+var mc=document.createElement('div');mc.id='navMC';mc.className='nhide';huNav.appendChild(mc);mc.addEventListener('pointerdown',function(e){e.stopPropagation();});
+[['Home','광교호수공원'],['Work','판교역'],['Favorite','수원화성 행궁'],['Charging','전기차 충전소']].forEach(function(q){var b=document.createElement('div');b.className='sp-qb';
+  b.innerHTML='<img alt="'+q[0]+'" src="'+((typeof GS_ICONS!=='undefined'&&GS_ICONS[q[0]])||'')+'">';b.onclick=function(){nsQuick(q[0],q[1]);};$('spQuick').appendChild(b);});
+function nsView(v){$('spSearch').classList.toggle('nhide',v!=='search');$('spDetail').classList.toggle('nhide',v!=='detail');$('spTitle').textContent=v==='detail'?'Details':'Search';sp.classList.toggle('isDetail',v==='detail');}
+function nsOpen(){pickClose();nsMcClose();ns.open=true;ns.ctx=sim.guide?'guide':'browse';sp.classList.remove('nhide');huNav.classList.add('spOn');nsView('search');
+  $('spInput').value='';$('spRes').innerHTML='';ns.results=[];kbShow(true);setTimeout(function(){$('spInput').focus();},30);send('navSearch','open');}
+function nsClose(){ns.open=false;sp.classList.add('nhide');huNav.classList.remove('spOn');kbShow(false);$('spInput').blur();nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}send('navSearch','close');}
+function nsClearPreview(){if(ns.ctx==='browse'&&!sim.guide&&(st.route||st.dest)){ns.want=false;clearRoute();setPoint('dest',null);setPoint('origin',null);}}
+function nsRow(p){var c=carMk.getLatLng(),m=hav({lat:c.lat,lon:c.lng},p),km=m<1000?Math.round(m)+'m':(m/1000).toFixed(1)+'km';
+  var d=document.createElement('div');d.className='sp-row';d.innerHTML='<i>'+NS_PIN+'</i><div class="sp-t"><b>'+nsEsc(p.name)+'</b><small>'+nsEsc(p.addr||'')+'</small></div><em>'+km+'</em>';
+  d.onclick=function(){d.classList.add('sel');setTimeout(function(){nsDetail(p,'panel');},120);};return d;}
+function nsList(l){ns.results=l;var box=$('spRes');box.innerHTML='';if(!l.length){box.innerHTML='<div class="sp-msg">No results</div>';return;}l.forEach(function(p){box.appendChild(nsRow(p));});}
+var nsT=null;
+function nsFind(q){if(!q){$('spRes').innerHTML='';return;}$('spRes').innerHTML='';
+  if(!KEY&&PRESET[q]){var pp=PRESET[q];nsList([{lat:pp.lat,lon:pp.lon,name:pp.name,addr:''}]);return;}
+  search(q).then(nsList).catch(function(){$('spRes').innerHTML='<div class="sp-msg">Cannot reach the search server.</div>';});}
+function nsQuick(name,q){if(!ns.open)nsOpen();kbShow(false);$('spInput').value='';
+  if(!KEY&&PRESET[q]){var pp=PRESET[q];nsDetail({lat:pp.lat,lon:pp.lon,name:pp.name,addr:''},'panel');return;}
+  $('spRes').innerHTML='';
+  search(q).then(function(l){if(name==='Charging'||!l[0])nsList(l);else nsDetail(l[0],'panel');}).catch(function(){$('spRes').innerHTML='<div class="sp-msg">Cannot reach the search server.</div>';});}
+$('spInput').addEventListener('input',function(){clearTimeout(nsT);var q=$('spInput').value.trim();nsT=setTimeout(function(){nsFind(q);},350);});
+$('spInput').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(nsT);kbShow(false);nsFind($('spInput').value.trim());}e.stopPropagation();});
+$('spInput').addEventListener('pointerdown',function(){kbShow(true);});
+$('spClr').onclick=function(){$('spInput').value='';$('spRes').innerHTML='';$('spInput').focus();kbShow(true);};
+$('spBack').onclick=function(){if(!$('spDetail').classList.contains('nhide')){nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}nsView('search');if(ns.results.length)nsList(ns.results);}else nsClose();};
+$('spX').onclick=function(){nsClose();};
+/* 상세 내용 */
+function nsDetailHTML(p,wide){var g=ns.ctx==='guide';
+  return '<div class="dt-body"><b class="dt-name">'+nsEsc(p.name)+'</b><div class="dt-addr">'+nsEsc(p.addr||'')+'</div>'+
+   (p.phone?'<div class="dt-line">'+nsEsc(p.phone)+'</div>':'')+(p.hours?'<div class="dt-line">'+nsEsc(p.hours)+'</div>':'')+
+   '<div class="dt-eta"><span class="dt-e1">'+NS_FLAG+'<b class="dtEta">--:--</b></span><span class="dtTime"><b>-</b></span><span class="dtDist"><b>-</b></span></div></div>'+
+   '<div class="dt-foot">'+(g?'<div class="dt-btn dt-go" data-a="dest">New Destination</div><div class="dt-btn dt-sub" data-a="via">Add Waypoint</div>':'<div class="dt-btn dt-go" data-a="go">Go</div>')+'</div>';}
+function nsEta(root,time,len){var eta=new Date(Date.now()+time*1000),pad=function(n){return ('0'+n).slice(-2);};
+  root.querySelectorAll('.dtEta').forEach(function(e){e.textContent=pad(eta.getHours())+':'+pad(eta.getMinutes());});
+  var H=Math.floor(time/3600),M=Math.round((time%3600)/60);if(M===60){H++;M=0;}var d=fmtDist(len);
+  root.querySelectorAll('.dtTime').forEach(function(e){e.innerHTML='<b>'+H+'</b><small>h</small> <b>'+M+'</b><small>min</small>';});
+  root.querySelectorAll('.dtDist').forEach(function(e){e.innerHTML='<b>'+d.v+'</b><small>'+d.u+'</small>';});}
+function nsSummary(p,root){var c=carMk.getLatLng();
+  var q=KEY?tt('/routing/1/calculateRoute/'+c.lat+','+c.lng+':'+p.lat+','+p.lon+'/json','travelMode=car&traffic=true&routeType=fastest&computeTravelTimeFor=none').then(function(d){var s=d.routes[0].summary;return [s.travelTimeInSeconds,s.lengthInMeters];})
+    :jget('https://router.project-osrm.org/route/v1/driving/'+c.lng+','+c.lat+';'+p.lon+','+p.lat+'?overview=false').then(function(d){var r=d.routes[0];return [r.duration,r.distance];});
+  q.then(function(v){if(ns.sel===p)nsEta(root,v[0],v[1]);}).catch(function(){});}
+function nsBind(root,p){root.querySelectorAll('.dt-btn').forEach(function(b){b.onclick=function(e){e.stopPropagation();var a=b.getAttribute('data-a');
+  if(a==='go'){if(!st.route){flashNav('Calculating route…');return;}ns.want=false;var keep=true;sp.classList.add('nhide');ns.open=false;huNav.classList.remove('spOn');kbShow(false);nsMcClose(keep);if(pickMk){map.removeLayer(pickMk);pickMk=null;}startSim();}
+  else{nsClose();nsMcClose();applyChoice(p,a==='via'?'via':'dest');}};});}
+function nsDetail(p,where){ns.sel=p;ns.where=where;kbShow(false);
+  var root=where==='panel'?$('spDetail'):mc;root.innerHTML=nsDetailHTML(p);nsBind(root,p);
+  if(where==='panel'){nsView('detail');if(pickMk)map.removeLayer(pickMk);pickMk=null;}
+  if(ns.ctx==='guide'||sim.guide){nsSummary(p,root);if(where==='panel'){pickMk=L.marker([p.lat,p.lon],{icon:pin('#ffb020'),interactive:false}).addTo(map);map.setView([p.lat,p.lon],map.getZoom());hu.lock=false;}}
+  else{ /* 목적지 없을 때: 경로 미리보기 */
+    if(pickMk){map.removeLayer(pickMk);pickMk=null;}ns.want=true;var c=carMk.getLatLng();setPoint('dest',null);setPoint('origin',{lat:c.lat,lon:c.lng,name:'Current location'});setPoint('dest',p);}
+  send('navDetail',p.name);}
+window.__navDetailRoute=function(){if(!ns.want)return false;ns.want=false;var R=st.route;if(R&&ns.sel){[$('spDetail'),mc].forEach(function(r){nsEta(r,R.time,R.len);});
+  if(ns.where==='map')map.fitBounds(line.getBounds(),{paddingTopLeft:[80,80],paddingBottomRight:[80,460]});}return true;};
+/* 지도 탭 → 상세 카드 (Figma 684:27500) */
+function nsMcClose(keepRoute){mc.classList.add('nhide');huNav.classList.remove('mcOn');if(!keepRoute&&ns.where==='map')nsClearPreview();if(ns.where==='map')ns.where=null;}
+window.__navMapDetail=function(ll){if(ns.open)return;ns.ctx=sim.guide?'guide':'browse';
+  var p={lat:ll.lat,lon:ll.lng,name:'Selected location',addr:''};if(pickMk)map.removeLayer(pickMk);pickMk=L.marker(ll,{icon:pin('#ffb020'),interactive:false}).addTo(map);
+  mc.classList.remove('nhide');huNav.classList.add('mcOn');nsDetail(p,'map');
+  var x=document.createElement('div');x.className='mc-x';x.textContent='✕';x.onclick=function(e){e.stopPropagation();nsMcClose();if(pickMk){map.removeLayer(pickMk);pickMk=null;}};mc.appendChild(x);
+  var upd=function(q){if(ns.sel!==p)return;for(var k in q)if(q[k])p[k]=q[k];var b=mc.querySelector('.dt-body');if(!b)return;
+    b.querySelector('.dt-name').textContent=p.name;b.querySelector('.dt-addr').textContent=p.addr||'';
+    b.querySelectorAll('.dt-line').forEach(function(l){l.remove();});var e=b.querySelector('.dt-eta');
+    if(p.phone){var a=document.createElement('div');a.className='dt-line';a.textContent=p.phone;b.insertBefore(a,e);}
+    if(p.hours){var h=document.createElement('div');h.className='dt-line';h.textContent=p.hours;b.insertBefore(h,e);}};
+  if(KEY){tt('/search/2/nearbySearch/.json','lat='+p.lat+'&lon='+p.lon+'&radius=80&limit=1&language='+LANG+'&openingHours=nextSevenDays').then(function(d){var r=d.results&&d.results[0];
+      if(r&&r.poi)upd({name:r.poi.name,addr:r.address&&r.address.freeformAddress,phone:r.poi.phone,hours:nsHours(r.poi.openingHours)});
+      else return tt('/search/2/reverseGeocode/'+p.lat+','+p.lon+'.json','language='+LANG).then(function(d){var a=d.addresses&&d.addresses[0];if(a)upd({name:a.address.streetName||a.address.freeformAddress,addr:a.address.freeformAddress});});}).catch(function(){});}
+  else freeReverse(p).then(function(n){upd({name:n,addr:n});}).catch(function(){});};
+window.__navDetailClose=function(){if(ns.open){ns.open=false;sp.classList.add('nhide');huNav.classList.remove('spOn');kbShow(false);}mc.classList.add('nhide');huNav.classList.remove('mcOn');ns.want=false;ns.where=null;};
+window.__navPanelOpen=function(){return ns.open;};
+window.__navSearch=nsOpen;window.__navQuick=function(n){var m={Home:'광교호수공원',Work:'판교역',Favorite:'수원화성 행궁',Charging:'전기차 충전소'};nsQuick(n,m[n]);};
+/* ---- 화면 키보드 (영문 QWERTY, 숫자/기호) ---- */
+var kb=document.createElement('div');kb.id='navKB';kb.className='nhide';
+var KB_ROWS={abc:[['q','w','e','r','t','y','u','i','o','p'],['a','s','d','f','g','h','j','k','l'],['⇧','z','x','c','v','b','n','m','⌫'],['!123','🌐','🎤','␣','⌨','Done']],
+  sym:[['1','2','3','4','5','6','7','8','9','0'],['-','/',':',';','(',')','&','@','"'],['#','.',',','?','!','\'','+','=','⌫'],['ABC','🌐','🎤','␣','⌨','Done']]};
+var kbMode='abc',kbShift=false;
+var KB_SVG={'⇧':'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M12 4 4 12h4.5v7h7v-7H20Z"/></svg>',
+ '⌫':'<svg width="34" height="30" viewBox="0 0 28 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M9 5h15v14H9l-6-7Z"/><path d="m13 9 6 6m0-6-6 6" stroke-linecap="round"/></svg>',
+ '🌐':'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>',
+ '🎤':'<svg width="28" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+ '␣':'<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2 4v6h26V4"/></svg>',
+ '⌨':'<svg width="34" height="32" viewBox="0 0 28 26" fill="none" stroke="#fff" stroke-width="1.6"><rect x="2" y="2" width="24" height="15" rx="2"/><path d="M6 6h1M10 6h1M14 6h1M18 6h1M22 6h1M6 10h1M10 10h1M14 10h1M18 10h1M22 10h1M8 13.5h12M11 21l3 3 3-3" stroke-linecap="round"/></svg>'};
+function kbRender(){var h='';KB_ROWS[kbMode].forEach(function(r,ri){h+='<div class="kb-row kb-r'+ri+'">';r.forEach(function(k){var w='',cls='kb-k',lab=KB_SVG[k]||k;
+   if(k==='⇧'||k==='⌫'||k==='!123'||k==='ABC'||k==='Done')cls+=' kb-w';if(k==='␣')cls+=' kb-sp';if(k.length===1&&KB_SVG[k]==null&&k!=='␣')lab=kbShift?k.toUpperCase():k;
+   if(KB_SVG[k]||k==='!123'||k==='ABC'||k==='Done')cls+=' kb-f';if(k==='⇧'&&kbShift)cls+=' on';
+   h+='<div class="'+cls+'" data-k="'+nsEsc(k)+'">'+lab+'</div>';});h+='</div>';});kb.innerHTML='<div class="kb-in">'+h+'</div>';}
+kbRender();(document.getElementById('stage')||document.body).appendChild(kb);
+function kbShow(on){kb.classList.toggle('nhide',!on);}
+kb.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();var t=e.target.closest('[data-k]');if(!t)return;t.classList.add('pr');setTimeout(function(){t.classList.remove('pr');},120);
+  var k=t.getAttribute('data-k'),inp=$('spInput');
+  if(k==='⇧'){kbShift=!kbShift;kbRender();return;}if(k==='!123'||k==='ABC'){kbMode=kbMode==='abc'?'sym':'abc';kbRender();return;}
+  if(k==='⌨'){kbShow(false);return;}if(k==='🌐'||k==='🎤'){flashNav(k==='🌐'?'Korean input: use the PC keyboard':'Voice input is not available');return;}
+  if(k==='Done'){kbShow(false);clearTimeout(nsT);nsFind(inp.value.trim());return;}
+  if(k==='⌫')inp.value=inp.value.slice(0,-1);else inp.value+=(k==='␣'?' ':(kbShift?k.toUpperCase():k));
+  if(kbShift&&k!=='⌫'){kbShift=false;kbRender();}inp.dispatchEvent(new Event('input'));});
+window.__nsHours=nsHours;
+
+/* ---- TBT 핸들: 아래로 끌어 늘리면 이후 길안내 목록 (줄 단위로 멈춤)
+   끝까지 늘리면 트립카드 대신 패널 하단에 도착정보 고정 / 좌측 교통상황 라인 / 우측 스크롤 표시(터치하면 보임) ---- */
+(function(){
+var card=$('tbtCard');if(!card)return;
+var wrap=document.createElement('div');wrap.id='tbWrap';
+var box=document.createElement('div');box.id='tbList';
+var sb=document.createElement('div');sb.id='tbSb';sb.innerHTML='<i></i>';
+wrap.appendChild(box);wrap.appendChild(sb);
+var foot=document.createElement('div');foot.id='tbFoot';foot.innerHTML='<img alt=""><div class="tf-tx"><div class="tf-n"></div><div class="tf-s"></div></div><div class="tf-eta"></div>';
+var hd=document.createElement('div');hd.id='tbHandle';hd.innerHTML='<i></i>';
+card.appendChild(wrap);card.appendChild(foot);card.appendChild(hd);
+var T=0,full=false,key='',RH=84,FH=84;
+function tColor(a,b){var R=st.route,c='#1fa83a',worst=0;(R&&R.traffic||[]).forEach(function(x){if(x.b>a&&x.a<b&&x.m>worst){worst=x.m;c=TC[x.m]||c;}});return c;}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+/* 펼침 높이 T = 목록 높이 (+ 끝까지 펼친 상태면 하단 도착정보 높이) */
+function lims(){var nv=$('nav'),tr=$('navTrip'),base=card.offsetTop+card.offsetHeight-box.offsetHeight-(full?FH:0);
+  var bottom=(nv?nv.offsetHeight:1000)-38,trOn=tr&&tr.offsetParent;
+  var limP=trOn?tr.offsetTop-16-base:bottom-base-FH;
+  return {p:Math.max(0,limP),f:Math.max(0,bottom-base),sh:box.scrollHeight};}
+function stops(){var L=lims(),a=[0],k;
+  for(k=1;k*RH<=L.p&&k*RH<=L.sh;k++)a.push(k*RH);
+  for(k=1;FH+k*RH<=L.f;k++){var t=FH+k*RH;if(k*RH>L.sh)break;if(t>L.p&&a.indexOf(t)<0)a.push(t);}
+  var fm=FH+L.sh;if(L.sh>0&&L.sh>L.p&&fm<=L.f&&a.indexOf(fm)<0&&fm>a[a.length-1])a.push(fm);
+  return a.sort(function(x,y){return x-y;});}
+function setT(t,anim){var L=lims();T=Math.max(0,Math.min(t,L.f));
+  var f=T>L.p+1&&T>FH;if(f!==full){full=f;foot.style.display=f?'flex':'none';var nv=$('nav');if(nv)nv.classList.toggle('tbFull',f);}
+  var h=full?T-FH:T;box.style.transition=anim?'height .28s cubic-bezier(.2,.8,.2,1)':'none';box.style.height=Math.max(0,h)+'px';
+  card.classList.toggle('tbOpen',T>2);sbPos();}
+function build(nxt,nxt2){var R=st.route;if(!R)return;var i0=R.ins.indexOf(nxt2||nxt);
+  var k=i0+':'+R.ins.length+':'+(st.dest&&st.dest.name);if(k===key)return;key=k;
+  var h='',prev=(nxt2||nxt);
+  for(var i=i0+1;i<R.ins.length;i++){var x=R.ins[i];if(/^ARRIVE/.test(x.man))break;
+    var d=fmtDist(x.off-prev.off);
+    h+='<div class="tl-row"><b class="tl-tf" style="background:'+tColor(prev.off,x.off)+'"></b><img src="'+uri(arrow(x.man))+'"><div class="tl-tx"><div class="tl-d">'+d.v+'<span>'+d.u+'</span></div><div class="tl-r">'+esc(label(x))+'</div></div></div>';
+    prev=x;}
+  /* 마지막 안내 → 목적지 구간도 교통 라인으로 이어서 표시 */
+  if(h)h+='<div class="tl-end"><b class="tl-tf" style="background:'+tColor(prev.off,R.total)+'"></b></div>';
+  box.innerHTML=h;foot.querySelector('img').src=uri(TBT_PIN);
+  var st0=stops(),mx=st0[st0.length-1];if(T>mx)setT(mx,false);else setT(T,false);}
+var TBT_PIN='<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 80 80">'+(TBT_SVG['006_010']||'')+'</svg>';
+function footUpd(){foot.querySelector('.tf-n').textContent=st.dest?st.dest.name:'';
+  var tm=$('ntTime')?$('ntTime').innerHTML.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():'',rd=($('stRemain')?$('stRemain').textContent:'')+' '+($('stRemainU')?$('stRemainU').textContent:'');
+  foot.querySelector('.tf-s').textContent=tm+'  ·  '+rd;foot.querySelector('.tf-eta').textContent=$('stEta')?$('stEta').textContent:'';}
+window.__tbList=function(nxt,nxt2){build(nxt,nxt2);if(full)footUpd();};
+window.__tbCollapse=function(){key='';setT(0,false);};
+/* 핸들 드래그: 놓으면 가장 가까운 줄 경계에 멈춤, 빠르게 튕기면 한 칸 더 */
+var drag=null;
+function sc(){var r=card.getBoundingClientRect();return r.height/card.offsetHeight||1;}
+hd.addEventListener('pointerdown',function(e){e.stopPropagation();e.preventDefault();hd.setPointerCapture(e.pointerId);drag={y:e.clientY,t0:T,s:sc(),moved:false,t:performance.now()};});
+hd.addEventListener('pointermove',function(e){if(!drag)return;var dy=(e.clientY-drag.y)/drag.s;if(Math.abs(dy)>4)drag.moved=true;var a=stops();setT(Math.min(a[a.length-1],drag.t0+dy),false);if(full)footUpd();});
+function end(e){if(!drag)return;var d=drag;drag=null;var a=stops(),mx=a[a.length-1],dy=(e.clientY-d.y)/d.s,v=dy/Math.max(1,performance.now()-d.t),t;
+  if(!d.moved)t=T>2?0:mx;
+  else if(v>.8){t=mx;for(var i=0;i<a.length;i++)if(a[i]>=T){t=a[i];break;}}
+  else if(v<-.8){t=0;for(var j=a.length-1;j>=0;j--)if(a[j]<=T){t=a[j];break;}}
+  else{t=a[0];a.forEach(function(x){if(Math.abs(x-T)<Math.abs(t-T))t=x;});}
+  setT(t,true);if(full)footUpd();}
+hd.addEventListener('pointerup',end);hd.addEventListener('pointercancel',end);
+/* 목록: 손가락(마우스)으로 끌어 스크롤 + 줄 단위 정렬, 터치하면 우측 스크롤 표시 */
+var sbT=0;
+function sbPos(){var ch=box.clientHeight,sh=box.scrollHeight,i=sb.firstChild;
+  if(sh<=ch+1||ch<=0){sb.style.display='none';return;}sb.style.display='';
+  var th=Math.max(28,ch*ch/sh);i.style.height=th+'px';i.style.transform='translateY('+((ch-th)*box.scrollTop/(sh-ch))+'px)';}
+function sbShow(){sbPos();sb.classList.add('on');clearTimeout(sbT);sbT=setTimeout(function(){sb.classList.remove('on');},1500);}
+box.addEventListener('scroll',function(){sbShow();});
+var ld=null;
+box.addEventListener('pointerdown',function(e){e.stopPropagation();sbShow();ld={y:e.clientY,st:box.scrollTop,s:sc(),id:e.pointerId,m:false};});
+box.addEventListener('pointermove',function(e){if(!ld)return;var dy=(e.clientY-ld.y)/ld.s;if(!ld.m&&Math.abs(dy)>4){ld.m=true;box.setPointerCapture(ld.id);box.style.scrollSnapType='none';}if(ld.m)box.scrollTop=ld.st-dy;});
+function lend(){if(!ld)return;var m=ld.m;ld=null;if(m){var to=Math.round(box.scrollTop/RH)*RH;box.style.scrollSnapType='';box.scrollTo({top:to,behavior:'smooth'});}sbShow();}
+box.addEventListener('pointerup',lend);box.addEventListener('pointercancel',lend);
+['wheel','click','dblclick'].forEach(function(t){wrap.addEventListener(t,function(e){e.stopPropagation();});});
+foot.addEventListener('pointerdown',function(e){e.stopPropagation();});
+})();
+
+/* ---- 지도 경로: 굵게 + 교통상황 색 (원활 초록 / 서행 주황 / 정체 빨강), TomTom 교통정보 없으면 파란색 ---- */
+map.createPane('trafPane');map.getPane('trafPane').style.zIndex=410;map.getPane('trafPane').style.pointerEvents='none';
+var trLy=L.layerGroup().addTo(map),trT=0,RW=14;
+function trSlice(R,a,b){var c=R.cum,p=R.pts,o=[];function at(s){var i=1;while(i<c.length&&c[i]<s)i++;if(i>=c.length)return p[p.length-1];var t=(s-c[i-1])/Math.max(1e-6,c[i]-c[i-1]);return L.latLng(p[i-1].lat+(p[i].lat-p[i-1].lat)*t,p[i-1].lng+(p[i].lng-p[i-1].lng)*t);}
+  o.push(at(a));for(var i=0;i<c.length;i++)if(c[i]>a&&c[i]<b)o.push(p[i]);o.push(at(b));return o;}
+function trafLine(force){var R=st.route;if(!line||!R){trLy.clearLayers();return;}
+  var now=performance.now();if(!force&&now-trT<400)return;trT=now;
+  line.setStyle({color:KEY?'#1fa83a':'#2e7bff',weight:RW,opacity:1});
+  trLy.clearLayers();var s0=sim.guide?sim.s:0;
+  (R.traffic||[]).forEach(function(x){if(x.b<=s0)return;var pts=trSlice(R,Math.max(x.a,s0),x.b);
+    if(pts.length>1)L.polyline(pts,{pane:'trafPane',color:TC[x.m]||TC[0],weight:RW,opacity:1,interactive:false}).addTo(trLy);});}
+window.__trafLine=trafLine;
+var _trRR=window.__navRouteReady;window.__navRouteReady=function(){if(_trRR)_trRR.apply(this,arguments);trafLine(true);};
+
+/* ---- 지도 아이콘 블루톤 + 주차장만 눈에 띄는 파란 P 표시 (TomTom 주차장 카테고리 7369 주차장 / 7313 주차빌딩) ---- */
+map.createPane('pkPane');map.getPane('pkPane').style.zIndex=420;map.getPane('pkPane').style.pointerEvents='none';
+var pkLy=L.layerGroup().addTo(map),pkLast=null,pkBusy=false,pkIcon=L.divIcon({className:'pkMk',html:'<b>P</b>',iconSize:[24,24],iconAnchor:[12,12]});
+function pkLoad(){if(!KEY||pkBusy)return;var z=map.getZoom();if(z<15){pkLy.clearLayers();pkLast=null;return;}
+  var c=map.getCenter(),b=map.getBounds(),rad=Math.min(2000,Math.round(c.distanceTo(b.getNorthEast())));
+  if(pkLast&&c.distanceTo(pkLast.c)<rad*0.4&&Math.abs(z-pkLast.z)<1)return;
+  pkBusy=true;
+  tt('/search/2/nearbySearch/.json','lat='+c.lat.toFixed(6)+'&lon='+c.lng.toFixed(6)+'&radius='+rad+'&categorySet=7369,7313&limit=100&language='+LANG).then(function(d){pkBusy=false;pkLast={c:c,z:z};pkLy.clearLayers();
+    (d.results||[]).forEach(function(r){if(r.position)L.marker([r.position.lat,r.position.lon],{icon:pkIcon,pane:'pkPane',interactive:false,keyboard:false}).addTo(pkLy);});
+  }).catch(function(){pkBusy=false;});}
+var pkT=0;map.on('moveend zoomend',function(){clearTimeout(pkT);pkT=setTimeout(pkLoad,400);});setTimeout(pkLoad,1500);
 if(window.ResizeObserver)new ResizeObserver(function(){if(hu.on){huSize(true);map.setView(carMk.getLatLng(),map.getZoom(),{animate:false});}}).observe(huNav);
 
 
@@ -2290,11 +2561,11 @@ window.Nav={
   drive:drive, driving:function(){return sim.drive;}, guiding:function(){return sim.guide;}, onScreen:function(){updateClusterTbtVis();},
   onTap:function(name){
     switch(name){
-      case 'search':openSetup();setTimeout(function(){$('inDest').focus();},50);return true;
-      case 'navHome':openSetup();quick('광교호수공원','dest');return true;
-      case 'navWork':openSetup();quick('판교역','dest');return true;
-      case 'navFavorite':openSetup();quick('수원화성 행궁','dest');return true;
-      case 'navCharging':openSetup();quick('전기차 충전소','dest');return true;
+      case 'search':if(window.__navSearch){window.__navSearch();return true;}openSetup();setTimeout(function(){$('inDest').focus();},50);return true;
+      case 'navHome':if(window.__navQuick){window.__navQuick('Home');return true;}openSetup();quick('광교호수공원','dest');return true;
+      case 'navWork':if(window.__navQuick){window.__navQuick('Work');return true;}openSetup();quick('판교역','dest');return true;
+      case 'navFavorite':if(window.__navQuick){window.__navQuick('Favorite');return true;}openSetup();quick('수원화성 행궁','dest');return true;
+      case 'navCharging':if(window.__navQuick){window.__navQuick('Charging');return true;}openSetup();quick('전기차 충전소','dest');return true;
       case 'currentLocation':recenter();return true;
     }
     return false;
@@ -3351,5 +3622,31 @@ s.innerHTML='<img alt="" src="'+(src?src.src:'')+'">';ih.insertBefore(s,b);})();
 <script id="navSmooth">/* nav smooth follow */</script>
 <style id="navFreeLook">#navPick{position:absolute;left:50%;bottom:140px;transform:translateX(-50%);width:520px;box-sizing:border-box;padding:24px;border-radius:10px;background:rgba(44,50,58,.95);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:6;display:flex;flex-direction:column;gap:20px}#navPick.nhide{display:none}#navPick .np-t{display:flex;align-items:baseline;gap:14px;min-width:0}#navPick .np-t b{font-size:26px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}#navPick .np-t small{font-size:20px;color:#9aa0a8;flex:none}#navPick .np-b{display:flex;gap:12px}#navPick .nbtn{height:64px;font-size:22px;margin:0}#navPick .np-no{flex:0 0 150px;background:rgba(255,255,255,.12)}#navPick .np-go{flex:1;background:#2e60ff}.npFlash{position:absolute;left:50%;bottom:140px;transform:translateX(-50%);padding:16px 28px;border-radius:10px;background:rgba(44,50,58,.95);font-size:22px;z-index:7}</style>
 <style id="navTripCard">.carMk:after{border:0!important;width:22px!important;height:22px!important;margin-top:-1px!important;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'><path d='M11 2.5 18.5 19 11 14.8 3.5 19Z' fill='white'/></svg>") center/contain no-repeat}#navTrip{display:none;top:auto;bottom:38px;width:430px}#nav.ntOn #navTrip{display:block}#nav.ntOn #navStatus{display:none!important}#navTrip .nt-top{padding:26px 32px 22px}#navTrip .nt-row{display:flex;align-items:baseline;justify-content:space-between;white-space:nowrap}#navTrip .nt-row b{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff}#navTrip .nt-row small{font-size:22px;color:#b8bdc4;margin:0 4px 0 6px}#navTrip .nt-dest{margin-top:12px;font-size:23px;color:#b8bdc4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#navTrip .nt-bar{height:7px;background:#1fa83a;transition:background .3s}#navTrip .nt-btns{height:96px;display:flex;align-items:center;background:rgba(255,255,255,.04)}#navTrip .nt-btns i{width:1px;height:48px;background:rgba(255,255,255,.12)}#navTrip .nt-b{height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 116px}#navTrip .nt-b:active{background:rgba(255,255,255,.08)}#navTrip .nt-end{flex:1;font-size:26px;font-weight:500;color:#fff}#navTrip .nt-b.spin svg{animation:ntspin .8s linear infinite}@keyframes ntspin{to{transform:rotate(360deg)}}#navGS{z-index:8;width:430px;max-height:820px;overflow:hidden;display:flex;flex-direction:column;padding-bottom:12px}#navGS.nhide{display:none}#gsRes{overflow-y:auto;margin:0 12px;scrollbar-width:none}#gsRes::-webkit-scrollbar{display:none}#gsAsk{margin:6px 20px 8px;padding:18px;border-radius:10px;background:rgba(255,255,255,.06)}#gsAsk.nhide{display:none}#gsAsk .gs-q b{display:block;font-size:24px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#gsAsk .gs-q small{display:block;font-size:18px;color:#9aa0a8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#gsAsk .gs-t{font-size:19px;color:#b8bdc4;margin:14px 0}#gsAsk .gs-bt{display:flex;gap:10px}#gsAsk .nbtn{height:60px;font-size:21px;margin:0;background:rgba(255,255,255,.14)}#gsAsk .gs-go{background:#2e60ff}#navPick .np-via{display:none;flex:1;background:rgba(255,255,255,.2)}body.guiding #navPick .np-via{display:flex}#nav.ntOn #navPick{left:auto;right:140px;transform:none;bottom:38px;width:620px}#nav.ntOn .npFlash{left:auto;right:140px;transform:none;bottom:38px}</style>
+<style id="navSpeedLimit">#limSign{position:absolute;left:0;top:8px;width:64px;height:64px;display:none;border-radius:50%}html.hasLim #sign1{visibility:hidden!important}html.hasLim #limSign{display:block}#limSign svg{display:block}#limSign.over{animation:limPulse .9s ease-in-out infinite}@keyframes limPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(218,36,28,.0)}50%{transform:scale(1.12);box-shadow:0 0 0 8px rgba(218,36,28,.35)}}</style>
+<script id="navFreeRoad">/* free-drive road follow */</script>
+<style id="navMarquee">.mqOn{text-overflow:clip!important;overflow:hidden!important;white-space:nowrap!important;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent)}.mqT{display:inline-flex;white-space:nowrap;will-change:transform}#clTbt>div{min-width:0;flex:1}#ctRoad{display:block!important;-webkit-line-clamp:unset!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}</style><script>(function(){
+/* 긴 글자(TBT 도로명·목적지)는 마퀴(흐르는 글자)로 표시: 처음 1.5초 멈춤 → 왼쪽으로 흐름 → 반복 */
+function esc(s){return s.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function fit(el){var t=el._mq;if(t==null)return;el.classList.remove('mqOn');el.textContent=t;
+  if(!el.offsetParent||el.scrollWidth<=el.clientWidth+2)return;
+  var gap=64,dist=el.scrollWidth+gap,move=dist/45,dur=move+1.5,hold=(1.5/dur*100).toFixed(1);
+  var kn='neoMq_'+el.id,st=document.getElementById(kn+'_s');if(!st){st=document.createElement('style');st.id=kn+'_s';document.head.appendChild(st);}
+  st.textContent='@keyframes '+kn+'{0%,'+hold+'%{transform:translateX(0)}100%{transform:translateX(-'+dist+'px)}}';
+  el.innerHTML='<span class="mqT" style="animation:'+kn+' '+dur.toFixed(2)+'s linear infinite"><span>'+esc(t)+'</span><span style="padding-left:'+gap+'px">'+esc(t)+'</span></span>';
+  el.classList.add('mqOn');}
+window.__mq=function(el,t){if(!el)return;t=String(t==null?'':t);if(el._mq===t&&(el.classList.contains('mqOn')||el.textContent===t))return;el._mq=t;el.textContent=t;
+  requestAnimationFrame(function(){if(el._mq===t)fit(el);});};
+/* 화면이 다시 보일 때(숨김→표시) 길이 재계산 */
+setInterval(function(){['tbRoad','ctRoad','ntDest'].forEach(function(id){var el=document.getElementById(id);if(!el||el._mq==null)return;
+  var vis=!!el.offsetParent;if(vis&&!el._vis)fit(el);el._vis=vis;});},500);
+})();</script>
+<style id="navMapDim">#nav .leaflet-tile-pane{filter:brightness(.62)}</style>
+<style id="navGsIcons">#gsChips{flex-wrap:nowrap!important;justify-content:space-between;gap:0!important;margin:6px 20px 8px!important}#gsChips .gsIco{flex:1;height:64px;padding:0;background:none;border-radius:8px;justify-content:center}#gsChips .gsIco img{width:36px;height:36px;pointer-events:none}#gsChips .gsIco:active{background:rgba(255,255,255,.1)}</style>
+<style id="navSearch2">#navSP{position:absolute;left:51px;top:56px;width:506px;z-index:9;background:rgba(44,50,58,.92);backdrop-filter:blur(100px);-webkit-backdrop-filter:blur(100px);border:1px solid rgba(255,255,255,.1);border-radius:8px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;max-height:800px}#navSP.nhide,#navMC.nhide,#navKB.nhide{display:none!important}#nav.spOn #search,#nav.spOn #tbtCard{visibility:hidden}.sp-head{height:108px;display:flex;align-items:center;flex:none}.sp-back{width:50px;height:90px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-left:10px}.sp-back:before{content:'';width:14px;height:14px;border-left:3px solid #e5e5e5;border-bottom:3px solid #e5e5e5;transform:rotate(45deg);margin-left:6px}.sp-head b{font-size:26px;font-weight:600;margin-left:12px;flex:1}#navSP.isDetail .sp-head b{font-size:23px}.sp-x{width:90px;height:90px;display:none;align-items:center;justify-content:center;font-size:22px;color:#8a9099;cursor:pointer}#navSP.isDetail .sp-x{display:flex}.sp-in{margin:0 47px;height:64px;display:flex;align-items:center;gap:12px;padding:0 20px 0 24px;border-radius:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);box-sizing:border-box}.sp-in input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font:500 24px Pretendard,Inter,sans-serif;caret-color:#fff}.sp-in input::placeholder{color:#8a9099}.sp-clr{font-size:22px;color:#8a9099;cursor:pointer;padding:6px}.sp-quick{display:flex;height:96px;margin-top:0}.sp-qb{flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer}.sp-qb img{width:36px;height:36px;opacity:.85;pointer-events:none}.sp-qb:active{background:rgba(255,255,255,.08)}#spRes{overflow-y:auto;max-height:470px;scrollbar-width:none}#spRes::-webkit-scrollbar{display:none}.sp-row{height:102px;display:flex;align-items:center;padding:0 40px;gap:16px;cursor:pointer;box-sizing:border-box}.sp-row+.sp-row{border-top:1px solid rgba(255,255,255,.06)}.sp-row.sel,.sp-row:active{background:rgba(255,255,255,.1)}.sp-row i{display:flex;flex:none}.sp-row .sp-t{flex:1;min-width:0}.sp-row b{display:block;font-size:23px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sp-row small{display:block;font-size:20px;font-weight:500;color:#9aa0a8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sp-row em{font-style:normal;font-size:20px;font-weight:500;color:#9aa0a8;flex:none}.sp-msg{padding:24px 40px;font-size:20px;color:#9aa0a8}.dt-body{padding:0 56px 24px}.dt-name{display:block;font-size:26px;font-weight:600;line-height:39px}.dt-addr{font-size:20px;line-height:24px;color:#b2b2b2;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.dt-line{font-size:20px;line-height:24px;color:#b2b2b2;margin-top:8px}.dt-eta{display:flex;align-items:center;justify-content:space-between;margin-top:24px;white-space:nowrap}.dt-e1{display:flex;align-items:center;gap:8px}.dt-eta b{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}.dt-eta small{font-size:22px;color:#b8bdc4;margin:0 4px 0 5px}.dt-foot{border-top:1px solid rgba(255,255,255,.1);padding:24px;display:flex;gap:24px}.dt-btn{height:88px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:500;cursor:pointer;flex:1}.dt-go{background:linear-gradient(90deg,#4a76c4,#79b2f6)}.dt-sub{background:rgba(255,255,255,.1);flex:0 0 261px}.dt-btn:active{opacity:.75}#navMC{position:absolute;left:52px;bottom:40px;width:628px;z-index:8;background:rgba(44,50,58,.92);backdrop-filter:blur(100px);-webkit-backdrop-filter:blur(100px);border:1px solid rgba(255,255,255,.1);border-radius:8px;box-sizing:border-box}#navMC .dt-body{padding-top:25px}#nav.mcOn #navTrip{visibility:hidden}.mc-x{position:absolute;right:6px;top:6px;width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#8a9099;cursor:pointer}#navKB{position:absolute;left:328px;top:533px;width:1264px;height:436px;z-index:60;border-radius:12px;background:radial-gradient(ellipse at 50% 0,rgba(70,76,88,.92),rgba(40,44,52,.94));backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:0 -10px 40px rgba(0,0,0,.45)}.kb-in{position:absolute;left:142px;top:45px;width:979px;display:flex;flex-direction:column;gap:15px}.kb-row{display:flex;justify-content:center;gap:14px}.kb-k{width:85px;height:76px;border-radius:8px;background:rgba(150,156,168,.42);display:flex;align-items:center;justify-content:center;font:400 28px Inter,Pretendard,sans-serif;color:#fff;cursor:pointer;user-select:none}.kb-k.kb-f{background:rgba(80,86,98,.75)}.kb-k.kb-w{width:134px}.kb-k.kb-sp{width:384px;background:rgba(150,156,168,.42)}.kb-k.on{background:rgba(220,226,236,.6)}.kb-k.pr{background:rgba(220,226,236,.75)}.kb-r0,.kb-r1,.kb-r2,.kb-r3{min-height:76px}</style>
+<style id="navTbList">#tbWrap{position:relative}#tbList{height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;scroll-snap-type:y mandatory;touch-action:none}#tbList::-webkit-scrollbar{display:none}#tbList .tl-row{scroll-snap-align:start;height:84px;display:flex;align-items:center;gap:20px;padding:0 30px 0 40px;position:relative;border-top:1px solid rgba(255,255,255,.08);box-sizing:border-box;user-select:none}#tbList .tl-tf{position:absolute;left:16px;top:0;bottom:0;width:6px}#tbList .tl-row:first-child .tl-tf{top:12px;border-radius:3px 3px 0 0}#tbList .tl-end{height:14px;position:relative}#tbList .tl-end .tl-tf{top:0;bottom:6px;border-radius:0 0 3px 3px}#tbList img{width:44px;height:44px;flex:none;pointer-events:none}#tbList .tl-tx{min-width:0;flex:1}#tbList .tl-d{font-weight:600;font-size:28px;line-height:1.15}#tbList .tl-d span{font-size:21px;margin-left:3px}#tbList .tl-r{font-size:19px;color:#b2b2b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tbSb{position:absolute;right:6px;top:6px;bottom:6px;width:5px;opacity:0;transition:opacity .3s;pointer-events:none}#tbSb.on{opacity:1}#tbSb i{position:absolute;left:0;top:0;width:5px;border-radius:3px;background:rgba(255,255,255,.55)}#tbFoot{display:none;height:84px;align-items:center;gap:18px;padding:0 28px 0 36px;background:rgba(255,255,255,.08);border-top:1px solid rgba(255,255,255,.1);box-sizing:border-box}#tbFoot img{width:44px;height:44px;flex:none}#tbFoot .tf-tx{min-width:0;flex:1}#tbFoot .tf-n{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tbFoot .tf-s{font-size:18px;color:#b2b2b2;margin-top:2px;white-space:nowrap}#tbFoot .tf-eta{font-size:32px;font-weight:600;flex:none}#tbHandle{height:30px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;border-top:1px solid rgba(255,255,255,.08)}#tbHandle i{width:64px;height:6px;border-radius:3px;background:rgba(255,255,255,.45)}#tbtCard.tbOpen #tbHandle i{background:rgba(255,255,255,.7)}#navTrip{transition:opacity .2s}#nav.tbFull #navTrip{opacity:0;pointer-events:none}</style>
+<script id="navTrafLine">/* route traffic colors */</script>
+<style id="neoFontAll">html,body,#stage,#stage *,input,button,textarea,select,.leaflet-container,.leaflet-container *,svg text{font-family:Pretendard,'Pretendard Variable',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif!important}</style>
+<style id="navLabelLayer">#nav .leaflet-lbl-pane img{filter:brightness(1.15)}</style>
+<style id="navPoiTone">#nav .leaflet-lbl-pane img{filter:grayscale(1) sepia(.6) hue-rotate(175deg) saturate(2.2) brightness(1.15)!important}.pkMk b{display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:6px;background:#a8d4fa;border:1.5px solid rgba(255,255,255,.75);box-sizing:border-box;color:#1d4f86;font:700 15px Pretendard,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.92;transform:rotate(calc(-1 * var(--hur,0deg)))}</style>
 </body>
 </html>

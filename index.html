@@ -12,6 +12,15 @@
    - 퍼가기(외부 재생)가 막힌 영상은 재생되지 않고 다음 영상으로 넘어갑니다.
    ========================================================== */
 window.NEO_VIDEO_LINKS = [
+  'https://www.youtube.com/watch?v=ODnHr2Emnf0',
+  'https://www.youtube.com/watch?v=RJh_a-hHgm4',
+  'https://www.youtube.com/watch?v=iIEYfH-jg1Y',
+  'https://www.youtube.com/watch?v=2ZTcvsdMR1c',
+  'https://www.youtube.com/watch?v=uE97B1ZToLs',
+  'https://www.youtube.com/watch?v=6eOIUSWKvjw',
+  'https://www.youtube.com/watch?v=tSt8wlAfv2o',
+  'https://www.youtube.com/watch?v=CHa9tdAsn7I',
+  'https://www.youtube.com/watch?v=b_hgDjQrVOE',
   'https://youtu.be/ZbO9PBdFRdc',
 ];
 </script>
@@ -2865,7 +2874,7 @@ function parseLinks(txt){var ids=[],list=null;(txt||'').split(/[\s,]+/).forEach(
 function loadYT(){if(window.YT&&window.YT.Player){ytInit();return;}if(document.getElementById('ytApi'))return;
   window.onYouTubeIframeAPIReady=ytInit;var s=document.createElement('script');s.id='ytApi';s.src='https://www.youtube.com/iframe_api';
   s.onerror=function(){$('vEmpty').firstChild.textContent='Cannot connect to YouTube (check internet)';};document.head.appendChild(s);}
-function ytInit(){if(yt)return;yt=new YT.Player('vPlayer',{width:'100%',height:'100%',playerVars:Object.assign({playsinline:1,rel:0,modestbranding:1,controls:0,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0},/^https?:/.test(location.protocol)?{origin:location.origin}:{}),
+function ytInit(){if(yt)return;yt=new YT.Player('vPlayer',{width:'100%',height:'100%',playerVars:Object.assign({playsinline:1,rel:0,modestbranding:1,controls:0,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,cc_lang_pref:'none',hl:'en'},/^https?:/.test(location.protocol)?{origin:location.origin}:{}),
   events:{onReady:function(){ytReady=true;window.__ytPlayer=yt;if(ytQueue){var q=ytQueue;ytQueue=null;startVideos(q);}},
     onStateChange:function(e){var playing=e.data===1;$('vPlay').innerHTML=img(playing?IC.pause:IC.play,80);if(playing){P.pause();stopRadio();}vInfo();send('videoState',['ended','playing','paused','buffering','','cued'][e.data]||String(e.data));},
     onError:function(e){if(e.data===153||(location.protocol==='file:'&&(e.data===2||e.data===5))){flash('YouTube blocks playback from a local file (file://) (error '+e.data+'). Open it from a web address (http/https)');send('videoError',String(e.data));return;}
@@ -3174,5 +3183,15 @@ if(dn){new MutationObserver(nn).observe(dn,{childList:true,characterData:true,su
 })();</script>
 <script id="toggleAnim">(function(){var s=document.createElement("style");s.textContent=".tg{transition:background-color .25s}.tg.ta-on:after{animation:tgOn .55s cubic-bezier(.34,1.56,.64,1)}.tg.ta-off:after{animation:tgOff .55s cubic-bezier(.34,1.56,.64,1)}.tg.ta-on{animation:tgBg .35s ease-out}@keyframes tgOn{0%{transform:translateX(-56px) scaleX(1)}35%{transform:translateX(-30px) scaleX(1.9)}70%{transform:translateX(4px) scaleX(.85)}100%{transform:translateX(0) scaleX(1)}}@keyframes tgOff{0%{transform:translateX(56px) scaleX(1)}35%{transform:translateX(30px) scaleX(1.9)}70%{transform:translateX(-4px) scaleX(.85)}100%{transform:translateX(0) scaleX(1)}}@keyframes tgBg{0%{filter:brightness(.6) saturate(.4)}100%{filter:none}}";document.head.appendChild(s);})();(function(){document.addEventListener('click',function(e){var t=e.target.closest('.tg');if(!t)return;var k=t.getAttribute('data-cx')||t.getAttribute('data-k')||'',wasOn=t.classList.contains('on'),par=t.parentNode,idx=par?[].indexOf.call(par.children,t):-1;setTimeout(function(){var n=k?document.querySelector('.tg[data-cx="'+k+'"]'):null;if(!n&&par)n=par.children[idx];if(!n||!n.classList.contains('tg'))n=t;var on=n.classList.contains('on');if(on===wasOn)return;n.classList.remove('ta-on','ta-off');void n.offsetWidth;n.classList.add(on?'ta-on':'ta-off');setTimeout(function(){n.classList.remove('ta-on','ta-off');},600);},0);},true);})();</script>
 <style id="camNoDoor">body.cam #doorV{visibility:hidden!important;pointer-events:none!important}</style>
+<script id="ytNoCaption">(function(){var last='';setInterval(function(){var y=window.__ytPlayer;if(!y||!y.getPlayerState)return;try{if(y.getPlayerState()!==1)return;var d=y.getVideoData()||{},k=(d.video_id||'')+'|'+Math.floor((y.getCurrentTime()||0)/5);if(k===last)return;last=k;try{y.setOption('captions','track',{});}catch(e){}try{y.unloadModule('captions');}catch(e){}try{y.unloadModule('cc');}catch(e){}}catch(e){}},700);})();</script>
+<style id="videoLinks1014">#vLinkBtn,#vEmptyBtn,#vAddGo,#vLinkPop{display:none!important}#scrVideo.grid #vList,#vDrList{scrollbar-width:thin!important;scrollbar-color:rgba(255,255,255,.35) transparent}#scrVideo.grid #vList::-webkit-scrollbar,#vDrList::-webkit-scrollbar{display:block!important;width:8px}#scrVideo.grid #vList::-webkit-scrollbar-track,#vDrList::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:4px}#scrVideo.grid #vList::-webkit-scrollbar-thumb,#vDrList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.35);border-radius:4px}#scrVideo.grid #vList{right:40px!important;padding-right:24px!important}</style>
+<style id="videoScrollbar">#scrVideo.grid #vList,#vDrList{scrollbar-width:none!important}#scrVideo.grid #vList::-webkit-scrollbar,#vDrList::-webkit-scrollbar{display:none!important}.vsb{position:absolute;width:8px;border-radius:4px;background:rgba(255,255,255,.08);z-index:4;display:none}.vsb i{position:absolute;left:0;width:8px;border-radius:4px;background:rgba(255,255,255,.4)}#scrVideo.grid #vSbGrid.on{display:block}#scrVideo.play.vlist #vSbDr.on{display:block}</style><script>(function(){var v=document.getElementById('scrVideo');if(!v)return;
+function mk(id,list,host,pos){var t=document.createElement('div');t.className='vsb';t.id=id;t.innerHTML='<i></i>';host.appendChild(t);
+  function up(){var L=document.getElementById(list);if(!L)return;var r=L.clientHeight/L.scrollHeight;if(!(r<1)){t.classList.remove('on');return;}t.classList.add('on');
+    pos(t,L);var h=t.clientHeight,th=Math.max(48,h*r);t.firstChild.style.height=th+'px';t.firstChild.style.top=((h-th)*L.scrollTop/(L.scrollHeight-L.clientHeight))+'px';}
+  var L=document.getElementById(list);if(L)L.addEventListener('scroll',up);setInterval(up,500);up();}
+mk('vSbGrid','vList',v,function(t,L){t.style.right='24px';t.style.top=(L.offsetTop+8)+'px';t.style.height=(L.clientHeight-16)+'px';});
+var dr=document.getElementById('vDrawer');if(dr)mk('vSbDr','vDrList',dr,function(t,L){t.style.right='10px';t.style.top=(L.offsetTop+4)+'px';t.style.height=(L.clientHeight-24)+'px';});
+})();</script>
 </body>
 </html>

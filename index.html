@@ -2536,7 +2536,7 @@ var _trRR=window.__navRouteReady;window.__navRouteReady=function(){if(_trRR)_trR
 /* ---- 지도 아이콘 블루톤 + 주차장만 눈에 띄는 파란 P 표시 (TomTom 주차장 카테고리 7369 주차장 / 7313 주차빌딩) ---- */
 map.createPane('pkPane');map.getPane('pkPane').style.zIndex=420;map.getPane('pkPane').style.pointerEvents='none';
 var pkLy=L.layerGroup().addTo(map),pkLast=null,pkBusy=false,pkIcon=L.divIcon({className:'pkMk',html:'<b>P</b>',iconSize:[24,24],iconAnchor:[12,12]});
-function pkLoad(){if(!KEY||pkBusy)return;var z=map.getZoom();if(z<15){pkLy.clearLayers();pkLast=null;return;}
+function pkLoad(){pkLy.clearLayers();return;/* 주차장 P 표시 끔 */if(!KEY||pkBusy)return;var z=map.getZoom();if(z<15){pkLy.clearLayers();pkLast=null;return;}
   var c=map.getCenter(),b=map.getBounds(),rad=Math.min(2000,Math.round(c.distanceTo(b.getNorthEast())));
   if(pkLast&&c.distanceTo(pkLast.c)<rad*0.4&&Math.abs(z-pkLast.z)<1)return;
   pkBusy=true;
@@ -3647,6 +3647,7 @@ setInterval(function(){['tbRoad','ctRoad','ntDest'].forEach(function(id){var el=
 <script id="navTrafLine">/* route traffic colors */</script>
 <style id="neoFontAll">html,body,#stage,#stage *,input,button,textarea,select,.leaflet-container,.leaflet-container *,svg text{font-family:Pretendard,'Pretendard Variable',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif!important}</style>
 <style id="navLabelLayer">#nav .leaflet-lbl-pane img{filter:brightness(1.15)}</style>
-<style id="navPoiTone">#nav .leaflet-lbl-pane img{filter:grayscale(1) sepia(.6) hue-rotate(175deg) saturate(2.2) brightness(1.15)!important}.pkMk b{display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:6px;background:#a8d4fa;border:1.5px solid rgba(255,255,255,.75);box-sizing:border-box;color:#1d4f86;font:700 15px Pretendard,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.92;transform:rotate(calc(-1 * var(--hur,0deg)))}</style>
+<style id="navPoiTone">.pkMk b{display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:6px;background:#a8d4fa;border:1.5px solid rgba(255,255,255,.75);box-sizing:border-box;color:#1d4f86;font:700 15px Pretendard,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.92;transform:rotate(calc(-1 * var(--hur,0deg)))}</style>
+<style id="navBtnBlur">#btnCurrent,#btnCompass{backdrop-filter:blur(100px)!important;-webkit-backdrop-filter:blur(100px)!important}</style>
 </body>
 </html>

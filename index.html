@@ -1314,7 +1314,7 @@ function renderPopup(){
     g.appendChild(a);});
 }
 function openPopup(edit){
-  editMode=!!edit;popupOpen=true;homeSel=false;renderHV();renderDock();
+  editMode=!!edit;popupOpen=true;renderDock();
   var p=$('popup');p.style.display='block';$('overlay').style.display='block';requestAnimationFrame(function(){p.classList.add('show');});
   send(edit?'navEdit':'allApps','open');
 }
@@ -1929,7 +1929,7 @@ function fmtDist(m){return m<1000?{v:String(Math.max(0,Math.round(m/10)*10)),u:'
 /* ---------- 상태 ---------- */
 var st={mode:'browse',active:'dest',origin:null,dest:null,route:null};
 function show(mode){
-  st.mode=mode;
+  st.mode=mode;if(window.__navHU&&mode!=='guide'&&mode!=='browse')window.__navHU(false);
   $('search').classList.toggle('nhide',mode!=='browse');
   $('navSetup').classList.toggle('nhide',mode!=='setup');
   $('navPreview').classList.toggle('nhide',mode!=='preview');
@@ -2058,10 +2058,10 @@ function loop(){if(!sim.raf){sim.last=performance.now();sim.raf=requestAnimation
 /* 안내 시작: 모의주행 없이 현재(출발) 위치에 정지한 채 안내 화면 표시 */
 function startSim(){
   if(!st.route)return;show('guide');sim.guide=true;sim.s=0;sim.sent={};
-  carMk.setLatLng(st.route.pts[0]);map.setView(st.route.pts[0],17);send('navStart',st.dest.name);
+  carMk.setLatLng(st.route.pts[0]);map.setView(st.route.pts[0],17);if(oMk)oMk.setOpacity(0);if(window.__navHd&&st.route.pts[1])window.__navHd(st.route.pts[0],st.route.pts[1],true);send('navStart',st.dest.name);
   document.body.classList.add('guiding');renderGuide();loop();
 }
-function stopSim(silent){if(!sim.guide)return;sim.guide=false;document.body.classList.remove('guiding');hideClusterTbt();if(!silent)send('navStop','1');}
+function stopSim(silent){if(!sim.guide)return;sim.guide=false;if(oMk)oMk.setOpacity(1);document.body.classList.remove('guiding');hideClusterTbt();if(!silent)send('navStop','1');}
 /* 클러스터에서 호출: 주행 시작/정지 */
 function drive(on){
   if(on===sim.drive)return;sim.drive=on;
@@ -2103,7 +2103,7 @@ function step(now){
     // 목적지 미설정: 현재 위치에서 북쪽으로 조금씩 이동
     var c=carMk.getLatLng();ll=L.latLng(c.lat+meters/111320,c.lng);CUR={lat:ll.lat,lon:ll.lng,name:'Current location'};
   }
-  carMk.setLatLng(ll);
+  if(window.__navHd)window.__navHd(carMk.getLatLng(),ll);carMk.setLatLng(ll);
   if(meters>0&&now-sim.pan>200){sim.pan=now;map.panTo(ll,{animate:false});}
   setCluster(sim.kmh,null); // 기어는 기어 선택기에서만 변경
   if(!sim.drive&&sim.kmh<0.5&&!sim.guide){sim.raf=0;return;}
@@ -2124,7 +2124,43 @@ $('cluster').appendChild(ctbt);
 function clusterTbt(ico,d,road){$('ctIco').src=ico;$('ctDist').innerHTML=d.v+'<span>'+d.u+'</span>';$('ctRoad').textContent=road;updateClusterTbtVis();}
 function updateClusterTbtVis(){var other=window.Screens&&window.Screens.current&&window.Screens.current()!=='home';ctbt.style.display=(sim.guide&&other)?'flex':'none';}
 function hideClusterTbt(){ctbt.style.display='none';}
-function recenter(){var ll=carMk.getLatLng();map.setView(ll,16);}
+function recenter(){if(window.__navLoc&&window.__navLoc())return;var ll=carMk.getLatLng();map.setView(ll,16);}
+/* ---- 현재 위치 / 진행방향 위(heading-up) / 컴파스 (Figma navigation_button 677:15516) ----
+   현재위치 버튼 1회: 내 위치로 이동(북쪽 위) → 한번 더: 진행방향이 위 + 컴파스 버튼 표시(N이 실제 북쪽을 가리킴)
+   컴파스 버튼: 지도가 북쪽 위로 돌아오고 컴파스가 정방향이 된 뒤 사라짐 */
+var NAV_IC_CUR='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAuMDgxMiIgY3k9IjE5LjY1NjEiIHI9IjE0LjUwOSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+CjxwYXRoIGQ9Ik0yMC4wODU5IDI0Ljg0NDdDMjEuMTkwNSAyNC44NDQ3IDIyLjA4NTkgMjUuNzQwMiAyMi4wODU5IDI2Ljg0NDdWMzMuOTY2OEMyMi4wODU3IDM1LjA3MTEgMjEuMTkwMyAzNS45NjY4IDIwLjA4NTkgMzUuOTY2OEMxOC45ODE0IDM1Ljk2NjggMTguMDg1OSAzNS4wNzA0IDE4LjA4NTkgMzMuOTY1OFYyNi44NDM4QzE4LjA4NjIgMjUuNzM5NCAxOC45ODE1IDI0Ljg0NDcgMjAuMDg1OSAyNC44NDQ3Wk0xMi45NzQ2IDE3LjczMzRDMTQuMDc5MiAxNy43MzM0IDE0Ljk3NDYgMTguNjI4OCAxNC45NzQ2IDE5LjczMzRDMTQuOTc0NSAyMC44Mzc5IDE0LjA3OTEgMjEuNzMzNCAxMi45NzQ2IDIxLjczMzRINS44NTI1NEM0Ljc0ODAxIDIxLjczMzQgMy44NTI2MSAyMC44Mzc5IDMuODUyNTQgMTkuNzMzNEMzLjg1MjU0IDE4LjYyODggNC43NDc5NyAxNy43MzM0IDUuODUyNTQgMTcuNzMzNEgxMi45NzQ2Wk0zNC4zMDg2IDE3LjczMzRDMzUuNDEzMiAxNy43MzM0IDM2LjMwODYgMTguNjI4OCAzNi4zMDg2IDE5LjczMzRDMzYuMzA4NSAyMC44Mzc5IDM1LjQxMzEgMjEuNzMzNCAzNC4zMDg2IDIxLjczMzRIMjcuMTg2NUMyNi4wODIgMjEuNzMzNCAyNS4xODY2IDIwLjgzNzkgMjUuMTg2NSAxOS43MzM0QzI1LjE4NjUgMTguNjI4OCAyNi4wODIgMTcuNzMzNCAyNy4xODY1IDE3LjczMzRIMzQuMzA4NlpNMjAuMDg1OSAzLjUwOTc3QzIxLjE5MDUgMy41MDk3NyAyMi4wODU5IDQuNDA2MTcgMjIuMDg1OSA1LjUxMDc0VjEyLjYzMjhDMjIuMDg1NyAxMy43MzcyIDIxLjE5MDMgMTQuNjMyOCAyMC4wODU5IDE0LjYzMjhDMTguOTgxNCAxNC42MzI4IDE4LjA4NTkgMTMuNzM2NCAxOC4wODU5IDEyLjYzMThWNS41MDk3N0MxOC4wODYyIDQuNDA1NDIgMTguOTgxNSAzLjUwOTc3IDIwLjA4NTkgMy41MDk3N1oiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',NAV_IC_DIR='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzY3N18xNDE3NykiPgo8bWFzayBpZD0ibWFzazBfNjc3XzE0MTc3IiBzdHlsZT0ibWFzay10eXBlOmFscGhhIiBtYXNrVW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4PSIzIiB5PSI2IiB3aWR0aD0iMzQiIGhlaWdodD0iMzEiPgo8cGF0aCBkPSJNMTAuMTg0MyA2Ljg1NzQyQzcuNDI0NTIgOC45MTg2NyA1LjM4MzY3IDExLjc5NjQgNC4zNTEwOSAxNS4wODI1QzMuMzE4NSAxOC4zNjg2IDMuMzQ2NTcgMjEuODk2NCA0LjQzMTMyIDI1LjE2NTdDNS41MTYwNiAyOC40MzUgNy42MDI0NCAzMS4yNzk5IDEwLjM5NDYgMzMuMjk2OUMxMy4xODY4IDM1LjMxNCAxNi41NDMxIDM2LjQwMDkgMTkuOTg3NyAzNi40MDM2QzIzLjQzMjIgMzYuNDA2MyAyNi43OTAyIDM1LjMyNDUgMjkuNTg1NSAzMy4zMTE4QzMyLjM4MDggMzEuMjk5IDM0LjQ3MTYgMjguNDU3NCAzNS41NjE0IDI1LjE4OThDMzYuNjUxMiAyMS45MjIyIDM2LjY4NDcgMTguMzk0NCAzNS42NTcyIDE1LjEwNjdDMzQuNjI5NyAxMS44MTkgMzIuNTkzMyA4LjkzODE0IDI5LjgzNjggNi44NzI2MkwyMC4wMDA0IDE5Ljk5OTlMMTAuMTg0MyA2Ljg1NzQyWiIgZmlsbD0iI0Q5RDlEOSIvPgo8L21hc2s+CjxnIG1hc2s9InVybCgjbWFzazBfNjc3XzE0MTc3KSI+CjxwYXRoIGQ9Ik0yMC4wMDEgMy41OTY2OEMyOC4zODMyIDMuNTk2NjggMzUuMjk1NiA5Ljg4NDA4IDM2LjI4MjIgMThIMzYuNDA1M1YyMkgzNi4yODIyQzM1LjM3NTMgMjkuNDYwMyAyOS40NjEzIDM1LjM3NDMgMjIuMDAxIDM2LjI4MTJWMzYuNDAzM0gxOC4wMDFWMzYuMjgxMkMxMC41NDA3IDM1LjM3NDMgNC42MjY2OSAyOS40NjAzIDMuNzE5NzMgMjJIMy41OTc2NlYxOEgzLjcxOTczQzQuNzA2MzMgOS44ODQwOCAxMS42MTg3IDMuNTk2NjggMjAuMDAxIDMuNTk2NjhaTTIwLjAwMSA3LjU5NjY4QzEzLjgzMTcgNy41OTY2OCA4LjcxNTEzIDEyLjEwMDggNy43NTg3OSAxOEgxMi43OTc5QzEzLjkwMjQgMTggMTQuNzk3OSAxOC44OTU0IDE0Ljc5NzkgMjBDMTQuNzk3OCAyMS4xMDQ1IDEzLjkwMjQgMjIgMTIuNzk3OSAyMkg3Ljc1ODc5QzguNjA5NjIgMjcuMjQ4IDEyLjc1MjkgMzEuMzkxNCAxOC4wMDEgMzIuMjQyMlYyNy4yMDMxQzE4LjAwMTEgMjYuMDk4NyAxOC44OTY1IDI1LjIwMzEgMjAuMDAxIDI1LjIwMzFDMjEuMTA1NCAyNS4yMDMxIDIyLjAwMDggMjYuMDk4NyAyMi4wMDEgMjcuMjAzMVYzMi4yNDIyQzI3LjI0OSAzMS4zOTE0IDMxLjM5MjMgMjcuMjQ4IDMyLjI0MzIgMjJIMjcuMjA1MUMyNi4xMDA1IDIyIDI1LjIwNTEgMjEuMTA0NSAyNS4yMDUxIDIwQzI1LjIwNTEgMTguODk1NCAyNi4xMDA1IDE4IDI3LjIwNTEgMThIMzIuMjQzMkMzMS4yODY4IDEyLjEwMDggMjYuMTcwMiA3LjU5NjY4IDIwLjAwMSA3LjU5NjY4WiIgZmlsbD0id2hpdGUiLz4KPC9nPgo8cGF0aCBkPSJNMjAuMDAwMSAxNi4zMDQ0TDEwLjA0MjYgMS44MjkyMkwyOS45NTc2IDEuODI5MjJMMjAuMDAwMSAxNi4zMDQ0WiIgZmlsbD0idXJsKCNwYWludDBfcmFkaWFsXzY3N18xNDE3NykiLz4KPC9nPgo8ZGVmcz4KPHJhZGlhbEdyYWRpZW50IGlkPSJwYWludDBfcmFkaWFsXzY3N18xNDE3NyIgY3g9IjAiIGN5PSIwIiByPSIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgyMC4wMDAxIDE1Ljc1ODcpIHJvdGF0ZSgtOTApIHNjYWxlKDE0LjkyNjUgMjguNTM2NikiPgo8c3RvcCBvZmZzZXQ9IjAuNDMxNDQ0IiBzdG9wLWNvbG9yPSIjNzY5RUREIi8+CjxzdG9wIG9mZnNldD0iMC45NTg3NjIiIHN0b3AtY29sb3I9IiM3NjlFREQiIHN0b3Atb3BhY2l0eT0iMCIvPgo8L3JhZGlhbEdyYWRpZW50Pgo8Y2xpcFBhdGggaWQ9ImNsaXAwXzY3N18xNDE3NyI+CjxyZWN0IHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0id2hpdGUiLz4KPC9jbGlwUGF0aD4KPC9kZWZzPgo8L3N2Zz4K',NAV_IC_CMP='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTcuNTI4MzIgMTguNUM4LjM1NjY1IDE4LjUgOS4wMjgxNiAxOS4xNzE3IDkuMDI4MzIgMjBDOS4wMjgzMiAyMC44Mjg0IDguMzU2NzUgMjEuNSA3LjUyODMyIDIxLjVIMy41MjgzMkMyLjcwMDA1IDIxLjQ5OTggMi4wMjgzMiAyMC44MjgzIDIuMDI4MzIgMjBDMi4wMjg0OSAxOS4xNzE4IDIuNzAwMTUgMTguNTAwMiAzLjUyODMyIDE4LjVINy41MjgzMlpNMzYuNDcxNyAxOC41QzM3LjMgMTguNSAzNy45NzE1IDE5LjE3MTcgMzcuOTcxNyAyMEMzNy45NzE3IDIwLjgyODQgMzcuMzAwMSAyMS41IDM2LjQ3MTcgMjEuNUgzMi40NzE3QzMxLjY0MzMgMjEuNSAzMC45NzE3IDIwLjgyODQgMzAuOTcxNyAyMEMzMC45NzE4IDE5LjE3MTcgMzEuNjQzNCAxOC41IDMyLjQ3MTcgMTguNUgzNi40NzE3WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTExLjg4ODEgMTAuNDc0QzEyLjI3ODUgMTAuODY0NSAxMi4yNzg0IDExLjQ5NzcgMTEuODg4MSAxMS44ODgzQzExLjQ5NzUgMTIuMjc4OCAxMC44NjQ0IDEyLjI3ODggMTAuNDczOSAxMS44ODgzTDcuNjQ1NDMgOS4wNTk4M0M3LjI1NTE1IDguNjY5MjggNy4yNTQ5OSA4LjAzNjA2IDcuNjQ1NDMgNy42NDU2MUM4LjAzNTg5IDcuMjU1MzggOC42NjkxNyA3LjI1NTQgOS4wNTk2NSA3LjY0NTYxTDExLjg4ODEgMTAuNDc0Wk0zMi4zNTQxIDMwLjk0MDFDMzIuNzQ0NiAzMS4zMzA1IDMyLjc0NDQgMzEuOTYzOCAzMi4zNTQxIDMyLjM1NDNDMzEuOTYzNiAzMi43NDQ4IDMxLjMzMDQgMzIuNzQ0OCAzMC45Mzk5IDMyLjM1NDNMMjguMTExNSAyOS41MjU5QzI3LjcyMSAyOS4xMzUzIDI3LjcyMSAyOC41MDIyIDI4LjExMTUgMjguMTExN0MyOC41MDIgMjcuNzIxMyAyOS4xMzUyIDI3LjcyMTIgMjkuNTI1NyAyOC4xMTE3TDMyLjM1NDEgMzAuOTQwMVoiIGZpbGw9IndoaXRlIiBmaWxsLW9wYWNpdHk9IjAuNSIvPgo8cGF0aCBkPSJNMjguMTExOSAxMC40NzQyQzI3LjcyMTUgMTAuODY0NiAyNy43MjE2IDExLjQ5NzggMjguMTExOSAxMS44ODg0QzI4LjUwMjUgMTIuMjc4OSAyOS4xMzU2IDEyLjI3ODkgMjkuNTI2MSAxMS44ODg0TDMyLjM1NDYgOS4wNTk5NUMzMi43NDQ4IDguNjY5NCAzMi43NDUgOC4wMzYxOCAzMi4zNTQ2IDcuNjQ1NzNDMzEuOTY0MSA3LjI1NTUxIDMxLjMzMDggNy4yNTU1MiAzMC45NDA0IDcuNjQ1NzNMMjguMTExOSAxMC40NzQyWk03LjY0NTg4IDMwLjk0MDJDNy4yNTU0MyAzMS4zMzA3IDcuMjU1NTcgMzEuOTYzOSA3LjY0NTg4IDMyLjM1NDRDOC4wMzY0MSAzMi43NDQ5IDguNjY5NTcgMzIuNzQ0OSA5LjA2MDEgMzIuMzU0NEwxMS44ODg1IDI5LjUyNkMxMi4yNzkgMjkuMTM1NSAxMi4yNzkgMjguNTAyMyAxMS44ODg1IDI4LjExMThDMTEuNDk4IDI3LjcyMTUgMTAuODY0OCAyNy43MjEzIDEwLjQ3NDMgMjguMTExOEw3LjY0NTg4IDMwLjk0MDJaIiBmaWxsPSJ3aGl0ZSIgZmlsbC1vcGFjaXR5PSIwLjUiLz4KPHBhdGggZD0iTTIxLjUgMzYuNDcxN0MyMS41IDM3LjMgMjAuODI4MyAzNy45NzE1IDIwIDM3Ljk3MTdDMTkuMTcxNiAzNy45NzE3IDE4LjUgMzcuMzAwMSAxOC41IDM2LjQ3MTdMMTguNSAzMi40NzE3QzE4LjUgMzEuNjQzMyAxOS4xNzE2IDMwLjk3MTcgMjAgMzAuOTcxN0MyMC44MjgzIDMwLjk3MTggMjEuNSAzMS42NDM0IDIxLjUgMzIuNDcxN0wyMS41IDM2LjQ3MTdaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTkuMTQxOCAxNS44NDIzQzE5LjUyMjMgMTUuMTgwOCAyMC40NzY4IDE1LjE4MDggMjAuODU3MyAxNS44NDIzTDI0Ljk1OTkgMjIuOTc0OEMyNS41MDggMjMuOTI3NyAyNC4zMjYyIDI0LjkzMDIgMjMuNDc1NCAyNC4yMzRMMjAuNjI2MyAyMS45MDIzQzIwLjI2MTcgMjEuNjA0IDE5LjczNzQgMjEuNjA0IDE5LjM3MjkgMjEuOTAyM0wxNi41MjM3IDI0LjIzNEMxNS42NzI5IDI0LjkzMDIgMTQuNDkxMSAyMy45Mjc3IDE1LjAzOTIgMjIuOTc0OEwxOS4xNDE4IDE1Ljg0MjNaIiBmaWxsPSIjRjA1MzRFIi8+CjxwYXRoIGQ9Ik0yMi42NjM0IDEuNjEzMTZDMjMuMTkwNiAxLjYxMzE2IDIzLjYxOCAyLjA0MDU0IDIzLjYxOCAyLjU2Nzc0VjguNDYzNzhDMjMuNjE4IDkuMDUxNTUgMjMuMTQxNSA5LjUyODA0IDIyLjU1MzcgOS41MjgwNEMyMi4yMDM4IDkuNTI4MDQgMjEuODc2MiA5LjM1NjAxIDIxLjY3NzYgOS4wNjc5MUwxOC44NTQ5IDQuOTc0MjJDMTguODQ4OCA0Ljk2NTMgMTguODM4NiA0Ljk1OTk4IDE4LjgyNzggNC45NTk5OEMxOC44MDk2IDQuOTU5OTggMTguNzk0OSA0Ljk3NDczIDE4Ljc5NDkgNC45OTI5MlY4LjU3MTUzQzE4Ljc5NDkgOS4wOTk3OSAxOC4zNjY2IDkuNTI4MDQgMTcuODM4MyA5LjUyODA0QzE3LjMxMDEgOS41MjgwNCAxNi44ODE4IDkuMDk5NzkgMTYuODgxOCA4LjU3MTUzVjIuNjkwNjRDMTYuODgxOCAyLjA5NTU2IDE3LjM2NDIgMS42MTMxNiAxNy45NTkzIDEuNjEzMTZDMTguMzE1MyAxLjYxMzE2IDE4LjY0ODMgMS43ODg5NyAxOC44NDkxIDIuMDgyOTFMMjEuNjMwMyA2LjE1NDc0QzIxLjYzODMgNi4xNjY0NyAyMS42NTE2IDYuMTczNDkgMjEuNjY1OCA2LjE3MzQ5QzIxLjY4OTYgNi4xNzM0OSAyMS43MDg4IDYuMTU0MjQgMjEuNzA4OCA2LjEzMDQ5VjIuNTY3NzRDMjEuNzA4OCAyLjA0MDU0IDIyLjEzNjIgMS42MTMxNiAyMi42NjM0IDEuNjEzMTZaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
+var hu={on:false,lock:false,cur:0,leave:false};
+function bearOf(a,b){var t=Math.PI/180,y=Math.sin((b.lng-a.lng)*t)*Math.cos(b.lat*t),x=Math.cos(a.lat*t)*Math.sin(b.lat*t)-Math.sin(a.lat*t)*Math.cos(b.lat*t)*Math.cos((b.lng-a.lng)*t);return (Math.atan2(y,x)/t+360)%360;}
+function adiff(a,b){return ((b-a+540)%360)-180;}
+var huMap=$('map'),huNav=$('nav'),bCur=$('btnCurrent');
+bCur.insertAdjacentHTML('beforeend','<img class="nlc" alt="" src="'+NAV_IC_CUR+'"><img class="nld" alt="" src="'+NAV_IC_DIR+'">');
+var bCmp=document.createElement('div');bCmp.id='btnCompass';bCmp.className='abs';bCmp.innerHTML='<img alt="" src="'+NAV_IC_CMP+'">';bCur.parentNode.insertBefore(bCmp,bCur);
+var cmpImg=bCmp.firstChild;
+function huRot(){return (hu.on&&!hu.leave)?-hu.cur:0;}
+function huApply(){var rot=huRot();huMap.style.transform=hu.on?'rotate('+rot.toFixed(2)+'deg)':'';cmpImg.style.transform='rotate('+rot.toFixed(2)+'deg)';
+  var e=carMk.getElement&&carMk.getElement(),k=e&&e.querySelector('.carMk');if(k)k.style.transform='rotate('+hu.cur.toFixed(2)+'deg)';}
+function huSize(on){var W=huNav.clientWidth,H=huNav.clientHeight;
+  if(on){var D=Math.ceil(Math.sqrt(W*W+H*H));huMap.style.inset='auto';huMap.style.left=((W-D)/2)+'px';huMap.style.top=((H-D)/2)+'px';huMap.style.width=D+'px';huMap.style.height=D+'px';}
+  else{huMap.style.inset='';huMap.style.left='';huMap.style.top='';huMap.style.width='';huMap.style.height='';}
+  map.invalidateSize({animate:false});}
+function setHU(on){on=!!on;if(hu.on===on)return;hu.on=on;hu.leave=false;huNav.classList.remove('huLeave');
+  if(on){map.dragging.disable();map.options.scrollWheelZoom='center';map.options.touchZoom='center';}else{map.dragging.enable();map.options.scrollWheelZoom=true;map.options.touchZoom=true;}
+  huSize(on);map.setView(carMk.getLatLng(),map.getZoom(),{animate:false});
+  huNav.classList.toggle('huOn',on);huApply();send('navHeadingUp',on?'1':'0');}
+window.__navHU=setHU;
+/* 컴파스 탭: 지도·컴파스를 북쪽 위로 회전(애니메이션) → 컴파스 버튼 사라짐 */
+function huNorth(){if(!hu.on||hu.leave)return;hu.leave=true;huNav.classList.add('huLeave');huApply();send('navCompass','north');
+  setTimeout(function(){if(hu.leave)setHU(false);hu.lock=true;},520);}
+bCmp.addEventListener('click',function(e){e.stopPropagation();huNorth();});
+window.__navHd=function(a,b,snap){if(!a||!b||(a.distanceTo(b)<0.2&&!snap))return;var tg=bearOf(a,b);
+  hu.cur=snap?tg:(hu.cur+adiff(hu.cur,tg)*0.12+360)%360;huApply();};
+window.__navLoc=function(){var ll=carMk.getLatLng();
+  if(hu.on){map.setView(ll,map.getZoom(),{animate:false});return true;}   /* 진행방향 모드: 내 위치로만 다시 맞춤 */
+  if(hu.lock){setHU(true);return true;}
+  map.setView(ll,16);hu.lock=true;return true;};
+map.on('dragstart',function(){hu.lock=false;});
+if(window.ResizeObserver)new ResizeObserver(function(){if(hu.on){huSize(true);map.setView(carMk.getLatLng(),map.getZoom(),{animate:false});}}).observe(huNav);
+
 
 /* ---------- 외부 연결 (app.js / ProtoPie) ---------- */
 function setKey(k){k=String(k||'').trim();KEY=k;try{if(k)localStorage.setItem('neoTTKey',k);else localStorage.removeItem('neoTTKey');}catch(e){}
@@ -3194,5 +3230,9 @@ function mk(id,list,host,pos){var t=document.createElement('div');t.className='v
 mk('vSbGrid','vList',v,function(t,L){t.style.right='24px';t.style.top=(L.offsetTop+8)+'px';t.style.height=(L.clientHeight-16)+'px';});
 var dr=document.getElementById('vDrawer');if(dr)mk('vSbDr','vDrList',dr,function(t,L){t.style.right='10px';t.style.top=(L.offsetTop+4)+'px';t.style.height=(L.clientHeight-24)+'px';});
 })();</script>
+<style id="layoutHU1014">#btnCurrent>.ico{display:none!important}#btnCurrent img{width:40px;height:40px;pointer-events:none}#btnCurrent .nld{display:none}#nav.huOn:not(.huLeave) #btnCurrent .nlc{display:none}#nav.huOn:not(.huLeave) #btnCurrent .nld{display:block}#btnCompass{z-index:5;right:38px;bottom:130px;width:80px;height:80px;border-radius:8px;border:1px solid rgba(255,255,255,.1);box-sizing:border-box;background:radial-gradient(ellipse 527.57px 80px at 40px 80px,rgba(46,54,66,.5),rgba(46,54,66,.8));display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;pointer-events:none;transform:scale(.9);transition:opacity .25s,transform .25s}#btnCompass img{width:40px;height:40px;pointer-events:none}#nav.huOn #btnCompass{opacity:1;pointer-events:auto;transform:none}#nav.huOn.huLeave #btnCompass{opacity:0;pointer-events:none;transition:opacity .2s .35s}#nav.huLeave #map,#nav.huLeave #btnCompass img{transition:transform .45s cubic-bezier(.3,.7,.3,1)}#map{transform-origin:50% 50%}#scrPhone .tabs{left:72px!important}.rhd{left:72px!important;top:40px!important;height:53px!important;gap:18px!important;font-size:26px!important;font-weight:500!important;color:#fff!important}.rhd img{width:48px!important;height:48px!important;border-radius:16px!important}#scrVideo .rhd.vhd{left:72px!important;top:40px!important;height:53px!important;gap:18px!important;font-size:26px!important;font-weight:500!important;color:#fff!important}#scrVideo.play .rhd.vhd .ytl{display:none!important}#scrRadio .rbar{left:72px!important;top:118px!important}#scrRadio .rtabs{gap:70px}#scrRadio .rtabs div{padding:0!important;font-size:30px!important;font-weight:400!important;color:#9aa0a8!important}#scrRadio .rtabs .on{font-weight:600!important;color:#fff!important}#scrMusic .mh{left:72px!important;top:40px!important;height:53px!important}#scrMusic .mh .t{gap:18px!important;font-size:26px!important;font-weight:500!important;color:#fff!important}#scrImage .ih{left:72px!important;top:40px!important;height:53px!important;gap:18px!important;color:#fff!important}#scrImage .ih b{font-size:26px!important;font-weight:500!important;line-height:53px!important}#scrImage .ih .iic{display:flex}#scrImage .ih .iic img{width:48px;height:48px;border-radius:16px}#scrImage.view .ih{left:0!important;right:0!important;top:0!important;height:128px!important;padding:40px 72px 35px!important}#scrImage.view .ih .iic{display:none}</style><script>(function(){var ih=document.querySelector('#scrImage .ih'),b=ih&&ih.querySelector('b');if(!b)return;
+var src=document.querySelector('#popGrid [data-papp="image"] img');var s=document.createElement('span');s.className='iic';
+s.innerHTML='<img alt="" src="'+(src?src.src:'')+'">';ih.insertBefore(s,b);})();</script>
+<style id="navStatusFix">#navStatus{gap:16px!important}#navStatus .st{flex:none;white-space:nowrap;overflow:hidden}#navStatus .st b{font-variant-numeric:tabular-nums}#navStatus .st:nth-child(1){width:150px}#navStatus .st:nth-child(2){width:112px}#navStatus .st:nth-child(3){width:104px}</style>
 </body>
 </html>

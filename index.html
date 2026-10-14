@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
+<script id="neoKeyMigrate">(function(){try{var K=['shiftTTKey','shiftYTKey','shiftCtrlBar','shiftCamMap','shiftRadioFav','shiftRadioRecent','shiftRadioCountry','shiftVideoLinks'];K.forEach(function(k){var n="neo"+k.slice(5),v=localStorage.getItem(k);if(v!==null){if(localStorage.getItem(n)===null)localStorage.setItem(n,v);localStorage.removeItem(k);}});}catch(e){}})();</script>
 <meta charset="utf-8">
 <script>
 /* ================== 비디오(YouTube) 목록 ==================
@@ -1177,10 +1178,10 @@ function truthy(v){v=String(v).toLowerCase().trim();return !(v==='0'||v==='off'|
 
 /* ---------- 화면 맞춤 ---------- */
 var stage=$('stage'), SCALE=1, OX=0, OY=0;
-function barH(){return window.SHIFT_BAR_ON?168:0;} /* 화면과 버튼 바 사이 40px 간격 + 바 128px */
+function barH(){return window.NEO_BAR_ON?168:0;} /* 화면과 버튼 바 사이 40px 간격 + 바 128px */
 function fit(){var H=1080+barH();SCALE=Math.min(innerWidth/1920,innerHeight/H);OX=(innerWidth-1920*SCALE)/2;OY=(innerHeight-H*SCALE)/2;stage.style.transform='translate('+OX+'px,'+OY+'px) scale('+SCALE+')';
   var cb=document.getElementById('ctrlBar');if(cb)cb.style.transform='translate('+OX+'px,'+(OY+1120*SCALE)+'px) scale('+SCALE+')';}
-(function(){var q=new URLSearchParams(location.search).get('ctrl'),v=null;try{v=localStorage.getItem('shiftCtrlBar');}catch(e){}window.SHIFT_BAR_ON=q!==null?q!=='0':v!=='0';})();
+(function(){var q=new URLSearchParams(location.search).get('ctrl'),v=null;try{v=localStorage.getItem('neoCtrlBar');}catch(e){}window.NEO_BAR_ON=q!==null?q!=='0':v!=='0';})();
 addEventListener('resize',fit);fit();
 function toStage(e){return {x:(e.clientX-OX)/SCALE,y:(e.clientY-OY)/SCALE};}
 
@@ -1670,7 +1671,7 @@ function driveView(on){
   hit.addEventListener('pointerup',function(e){if(sy===null)return;var dy=(e.clientY-sy)/SCALE;sy=null;if(!window.Nav)return;
     if(dy<-40){if(GEAR!=='D'){gearHint();send('driveBlocked',GEAR);return;}window.Nav.drive(true); /* 문이 열려 있어도 주행 가능 (탑뷰 유지) */}else if(dy>40)window.Nav.drive(false);});})();
 
-/* ---------- 도어 열림: 클러스터 탑뷰 (Figma cluster_contents_06 / Shift 라이브러리 front·rear left·right 00~25 프레임) ----------
+/* ---------- 도어 열림: 클러스터 탑뷰 (Figma cluster_contents_06 / 라이브러리 front·rear left·right 00~25 프레임) ----------
    문이 하나라도 열리면 탑뷰로 전환 → 해당 문 열림, 같은 키(또는 메시지)로 다시 닫힘, 열린 문이 없으면 최초 차량 이미지로 복귀 */
 var trunkEl=null,trunkS=0,DOOR=window.RES_DOOR,DOORS=['rl','rr','fl','fr'],doorS={fl:0,fr:0,rl:0,rr:0},doorF={fl:0,fr:0,rl:0,rr:0},doorEl={},doorT=null,doorExitT=null;
 (function(){var st=document.createElement('style');st.textContent=
@@ -1756,7 +1757,7 @@ connect();
   '<div class="sp"></div><div class="barhide" data-c="hide">Hide ▾</div>';
  document.body.appendChild(b);
  var show=document.createElement('div');show.id='ctrlShow';show.textContent='DEMO ▴';document.body.appendChild(show);
- function setBar(on){window.SHIFT_BAR_ON=on;document.body.classList.toggle('bar',on);try{localStorage.setItem('shiftCtrlBar',on?'1':'0');}catch(e){}fit();}
+ function setBar(on){window.NEO_BAR_ON=on;document.body.classList.toggle('bar',on);try{localStorage.setItem('neoCtrlBar',on?'1':'0');}catch(e){}fit();}
  show.addEventListener('click',function(e){e.stopPropagation();setBar(true);});
  ['pointerdown','pointerup','click'].forEach(function(t){b.addEventListener(t,function(e){e.stopPropagation();});});
  b.addEventListener('click',function(e){var c=e.target.closest('[data-c]');if(!c)return;var k=c.getAttribute('data-c');
@@ -1788,9 +1789,9 @@ connect();
    q('tl').classList.toggle('on',turnS==='left'||turnS==='hazard');q('tr').classList.toggle('on',turnS==='right'||turnS==='hazard');q('hz').classList.toggle('hzon',turnS==='hazard');
    var h=q('hl');h.classList.toggle('hlon',hlS===1);h.classList.toggle('hlhi',hlS===2);h.querySelector('.hls').textContent=['OFF','LOW','HIGH'][hlS];}
  setInterval(sync,250);sync();
- if(window.SHIFT_BAR_ON)document.body.classList.add('bar');fit();
+ if(window.NEO_BAR_ON)document.body.classList.add('bar');fit();
 })();
-window.ShiftDisplay={setGear:setGear,gear:function(){return GEAR;},onGear:function(g){driveView(g==='D');},handle:handle,send:send,start:start,Player:Player,setHome:function(v){homeSel=v;renderHV();},closePopup:closePopup,seat:seat,renderSeat:renderSeat,temp:temp,renderTemp:renderTemp,toStage:toStage,uri:uri};
+window.NeoDisplay={setGear:setGear,gear:function(){return GEAR;},onGear:function(g){driveView(g==='D');},handle:handle,send:send,start:start,Player:Player,setHome:function(v){homeSel=v;renderHV();},closePopup:closePopup,seat:seat,renderSeat:renderSeat,temp:temp,renderTemp:renderTemp,toStage:toStage,uri:uri};
 })();
 </script>
 <script>/* ========== Navigation (TomTom: 지도 · 검색 · 경로 · 회전 안내 · 주행 시뮬레이션) ========== */
@@ -1799,7 +1800,7 @@ window.ShiftDisplay={setGear:setGear,gear:function(){return GEAR;},onGear:functi
 var qs=new URLSearchParams(location.search);
 var LANG=qs.get('ttlang')||'en-US'; // TomTom 언어. 한국어: ?ttlang=ko-KR
 var KEY=(qs.get('ttkey')||'').trim(); // TomTom API 키: 설정 > System 에서 입력(브라우저에 저장) 또는 주소 끝에 ?ttkey=키
-try{if(KEY)localStorage.setItem('shiftTTKey',KEY);else KEY=localStorage.getItem('shiftTTKey')||'';}catch(e){}
+try{if(KEY)localStorage.setItem('neoTTKey',KEY);else KEY=localStorage.getItem('neoTTKey')||'';}catch(e){}
 var SITE_KEY='FZXYwOCZm0jU4LnuuK9CHY9dJeaMNTGX';
 if(!KEY)KEY=SITE_KEY;
 function siteKeyFail(){if(KEY&&KEY===SITE_KEY){console.warn('TomTom 사이트 키 사용 불가 → 무료 지도로 전환');KEY='';freeTry=0;loadFreeTiles();return true;}return false;} /* 도메인 밖(PC 파일 등)에서는 무료 지도로 자동 전환 */
@@ -1808,7 +1809,7 @@ var hostIdx=0;
 var CUR={lat:37.2886,lon:127.0514,name:'Current location (Gwanggyo Jungang Stn.)'};
 if(qs.get('origin')){var o=qs.get('origin').split(',');CUR={lat:+o[0],lon:+o[1],name:'Current location'};}
 var $=function(id){return document.getElementById(id);};
-var send=function(id,v){if(window.ShiftDisplay)window.ShiftDisplay.send(id,v);};
+var send=function(id,v){if(window.NeoDisplay)window.NeoDisplay.send(id,v);};
 function host(){return HOSTS[hostIdx];}
 if(typeof L==='undefined'){console.warn('Leaflet 없음');window.Nav={
   drive:drive, driving:function(){return sim.drive;}, guiding:function(){return sim.guide;}, onScreen:function(){updateClusterTbtVis();},onTap:function(){return false;},handle:function(){return false;}};return;}
@@ -1848,11 +1849,11 @@ function diagnose(){
   $('nav').appendChild(box);
   if(!KEY){box.querySelector('b').textContent='Cannot connect to the map server';
     $('mapDiag').innerHTML='Could not reach the free map (OpenStreetMap). Check your internet connection.<br>You can enter a TomTom key in Settings → System.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">Open Settings</div>';
-    $('mapKeyGo').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};
+    $('mapKeyGo').onclick=function(){if(window.NeoSettings)window.NeoSettings.open('system');};
     send('mapError','free');return;}
   if(false){
     $('mapDiag').innerHTML='설정 → System → Navigation 에서 키를 입력하세요.<div id="mapKeyGo" style="display:inline-block;margin-top:12px;padding:10px 20px;border-radius:8px;background:#2e60ff;color:#fff;font-weight:600;cursor:pointer">Open Settings</div>';
-    $('mapKeyGo').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};
+    $('mapKeyGo').onclick=function(){if(window.NeoSettings)window.NeoSettings.open('system');};
     send('mapError','nokey');return;}
   var url='https://'+HOSTS[0]+'/map/1/tile/basic/night/15/27945/12715.png?key='+KEY;
   var why=location.protocol==='file:'?'Opened as a local file. A key with a domain whitelist is blocked here.':'';
@@ -2051,7 +2052,7 @@ function posAt(s){var R=st.route,c=R.cum,i=1;while(i<c.length&&c[i]<s)i++;if(i>=
 var dispT=0,dispK=-1;
 function setCluster(kmh,gear,force){var sp=$('speed'),rp=$('rpm'),g=$('gear'),now=performance.now(),k=Math.round(kmh);
   // 숫자 표시는 초당 약 8회로 제한 → 숫자가 깜빡이듯 바뀌지 않게
-  if(force||k!==dispK&&(now-dispT>=120||k===0)){dispT=now;dispK=k;if(sp)sp.textContent=k;if(rp)rp.textContent=kmh>0.5?Math.round((900+kmh*22)/50)*50:0;}if(gear&&g&&g.textContent!==gear){g.textContent=gear;send('gear',gear);if(window.ShiftDisplay&&window.ShiftDisplay.onGear)window.ShiftDisplay.onGear(gear);}}
+  if(force||k!==dispK&&(now-dispT>=120||k===0)){dispT=now;dispK=k;if(sp)sp.textContent=k;if(rp)rp.textContent=kmh>0.5?Math.round((900+kmh*22)/50)*50:0;}if(gear&&g&&g.textContent!==gear){g.textContent=gear;send('gear',gear);if(window.NeoDisplay&&window.NeoDisplay.onGear)window.NeoDisplay.onGear(gear);}}
 function once(k,v){if(sim.sent[k]!==v){sim.sent[k]=v;send(k,v);}}
 function loop(){if(!sim.raf){sim.last=performance.now();sim.raf=requestAnimationFrame(step);}}
 /* 안내 시작: 모의주행 없이 현재(출발) 위치에 정지한 채 안내 화면 표시 */
@@ -2126,7 +2127,7 @@ function hideClusterTbt(){ctbt.style.display='none';}
 function recenter(){var ll=carMk.getLatLng();map.setView(ll,16);}
 
 /* ---------- 외부 연결 (app.js / ProtoPie) ---------- */
-function setKey(k){k=String(k||'').trim();KEY=k;try{if(k)localStorage.setItem('shiftTTKey',k);else localStorage.removeItem('shiftTTKey');}catch(e){}
+function setKey(k){k=String(k||'').trim();KEY=k;try{if(k)localStorage.setItem('neoTTKey',k);else localStorage.removeItem('neoTTKey');}catch(e){}
   var b=$('mapDiagBox');if(b)b.remove();diagShown=false;tileOk=false;hostIdx=0;
   freeTry=0;loadTiles();setTimeout(function(){if(!tileOk)diagnose();},8000);send('mapError','0');}
 function testKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:false,msg:'Enter a key.'});
@@ -2155,7 +2156,7 @@ window.Nav={
       case 'navDestination':openSetup();if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var a=s.split(',');setPoint('dest',{lat:+a[0],lon:+a[1],name:'Destination'});}else quick(s,'dest');return true;
       case 'navOrigin':if(st.mode!=='setup')openSetup();if(s==='current'||s===''){setPoint('origin',{lat:CUR.lat,lon:CUR.lon,name:CUR.name});}else if(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s)){var b=s.split(',');setPoint('origin',{lat:+b[0],lon:+b[1],name:'Origin'});}else quick(s,'origin');return true;
       case 'navStart':if(st.route)startSim();return true;
-      case 'drive':{var on=String(v)!=='stop'&&String(v)!=='0'&&String(v)!=='off';if(on&&window.ShiftDisplay&&window.ShiftDisplay.gear()!=='D')window.ShiftDisplay.setGear('D');if(on&&window.ShiftDisplay&&window.ShiftDisplay.gear()!=='D')return true;drive(on);}return true;
+      case 'drive':{var on=String(v)!=='stop'&&String(v)!=='0'&&String(v)!=='off';if(on&&window.NeoDisplay&&window.NeoDisplay.gear()!=='D')window.NeoDisplay.setGear('D');if(on&&window.NeoDisplay&&window.NeoDisplay.gear()!=='D')return true;drive(on);}return true;
       case 'navStop':resetNav();return true;
       case 'navSimSpeed':sim.mult=Math.max(.5,parseFloat(s)||4);return true;
     }
@@ -2167,7 +2168,7 @@ window.Nav={
 <script>/* ========== 앱 화면 (Music · Phone · Settings · Camera) + Climate / Seat 팝업 ========== */
 (function(){
 'use strict';
-var SD=window.ShiftDisplay, I=window.ICONS, $=function(id){return document.getElementById(id);};
+var SD=window.NeoDisplay, I=window.ICONS, $=function(id){return document.getElementById(id);};
 var send=SD.send, uri=SD.uri, P=SD.Player, RS=window.RES_SVG, RI=window.RES_IMG;
 var stage=$('stage');
 function el(html){var d=document.createElement('div');d.innerHTML=html.trim();return d.firstChild;}
@@ -2424,17 +2425,17 @@ music.appendChild(btNow);
  '#scrMusic.bt #nowp{display:none}#scrMusic.bt.btc #btNow{display:block}#mBt .pbtn{margin-top:20px;min-width:220px}#mBt .sq.off{background:rgba(255,255,255,.14)!important}';
  document.head.appendChild(st);})();
 var PAUSE_SVG=svg('<path d="M12 8v16M20 8v16"/>',80);
-function renderBtNow(){var on=!!(window.ShiftBT&&window.ShiftBT.musicDev());btNow.classList.toggle('nodev',!on);$('btTi').textContent=on?BTN_T[btI][0]:'Nothing is playing';$('btAr').textContent=on?BTN_T[btI][1]:'';$('btPlayB').innerHTML=btPlay?PAUSE_SVG:img(IC.play,80);if(window.__btList)window.__btList();}
+function renderBtNow(){var on=!!(window.NeoBT&&window.NeoBT.musicDev());btNow.classList.toggle('nodev',!on);$('btTi').textContent=on?BTN_T[btI][0]:'Nothing is playing';$('btAr').textContent=on?BTN_T[btI][1]:'';$('btPlayB').innerHTML=btPlay?PAUSE_SVG:img(IC.play,80);if(window.__btList)window.__btList();}
 var btProgT=null,btPos=0;function btTick(){clearInterval(btProgT);if(btPlay)btProgT=setInterval(function(){btPos=(btPos+0.4)%100;$('btProg').style.width=btPos+'%';},200);}
 $('btPlayB').onclick=function(){if(btNow.classList.contains('nodev'))return;btPlay=!btPlay;renderBtNow();btTick();send('btMusic',btPlay?'play':'pause');};
 $('btNext').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','next');};
 $('btPrev').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+BTN_T.length-1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','prev');};
 renderBtNow();
-function renderBtPanel(){var d=window.ShiftBT&&window.ShiftBT.musicDev();music.classList.toggle('btc',!!d);
+function renderBtPanel(){var d=window.NeoBT&&window.NeoBT.musicDev();music.classList.toggle('btc',!!d);
   if(!d){btPlay=false;clearInterval(btProgT);renderBtNow();}
   mBt.innerHTML=d?'':'<b>No connected device</b><span>Connect your phone via Bluetooth to play music.</span><div class="pbtn" id="mBtConn">Connect</div>';
   var dn=document.getElementById('mBtDevT');if(dn)dn.textContent=d?d.name:'';renderBtNow();
-  var c=document.getElementById('mBtConn');if(c)c.onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('connection');send('btMusic','connect');};}
+  var c=document.getElementById('mBtConn');if(c)c.onclick=function(){if(window.NeoSettings)window.NeoSettings.open('connection');send('btMusic','connect');};}
 var btList=document.createElement('div');btList.id='btList';music.appendChild(btList);
 var BT_ART=['linear-gradient(135deg,#5b7fb8,#2c3b57)','linear-gradient(135deg,#8a6fb0,#3a2d52)','linear-gradient(135deg,#4f9a8f,#24433f)','linear-gradient(135deg,#b07a5b,#4a3326)'];
 var BT_NOTE=NOTE.replace('width="46" height="46"','width="32" height="32"');
@@ -2494,7 +2495,7 @@ function renderSet(){
   renderConn();
 }
 
-/* ---------- Connections 시나리오 (Figma Shift_GUI > Settings 3857:100967 흐름, 현재 다크 디자인) ---------- */
+/* ---------- Connections 시나리오 (Figma Settings 3857:100967 흐름, 현재 다크 디자인) ---------- */
 var BTD=[{id:'subin',name:"Subin's iPhone 15 Pro",os:'ios',paired:1,auto:1},{id:'lilly',name:'Lilly',os:'android',paired:1,auto:0},
   {id:'sungji',name:"Sungji's Galaxy",os:'android',paired:0,auto:1},{id:'galaxy',name:'GALAXY X',os:'android',paired:0,auto:1},{id:'ipad',name:'iPad Air',os:'ipad',paired:0,auto:1}];
 BTD.forEach(function(d){d.media=0;d.phone=0;d.proj=0;});
@@ -2504,7 +2505,7 @@ function isConn(d){return !!(d&&d.paired&&(d.media||d.phone||d.proj));}
 function connList(){return BTD.filter(isConn);}
 function projName(d){return d.os==='ios'?'Apple CarPlay':'Android Auto';}
 function btMusicDev(){if(!conn.bt)return null;for(var i=0;i<BTD.length;i++){var d=BTD[i];if(isConn(d)&&d.media&&!d.proj)return d;}return null;}
-window.ShiftBT={musicDev:btMusicDev,list:function(){return BTD;}};
+window.NeoBT={musicDev:btMusicDev,list:function(){return BTD;}};
 function btChanged(){if(window.__phoneSync)window.__phoneSync();if(typeof window.__renderSrc==='function')window.__renderSrc();send('btConnected',connList().map(function(d){return d.name;}).join(',')||'none');}
 var CX={edit:svg('<path d="M7 25h5L25 12l-5-5L7 20z"/><path d="M18 9l5 5"/>',34),back:svg('<path d="M20 6L10 16l10 10"/>',38),
   dev:svg('<rect x="10" y="4" width="12" height="24" rx="2.5"/><path d="M14.5 24h3"/>',40),tab:svg('<rect x="6" y="5" width="20" height="22" rx="2.5"/><path d="M14.5 23h3"/>',40)};
@@ -2608,7 +2609,7 @@ function ytTestKey(k){k=String(k||'').trim();if(!k)return Promise.resolve({ok:fa
   return fetch('https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&regionCode=KR&maxResults=1&key='+encodeURIComponent(k)).then(function(r){return r.json().then(function(j){
     return r.ok?{ok:true,msg:'OK — popular videos can be loaded.'}:{ok:false,msg:'HTTP '+r.status+' — '+((j.error&&j.error.message)||'Check the key.')};});},function(){return {ok:false,msg:'Cannot connect to YouTube.'};});}
 function kStatus(t,ok){var e=$('ttSt');if(!e)return;e.textContent=t;e.className='kst'+(ok===true?' ok':ok===false?' ng':'');}
-window.ShiftSettings={open:function(m){sMenu=m||sMenu;renderSet();show('settings');send('settingsMenu',sMenu);}};
+window.NeoSettings={open:function(m){sMenu=m||sMenu;renderSet();show('settings');send('settingsMenu',sMenu);}};
 settings.addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter'&&e.target.id==='ttKeyIn')$('ttSave').click();if(e.key==='Enter'&&e.target.id==='ytKeyIn')$('ytSave').click();});
 settings.addEventListener('click',function(e){
   if(e.target.closest('#ttEye')){var i=$('ttKeyIn');i.type=i.type==='password'?'text':'password';e.target.closest('#ttEye').textContent=i.type==='password'?'Show':'Hide';return;}
@@ -2616,10 +2617,10 @@ settings.addEventListener('click',function(e){
     window.Nav.testKey(v).then(function(r){kStatus(r.msg,r.ok);});send('navKey','saved');return;}
   if(e.target.closest('#ttTest')){kStatus('Checking…');window.Nav.testKey($('ttKeyIn').value).then(function(r){kStatus(r.msg,r.ok);});return;}
   if(e.target.closest('#ytEye')){var yi=$('ytKeyIn');yi.type=yi.type==='password'?'text':'password';e.target.closest('#ytEye').textContent=yi.type==='password'?'Show':'Hide';return;}
-  if(e.target.closest('#ytSave')){var yv=$('ytKeyIn').value.trim();if(!yv){ytStatus('Enter a key.',false);return;}try{localStorage.setItem('shiftYTKey',yv);}catch(x){}ytStatus('Saved ('+maskKey(yv)+'). Checking…');
+  if(e.target.closest('#ytSave')){var yv=$('ytKeyIn').value.trim();if(!yv){ytStatus('Enter a key.',false);return;}try{localStorage.setItem('neoYTKey',yv);}catch(x){}ytStatus('Saved ('+maskKey(yv)+'). Checking…');
     ytTestKey(yv).then(function(r){ytStatus(r.msg,r.ok);});vItems=[];send('videoKey','saved');return;}
   if(e.target.closest('#ytTest')){ytStatus('Checking…');ytTestKey($('ytKeyIn').value).then(function(r){ytStatus(r.msg,r.ok);});return;}
-  if(e.target.closest('#ytDel')){try{localStorage.removeItem('shiftYTKey');}catch(x){}renderSystem();ytStatus('Key deleted.');vItems=[];send('videoKey','deleted');return;}
+  if(e.target.closest('#ytDel')){try{localStorage.removeItem('neoYTKey');}catch(x){}renderSystem();ytStatus('Key deleted.');vItems=[];send('videoKey','deleted');return;}
   if(e.target.closest('#ttDel')){window.Nav.setKey('');renderSystem();kStatus('Key deleted.');send('navKey','deleted');return;}
   var m=e.target.closest('[data-m]');if(m){sMenu=m.getAttribute('data-m');renderSet();send('settingsMenu',sMenu);return;}
   var g=e.target.closest('[data-tg]');if(g){var k=g.getAttribute('data-tg');conn[k]=!conn[k];renderSet();send(k==='bt'?'bluetooth':'hotspot',conn[k]?'on':'off');return;}
@@ -2647,12 +2648,12 @@ var camCss=document.createElement('style');camCss.textContent=`
 #camMenu .msg{padding:12px 16px;font-size:19px;color:#f0a24e;line-height:1.5}`;
 document.head.appendChild(camCss);
 var CAMS={camFront:'Rear',camLeft:'Left',camRight:'Right',camTop:'Top view'};
-var camMap={};try{camMap=JSON.parse(localStorage.getItem('shiftCamMap')||'{}');}catch(e){}
+var camMap={};try{camMap=JSON.parse(localStorage.getItem('neoCamMap')||'{}');}catch(e){}
 var streams={};
 Object.keys(CAMS).forEach(function(id){var box=$(id);box.insertAdjacentHTML('afterbegin','<video autoplay muted playsinline></video>');
   box.insertAdjacentHTML('beforeend','<div class="camPick" data-cam="'+id+'"><i></i>'+CAMS[id]+' camera</div>');});
 var camMenu=el('<div id="camMenu"></div>');stage.appendChild(camMenu);
-function saveMap(){try{localStorage.setItem('shiftCamMap',JSON.stringify(camMap));}catch(e){}}
+function saveMap(){try{localStorage.setItem('neoCamMap',JSON.stringify(camMap));}catch(e){}}
 function stopCam(id){var s=streams[id];if(s){s.getTracks().forEach(function(tr){tr.stop();});delete streams[id];}var b=$(id);b.classList.remove('live');b.querySelector('video').srcObject=null;}
 function startCam(id){
   var dev=camMap[id];stopCam(id);if(!dev)return Promise.resolve();
@@ -2726,8 +2727,8 @@ scrWrap.appendChild(radio);
 ':root{--rgl:url("'+uri("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><path fill-rule=\"evenodd\" d=\"M0.198559 13.4722C0.0678743 14.2956 0 15.1398 0 16C0 17.4071 0.18163 18.7717 0.522723 20.0718H8.09657C7.76279 17.7711 7.7237 15.5602 7.90188 13.4722H0.198559ZM0.980604 10.4722H8.3156C9.08393 6.44795 10.6082 3.01153 12.2169 0.449859C7.0144 1.71109 2.80558 5.51524 0.980604 10.4722ZM15.8999 0.404059C14.1818 2.60876 12.2941 6.12144 11.3726 10.4722H20.4272C19.5057 6.12144 17.618 2.60876 15.8999 0.404059ZM20.8842 13.4722H10.9156C10.7219 15.5428 10.7645 17.7561 11.1408 20.0718H20.659C21.0353 17.7561 21.0779 15.5428 20.8842 13.4722ZM23.7032 20.0718C24.037 17.7711 24.0761 15.5602 23.8979 13.4722H31.8014C31.9321 14.2956 32 15.1398 32 16C32 17.4071 31.8184 18.7717 31.4773 20.0718H23.7032ZM19.9924 23.0718H11.8074C12.6022 25.8845 13.9139 28.8148 15.8999 31.7976C17.8859 28.8148 19.1976 25.8845 19.9924 23.0718ZM12.2076 31.5479C10.5184 28.6555 9.38664 25.8131 8.69294 23.0718H1.64367C3.71262 27.264 7.56373 30.4191 12.2076 31.5479ZM19.5602 31.6025C21.2672 28.6912 22.4088 25.8303 23.1069 23.0718H30.3563C28.253 27.3336 24.3078 30.5237 19.5602 31.6025ZM31.0194 10.4722H23.4842C22.7104 6.41905 21.1697 2.9622 19.5482 0.394804C24.8587 1.59718 29.167 5.44086 31.0194 10.4722Z\" fill=\"#E5E5E5\"/></svg>")+'");--rcv:url("'+uri("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 26 14\"><path d=\"M24.082 1.53697L14.2587 11.3603C13.4583 12.1607 12.1606 12.1607 11.3602 11.3603L1.53684 1.53698\" fill=\"none\" stroke=\"#E5E5E5\" stroke-width=\"3.07434\" stroke-linecap=\"round\"/></svg>")+'");--rph:url("'+uri("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path d=\"M20.4326 4.52329C21.072 4.13993 21.9017 4.34795 22.2852 4.98715C22.6686 5.62659 22.4607 6.45627 21.8213 6.83969L15.3311 10.7313H25.1445C28.5385 10.7313 30.2356 10.7317 31.29 11.786C32.3444 12.8404 32.3447 14.5376 32.3447 17.9315V24.4686C32.3447 27.8626 32.3443 29.5597 31.29 30.6141C30.2356 31.6685 28.5386 31.6688 25.1445 31.6688H10.8545C7.46038 31.6688 5.7634 31.6685 4.70898 30.6141C3.65472 29.5597 3.6543 27.8626 3.6543 24.4686V17.9315C3.6543 14.5376 3.6546 12.8404 4.70898 11.786C5.67964 10.8155 7.19494 10.7384 10.0771 10.7323L20.4326 4.52329ZM10.085 18.95C8.84242 18.95 7.83512 19.9575 7.83496 21.2C7.83501 22.4426 8.84235 23.45 10.085 23.45C11.3274 23.4498 12.3349 22.4425 12.335 21.2C12.3348 19.9577 11.3273 18.9503 10.085 18.95Z\" fill=\"#808080\"/></svg>")+'");--rsoff:url("'+uri("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><path d=\"M14.4775 3.88348C14.9565 2.40938 17.0419 2.40938 17.5209 3.88348L19.4118 9.70314C19.626 10.3624 20.2404 10.8087 20.9335 10.8087H27.0527C28.6026 10.8087 29.2471 12.7921 27.9931 13.7031L23.0426 17.2999C22.4819 17.7073 22.2472 18.4295 22.4614 19.0887L24.3523 24.9084C24.8313 26.3825 23.1441 27.6083 21.8902 26.6973L16.9397 23.1005C16.3789 22.6931 15.6195 22.6931 15.0588 23.1005L10.1083 26.6973C8.85433 27.6083 7.16715 26.3825 7.64612 24.9084L9.53704 19.0887C9.75124 18.4295 9.51659 17.7073 8.95581 17.2999L4.00531 13.7031C2.75137 12.7921 3.3958 10.8087 4.94576 10.8087H11.0649C11.7581 10.8087 12.3724 10.3624 12.5866 9.70314L14.4775 3.88348Z\" fill=\"none\" stroke=\"#808080\" stroke-width=\"2.4\"/></svg>")+'");--rson:url("'+uri("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><path d=\"M14.4775 3.88348C14.9565 2.40938 17.0419 2.40938 17.5209 3.88348L19.4118 9.70314C19.626 10.3624 20.2404 10.8087 20.9335 10.8087H27.0527C28.6026 10.8087 29.2471 12.7921 27.9931 13.7031L23.0426 17.2999C22.4819 17.7073 22.2472 18.4295 22.4614 19.0887L24.3523 24.9084C24.8313 26.3825 23.1441 27.6083 21.8902 26.6973L16.9397 23.1005C16.3789 22.6931 15.6195 22.6931 15.0588 23.1005L10.1083 26.6973C8.85433 27.6083 7.16715 26.3825 7.64612 24.9084L9.53704 19.0887C9.75124 18.4295 9.51659 17.7073 8.95581 17.2999L4.00531 13.7031C2.75137 12.7921 3.3958 10.8087 4.94576 10.8087H11.0649C11.7581 10.8087 12.3724 10.3624 12.5866 9.70314L14.4775 3.88348Z\" fill=\"#FFC300\"/></svg>")+'")}';
 document.head.appendChild(s);})();
 var RB_HOSTS=['de1.api.radio-browser.info','fi1.api.radio-browser.info','de2.api.radio-browser.info','nl1.api.radio-browser.info','at1.api.radio-browser.info'],rbIdx=0;
-var rAudio=new Audio(),rStations=[],rTab='popular',rCur=null,rFav={},rRecent=[],rCty='KOR';try{rFav=JSON.parse(localStorage.getItem('shiftRadioFav')||'{}');}catch(e){}
-try{rRecent=JSON.parse(localStorage.getItem('shiftRadioRecent')||'[]');rCty=localStorage.getItem('shiftRadioCountry')||'KOR';}catch(e){}
+var rAudio=new Audio(),rStations=[],rTab='popular',rCur=null,rFav={},rRecent=[],rCty='KOR';try{rFav=JSON.parse(localStorage.getItem('neoRadioFav')||'{}');}catch(e){}
+try{rRecent=JSON.parse(localStorage.getItem('neoRadioRecent')||'[]');rCty=localStorage.getItem('neoRadioCountry')||'KOR';}catch(e){}
 /* 국가 필터 (ISO 3자리 → Radio Browser 2자리) */
 var R_CTY=[['ALL',''],['KOR','KR'],['USA','US'],['JPN','JP'],['CHN','CN'],['IND','IN'],['BRA','BR'],['RUS','RU'],['GBR','GB'],['DEU','DE'],['FRA','FR'],['ITA','IT'],['ESP','ES'],['CAN','CA'],['AUS','AU'],['MEX','MX'],['IDN','ID'],['VNM','VN'],['THA','TH'],['TUR','TR']];
 function rCode(c){c=String(c||'').toUpperCase().trim();for(var i=0;i<R_CTY.length;i++){if(R_CTY[i][0]===c||(R_CTY[i][1]&&R_CTY[i][1]===c))return R_CTY[i];}if(c==='GLOBAL'||c==='WORLD')return R_CTY[0];return /^[A-Z]{2}$/.test(c)?[c,c]:null;}
@@ -2745,7 +2746,7 @@ function loadRadio(tab){tab=({kr:'popular',top:'popular'})[tab]||tab;if(['popula
   var path=c[1]?'/json/stations/search?countrycode='+c[1]+'&hidebroken=true&order=clickcount&reverse=true&limit=150':'/json/stations/topclick/150';
   rb(path).then(function(d){if(rCty+'|'+rTab!==want)return;rStations=d.filter(okStream).slice(0,60);renderRadio();rEmpty(rStations.length?'':'No playable stations found.');send('radioLoaded',rStations.length);})
   .catch(function(){rEmpty('Cannot reach the radio server. Check your internet connection.');});}
-function setCountry(c){var x=rCode(c);if(!x)return false;rCty=x[0];try{localStorage.setItem('shiftRadioCountry',rCty);}catch(e){}closeCty();send('radioCountry',rCty);loadRadio(rTab);return true;}
+function setCountry(c){var x=rCode(c);if(!x)return false;rCty=x[0];try{localStorage.setItem('neoRadioCountry',rCty);}catch(e){}closeCty();send('radioCountry',rCty);loadRadio(rTab);return true;}
 function openCty(){$('rDD').innerHTML=R_CTY.map(function(c){return '<div data-cty="'+c[0]+'"'+(c[0]===rCty?' class="on"':'')+'>'+c[0]+'</div>';}).join('');$('rDD').classList.add('show');$('rFlt').classList.add('open');var on=$('rDD').querySelector('.on');if(on)$('rDD').scrollTop=Math.max(0,on.offsetTop-88);}
 function closeCty(){$('rDD').classList.remove('show');$('rFlt').classList.remove('open');}
 function initials(n){return (n||'?').replace(/[^\w가-힣]/g,'').slice(0,2).toUpperCase();}
@@ -2759,10 +2760,10 @@ function renderRadio(){var pl=!rAudio.paused;$('rList').innerHTML=rStations.map(
   $('rList').querySelectorAll('.rlg').forEach(function(l,i){rLogoFallback(l,rStations[i]);});}
 function rRenderNow(){var s=rCur,np=$('rNow');$('rName').textContent=s?s.name.trim():'Select a station';$('rSub').textContent=s?((s.tags||'').split(',').slice(0,3).join(' · ')||s.country||''):'';
   var lg=$('rLogo');lg.outerHTML=rLogoHtml(s,'rLogo');rLogoFallback($('rLogo'),s);np.classList.toggle('playing',!rAudio.paused);var on=$('rList').querySelector('.rs.on');if(on)on.classList.toggle('playing',!rAudio.paused);$('rPlay').innerHTML=img(rAudio.paused?IC.play:IC.pause,80);}
-function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('shiftRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('This station cannot be played');});renderRadio();rRenderNow();}
+function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('neoRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('This station cannot be played');});renderRadio();rRenderNow();}
 function stopRadio(){if(!rAudio.paused){rAudio.pause();send('radioStop','1');}rRenderNow();}
 rAudio.addEventListener('playing',rRenderNow);rAudio.addEventListener('pause',rRenderNow);rAudio.addEventListener('error',function(){if(rCur)flash('Station disconnected');rRenderNow();});
-$('rList').addEventListener('click',function(e){var f=e.target.closest('[data-fav]');if(f){var s=rStations[+f.getAttribute('data-fav')];if(rFav[s.stationuuid])delete rFav[s.stationuuid];else rFav[s.stationuuid]=s;try{localStorage.setItem('shiftRadioFav',JSON.stringify(rFav));}catch(x){}renderRadio();return;}
+$('rList').addEventListener('click',function(e){var f=e.target.closest('[data-fav]');if(f){var s=rStations[+f.getAttribute('data-fav')];if(rFav[s.stationuuid])delete rFav[s.stationuuid];else rFav[s.stationuuid]=s;try{localStorage.setItem('neoRadioFav',JSON.stringify(rFav));}catch(x){}renderRadio();return;}
   var c=e.target.closest('[data-ri]');if(c)playStation(rStations[+c.getAttribute('data-ri')]);});
 $('rTabs').addEventListener('click',function(e){var d=e.target.closest('[data-rt]');if(d){closeCty();loadRadio(d.getAttribute('data-rt'));}});
 $('rFlt').addEventListener('click',function(e){e.stopPropagation();if($('rDD').classList.contains('show'))closeCty();else openCty();});
@@ -2841,17 +2842,17 @@ if(typeof dragScroll==='function')dragScroll($('iGrid'),'y');
 '#vLinkPop{position:absolute;left:50%;top:180px;transform:translateX(-50%);width:760px;padding:30px;border-radius:12px;background:rgba(40,44,52,.98);box-shadow:0 10px 40px rgba(0,0,0,.5);display:none;z-index:6}#vLinkPop b{font-size:26px}#vLinkPop small{display:block;color:#9aa0a8;font-size:19px;margin:10px 0 16px}'+
 '#vLinkIn{width:100%;height:160px;border-radius:8px;border:2px solid #3c4350;background:#1e2127;color:#fff;font:20px Pretendard,sans-serif;padding:14px;resize:none;user-select:text;-webkit-user-select:text}';
 document.head.appendChild(s);})();
-var yt=null,ytReady=false,ytQueue=null,vIds=[],vList=null,vSaved='';try{vSaved=localStorage.getItem('shiftVideoLinks')||'';}catch(e){vSaved='';}
+var yt=null,ytReady=false,ytQueue=null,vIds=[],vList=null,vSaved='';try{vSaved=localStorage.getItem('neoVideoLinks')||'';}catch(e){vSaved='';}
 function vAllLinks(){return (window.NEO_VIDEO_LINKS||[]).join('\n')+'\n'+vSaved;} /* 기본 데모 영상 (키 없이 재생) */
 /* ---- YouTube Data API: 인기 영상 / 내 링크 목록 (키는 설정 > System 에서 입력, 브라우저에만 저장) ---- */
 var YT_SITE_KEY=''; /* 사이트 기본 YouTube Data API 키 — 직접 입력. Google Cloud에서 HTTP 리퍼러를 kanavimobility.github.io/* 로 제한 */
-var vTab=(function(){try{return (localStorage.getItem('shiftYTKey')||YT_SITE_KEY)?'popular':'links';}catch(e){return YT_SITE_KEY?'popular':'links';}})(),vItems=[],vCurId='',vReq=0;
-function ytKey(){try{return localStorage.getItem('shiftYTKey')||YT_SITE_KEY;}catch(e){return YT_SITE_KEY;}}
+var vTab=(function(){try{return (localStorage.getItem('neoYTKey')||YT_SITE_KEY)?'popular':'links';}catch(e){return YT_SITE_KEY?'popular':'links';}})(),vItems=[],vCurId='',vReq=0;
+function ytKey(){try{return localStorage.getItem('neoYTKey')||YT_SITE_KEY;}catch(e){return YT_SITE_KEY;}}
 function ytApi(path){var k=ytKey();if(!k)return Promise.reject({nokey:1});
   return fetch('https://www.googleapis.com/youtube/v3/'+path+'&key='+encodeURIComponent(k)).then(function(r){return r.json().then(function(j){if(!r.ok)throw {status:r.status,msg:(j.error&&j.error.message)||''};return j;});});}
 function isoDur(d){var m=/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(d||'');if(!m)return '';var h=+m[1]||0,mi=+m[2]||0,se=+m[3]||0;return (h?h+':'+('0'+mi).slice(-2):mi)+':'+('0'+se).slice(-2);}
 function vMap(it){var sn=it.snippet||{},th=sn.thumbnails||{};return {id:it.id,t:sn.title||it.id,c:sn.channelTitle||'',img:(th.medium||th.high||th.default||{}).url||'https://i.ytimg.com/vi/'+it.id+'/mqdefault.jpg',du:it.contentDetails?isoDur(it.contentDetails.duration):'',ok:!it.status||it.status.embeddable!==false};}
-function vMsg(html){$('vList').innerHTML='<div class="vmsg">'+html+'</div>';var b=$('vKeyGo');if(b)b.onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('system');};}
+function vMsg(html){$('vList').innerHTML='<div class="vmsg">'+html+'</div>';var b=$('vKeyGo');if(b)b.onclick=function(){if(window.NeoSettings)window.NeoSettings.open('system');};}
 function renderVList(){if(!vItems.length)return;$('vList').innerHTML=vItems.map(function(v,i){return '<div class="vi'+(v.id===vCurId?' on':'')+'" data-vi="'+i+'"><div class="th" style="background-image:url(\''+v.img+'\')">'+(v.du?'<span class="du">'+v.du+'</span>':'')+'</div><b>'+esc(v.t)+'</b><small>'+esc(v.c)+'</small></div>';}).join('');}
 function vErr(e){if(e&&e.nokey)vMsg('No YouTube API key.<br>Enter a key in Settings → System to load popular videos.<br><span class="pbtn" id="vKeyGo">Open Settings</span>');
   else if(e&&e.status)vMsg('YouTube API error (HTTP '+e.status+')<br>'+esc(e.msg||'Check the key or quota.')+'<br><span class="pbtn" id="vKeyGo">Open Settings</span>');
@@ -2886,7 +2887,7 @@ function startVideos(p){if(!p.ids.length&&!p.list){flash('Not a valid YouTube li
 function stopVideo(){try{if(yt&&ytReady&&yt.getPlayerState()===1)yt.pauseVideo();}catch(e){}}
 function openLink(){$('vLinkIn').value=vSaved;$('vLinkPop').style.display='block';setTimeout(function(){$('vLinkIn').focus();},50);}
 $('vLinkBtn').onclick=openLink;$('vEmptyBtn').onclick=openLink;$('vLinkCancel').onclick=function(){$('vLinkPop').style.display='none';};
-$('vLinkOk').onclick=function(){vSaved=$('vLinkIn').value.trim();try{localStorage.setItem('shiftVideoLinks',vSaved);}catch(e){}$('vLinkPop').style.display='none';loadVTab('links');var p=parseLinks(vSaved);if(!(p.ids.length||p.list)&&vSaved)flash('Only video (watch?v= / youtu.be) or playlist (list=) links are supported');};
+$('vLinkOk').onclick=function(){vSaved=$('vLinkIn').value.trim();try{localStorage.setItem('neoVideoLinks',vSaved);}catch(e){}$('vLinkPop').style.display='none';loadVTab('links');var p=parseLinks(vSaved);if(!(p.ids.length||p.list)&&vSaved)flash('Only video (watch?v= / youtu.be) or playlist (list=) links are supported');};
 $('vLinkIn').addEventListener('pointerdown',function(e){e.stopPropagation();});
 $('vPlay').onclick=function(){if(!yt||!ytReady||!vCurId){if(vItems.length){playVItem(vItems[0].list&&vItems[1]?1:0);return;}openLink();return;}yt.getPlayerState()===1?yt.pauseVideo():yt.playVideo();};
 $('vPrev').onclick=function(){if(yt&&ytReady)yt.previousVideo();};$('vNext').onclick=function(){if(yt&&ytReady)yt.nextVideo();};
@@ -2897,7 +2898,7 @@ $('vList').addEventListener('click',function(e){var d=e.target.closest('[data-vi
 function vMode(m){video.classList.toggle('grid',m==='grid');video.classList.toggle('play',m==='play');send('videoView',m);}
 $('vBack').onclick=function(){stopVideo();vMode('grid');renderVList();};
 if(!ytKey()){var _vt=$('vTabs');if(_vt)_vt.style.display='none';}
-/* ---- 전체화면 재생 (Figma Shift GUI 13572:49100 / 49165) ---- */
+/* ---- 전체화면 재생 (Figma 13572:49100 / 49165) ---- */
 var VFS_BK='<svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M26 9L14 21l12 12"/></svg>';
 var VFS_RP='<svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M35 23a13 13 0 1 1-4.5-9.8"/><path d="M32 6v8h-8"/></svg>';
 var VFS_VOL='<svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="#e5e5e5" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17h7l9-7v24l-9-7H8z" fill="#e5e5e5"/><path d="M30 16a8 8 0 0 1 0 12M34.5 11.5a14 14 0 0 1 0 21"/></svg>';
@@ -2981,7 +2982,7 @@ var climate=el('<div id="climate"><div id="climArt"><div id="climBg" style="back
  '<div id="fanBox"><div id="fanDn" style="position:absolute;left:40px;top:12px;width:64px;height:56px;display:flex;align-items:center;justify-content:center;cursor:pointer">'+img(RS.cli_blower_s,32)+'</div><div id="fanSl"><div id="fanFill"></div></div><div id="fanUp" style="position:absolute;right:52px;top:6px;width:68px;height:68px;display:flex;align-items:center;justify-content:center;cursor:pointer">'+img(RS.cli_blower_l,48)+'</div></div></div>');
 stage.appendChild(climate);
 
-/* ---- 블로워 바람 애니메이션 (D:\GIT\ux\gui\01_project\00_precedence\18_shift+\animation\climate\img frame) ----
+/* ---- 블로워 바람 애니메이션 (animation/climate/img frame) ----
    1번 버튼(face) = 좌우 하단, 2번(bi) = 좌우 상단, 3번(feet) = 전체. 팬 단계가 높을수록 빠르게, 0단·전원 OFF면 정지 */
 var AIR=window.RES_AIR,AIR_SET={face:['bottom_l','bottom_r'],bi:['top_l','top_r'],feet:['top_l','top_r','bottom_l','bottom_r']};
 var airEl={},airT=null,airI=0,airN=0;
@@ -3064,7 +3065,7 @@ window.Screens={
       case 'phoneEnd':hang();return true;
       case 'radioPlay':show('radio');if(/^\d+$/.test(s))playStation(rStations[+s]);else{var f=rStations.filter(function(x){return x.name.toLowerCase().indexOf(s.toLowerCase())>=0;})[0];if(f)playStation(f);}return true;
       case 'radioStop':stopRadio();return true;
-      case 'videoUrl':vSaved=s;try{localStorage.setItem('shiftVideoLinks',s);}catch(e){}show('video');startVideos(parseLinks(s));return true;
+      case 'videoUrl':vSaved=s;try{localStorage.setItem('neoVideoLinks',s);}catch(e){}show('video');startVideos(parseLinks(s));return true;
       case 'videoPlay':if(yt&&ytReady)yt.playVideo();return true;
       case 'videoPause':stopVideo();return true;
       case 'videoNext':if(yt&&ytReady)yt.nextVideo();return true;
@@ -3124,7 +3125,7 @@ card.addEventListener('pointerdown',function(e){if(!active)return;var t=e.target
     else{var r=R();if(!r)return;
       if(n==='mediaPlay'){r.audio.paused?r.play():r.stop();}else if(n==='mediaNext')r.step(1);else if(n==='mediaPrev')r.step(-1);
       else if(window.Screens)window.Screens.openApp('radio');}}catch(x){}
-  if(window.ShiftDisplay)window.ShiftDisplay.send('tap_'+n,active);setTimeout(render,200);},true);
+  if(window.NeoDisplay)window.NeoDisplay.send('tap_'+n,active);setTimeout(render,200);},true);
 })();</script>
 <script id="imageApp">/* image app marker */</script>
 <script id="imageAutoHide">(function(){var st=document.createElement("style");st.textContent="#scrImage.view .ih,#scrImage.view .iv-nav{transition:opacity .3s}#scrImage.view.idle .ih,#scrImage.view.idle .iv-nav{opacity:0;pointer-events:none}";document.head.appendChild(st);})();(function(){var s=document.getElementById('scrImage'),cv=document.getElementById('iCanvas');if(!s||!cv)return;var t=null,sx=0;function wake(){if(s.classList.contains('idle'))s.classList.remove('idle');clearTimeout(t);t=setTimeout(function(){if(s.classList.contains('view'))s.classList.add('idle');},3000);}var wasV=false;new MutationObserver(function(){var v=s.classList.contains('view');if(v===wasV)return;wasV=v;if(v)wake();else{clearTimeout(t);if(s.classList.contains('idle'))s.classList.remove('idle');}}).observe(s,{attributes:true,attributeFilter:['class']});['iPrev','iNext'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',wake);});cv.addEventListener('pointerdown',function(e){sx=e.clientX;});cv.addEventListener('pointerup',function(e){if(Math.abs(e.clientX-sx)>60){wake();return;}if(s.classList.contains('idle'))wake();else{clearTimeout(t);s.classList.add('idle');}});})();</script>
@@ -3133,7 +3134,7 @@ var ph=document.getElementById('scrPhone');if(!ph)return;var head=ph.querySelect
 var tn=null;head.childNodes.forEach(function(n){if(n.nodeType===3&&n.nodeValue.trim())tn=n;});
 var em=document.createElement('div');em.id='phEmpty';em.innerHTML='<b>No connected phone</b><span>Connect your phone via Bluetooth to make calls.</span><div class="pbtn" id="phConn">Connect</div>';ph.appendChild(em);
 var sy=document.createElement('div');sy.id='phSync';sy.innerHTML='<i></i><span>Syncing contacts and call history…</span>';ph.appendChild(sy);
-document.getElementById('phConn').onclick=function(){if(window.ShiftSettings)window.ShiftSettings.open('connection');if(window.ShiftDisplay)window.ShiftDisplay.send('phone','connect');};
+document.getElementById('phConn').onclick=function(){if(window.NeoSettings)window.NeoSettings.open('connection');if(window.NeoDisplay)window.NeoDisplay.send('phone','connect');};
 var st=document.createElement('style');st.textContent=
  '#scrPhone.nodev .tabs,#scrPhone.nodev #plWrap,#scrPhone.nodev #dial,#scrPhone.nodev #callBtn,#scrPhone.nodev #bksp,#scrPhone.nodev #dialNum,#scrPhone.nodev #calling,#scrPhone.nodev .ph svg{display:none!important}'+
  '#scrPhone.sync #plWrap{visibility:hidden}'+
@@ -3144,12 +3145,12 @@ var st=document.createElement('style');st.textContent=
  '#phSync i{width:48px;height:48px;border-radius:50%;border:5px solid rgba(255,255,255,.15);border-top-color:#79b2ff;box-sizing:border-box;animation:phsp .9s linear infinite}@keyframes phsp{to{transform:rotate(360deg)}}';
 document.head.appendChild(st);
 var lastName,syncT=null;
-function phones(){var L=(window.ShiftBT&&window.ShiftBT.list&&window.ShiftBT.list())||[];return L.filter(function(d){return d.phone;});}function dev(){var P=phones();for(var i=0;i<P.length;i++)if(P[i].id===window.__phoneActive)return P[i];return P[0]||null;}window.__phones=phones;window.__phoneDev=dev;
+function phones(){var L=(window.NeoBT&&window.NeoBT.list&&window.NeoBT.list())||[];return L.filter(function(d){return d.phone;});}function dev(){var P=phones();for(var i=0;i<P.length;i++)if(P[i].id===window.__phoneActive)return P[i];return P[0]||null;}window.__phones=phones;window.__phoneDev=dev;
 window.__phoneSync=function(){if(window.__phMenu)window.__phMenu();var d=dev(),name=d?d.name:null;if(name===lastName)return;var was=lastName;lastName=name;
   ph.classList.toggle('nodev',!d);if(tn)tn.nodeValue=d?d.name:'Phone';
   clearTimeout(syncT);ph.classList.remove('sync');
   if(d){ph.classList.add('sync');syncT=setTimeout(function(){ph.classList.remove('sync');},1300);}
-  if(window.ShiftDisplay)window.ShiftDisplay.send('phoneDevice',name||'none');if(window.__phMenu)window.__phMenu();};
+  if(window.NeoDisplay)window.NeoDisplay.send('phoneDevice',name||'none');if(window.__phMenu)window.__phMenu();};
 window.__phoneSync();
 })();</script>
 <script id="phoneSwitch">(function(){
@@ -3174,7 +3175,7 @@ window.__phMenu=function(){var P=window.__phones?window.__phones():[],cur=window
 head.addEventListener('click',function(e){if(!ph.classList.contains('multi'))return;e.stopPropagation();window.__phMenu();ph.classList.toggle('mopen');});
 menu.addEventListener('click',function(e){e.stopPropagation();var it=e.target.closest('[data-pid]');if(!it)return;var id=it.getAttribute('data-pid');close();
   if(window.__phoneDev&&window.__phoneDev()&&window.__phoneDev().id===id)return;window.__phoneActive=id;if(window.__phoneSync)window.__phoneSync();
-  if(window.ShiftDisplay)window.ShiftDisplay.send('phoneSwitch',id);});
+  if(window.NeoDisplay)window.NeoDisplay.send('phoneSwitch',id);});
 document.addEventListener('pointerdown',function(e){if(ph.classList.contains('mopen')&&!e.target.closest('#phMenu')&&!e.target.closest('#scrPhone .ph'))close();},true);
 window.__phMenu();
 /* 번호 입력 없으면 delete 버튼 숨김 */

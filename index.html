@@ -893,6 +893,8 @@ body.pw-idle #hint.show,body.pw-off #hint.show{display:block}
 #search{backdrop-filter:blur(100px);-webkit-backdrop-filter:blur(100px)}
 .navCard{backdrop-filter:blur(100px)!important;-webkit-backdrop-filter:blur(100px)!important}
 </style>
+<style id="bootNoPng">#car,#carLight,#drvCar,#drvAnim,#drvLight,#doorLight,#doorV{visibility:hidden!important;opacity:0!important}</style>
+<style id="gearNoNudge">#gear.nudge{animation:none!important;transform:none!important;color:#fff!important}</style>
 </head>
 <body class="pw-idle">
 <div id="stage">
@@ -1236,7 +1238,7 @@ var turnS='off',hlS=0;
 /* 전조등: 0=OFF 1=LOW(하향, lt_lowBeam) 2=HIGH(상향, lt_highBeam) */
 function setHeadlight(v){var s=String(v).toLowerCase();hlS=s==='2'||s==='high'?2:(s==='1'||s==='low'||s==='on'?1:(s==='0'||s==='off'?0:(+v||0)));
   setState($('lt_lowBeam'),hlS===1?'on':'off');setState($('lt_highBeam'),hlS===2?'on':'off');
-  document.body.classList.toggle('hl1',hlS===1);document.body.classList.toggle('hl2',hlS===2);} // 주행 뷰 차량 헤드라이트 빛 연동
+  document.body.classList.toggle('hl1',hlS===1);(window.__car3dState=window.__car3dState||{doors:{}}).hl=hlS;if(window.Car3D)Car3D.headlight(hlS);document.body.classList.toggle('hl2',hlS===2);} // 주행 뷰 차량 헤드라이트 빛 연동
 function setTurn(v){var s=String(v).toLowerCase();turnS=(s==='left'||s==='right'||s==='hazard')?s:(s==='both'?'hazard':'off');s=turnS==='hazard'?'hazard':s;document.body.classList.toggle('tcamL',turnS==='left');document.body.classList.toggle('tcamR',turnS==='right');var tc=$('turnCam'),RIx=window.RES_IMG||{};if(tc&&(turnS==='left'||turnS==='right')){var src=RIx[turnS==='left'?'svm_camera_left':'svm_camera_right'];if(src&&tc.src!==src)tc.src=src;}var L=$('turnL'),R=$('turnR');[L,R].forEach(function(e){e.classList.remove('off','blink');});
   if(s==='left'){L.classList.add('blink');R.classList.add('off');}else if(s==='right'){R.classList.add('blink');L.classList.add('off');}
   else if(s==='hazard'||s==='both'){L.classList.add('blink');R.classList.add('blink');}else if(s!=='on'){L.classList.add('off');R.classList.add('off');}}
@@ -1506,10 +1508,10 @@ function doTap(name){
   if(window.Screens&&window.Screens.onTap(name)){send('tap_'+name,'1');return;}
   if(window.Nav&&window.Nav.onTap(name)){send('tap_'+name,'1');return;}
   switch(name){
-    case 'tempLDown':temp.L-=.5;renderTemp('L');send('tempL',temp.L.toFixed(1));break;
-    case 'tempLUp':temp.L+=.5;renderTemp('L');send('tempL',temp.L.toFixed(1));break;
-    case 'tempRDown':temp.R-=.5;renderTemp('R');send('tempR',temp.R.toFixed(1));break;
-    case 'tempRUp':temp.R+=.5;renderTemp('R');send('tempR',temp.R.toFixed(1));break;
+    case 'tempLDown':if(window.__clim)__clim.wake();temp.L-=.5;renderTemp('L');if(window.__clim&&__clim.sync()){temp.R=temp.L;renderTemp('R');}send('tempL',temp.L.toFixed(1));break;
+    case 'tempLUp':if(window.__clim)__clim.wake();temp.L+=.5;renderTemp('L');if(window.__clim&&__clim.sync()){temp.R=temp.L;renderTemp('R');}send('tempL',temp.L.toFixed(1));break;
+    case 'tempRDown':if(window.__clim){__clim.wake();__clim.syncOff();}temp.R-=.5;renderTemp('R');send('tempR',temp.R.toFixed(1));break;
+    case 'tempRUp':if(window.__clim){__clim.wake();__clim.syncOff();}temp.R+=.5;renderTemp('R');send('tempR',temp.R.toFixed(1));break;
     case 'seatLeft':seat.vent=(seat.vent+4)%5;renderSeat();send('seatVentL',seat.vent);break;
     case 'seatRight':seat.heat=(seat.heat+3)%4;renderSeat();send('seatHeatR',seat.heat);break;
     case 'home':closePopup();if(window.Screens)window.Screens.show('home');homeSel=true;renderHV();break;
@@ -1583,6 +1585,8 @@ function handle(id,v){
     case 'gear':setGear(v,true);break;
     case 'headlight':setHeadlight(v);break;
     case 'door_fl':case 'door_fr':case 'door_rl':case 'door_rr':{var dk=id.slice(5);setDoor(dk,String(v).toLowerCase()==='toggle'?!doorS[dk]:doorVal(v),true);}break;
+    case 'taillight':case 'mirror':if(window.setCar3D)setCar3D({taillight:'tail',mirror:'mirror'}[id],String(v).toLowerCase()==='toggle'?!(window.__car3dState||{})[{taillight:'tail',mirror:'mirror'}[id]]:doorVal(v));break;
+    case 'window':case 'window_fl':case 'window_fr':case 'window_rl':case 'window_rr':if(window.setCarWindow){var wk=id==='window'?'all':id.slice(7),ws=((window.__car3dState||{}).win||{});setCarWindow(wk,String(v).toLowerCase()==='toggle'?!(wk==='all'?ws.fl:ws[wk]):doorVal(v));}break;
     case 'trunk':setTrunk(String(v).toLowerCase()==='toggle'?!trunkS:doorVal(v),true);break;
     case 'doorAll':DOORS.forEach(function(k){setDoor(k,doorVal(v),true);});break;
     case 'doorView':doorVal(v)?doorView(true):(closeAllDoors(),doorView(false));break;
@@ -1592,8 +1596,8 @@ function handle(id,v){
     case 'driveMode':setMode(v);break;
     case 'accSpeed':txt('accTxt',num(v));break;
     case 'clock':setClock(v);break;
-    case 'tempL':temp.L=parseFloat(v)||temp.L;renderTemp('L');break;
-    case 'tempR':temp.R=parseFloat(v)||temp.R;renderTemp('R');break;
+    case 'tempL':temp.L=parseFloat(v)||temp.L;renderTemp('L');if(window.__clim&&__clim.sync()){temp.R=temp.L;renderTemp('R');}break;
+    case 'tempR':temp.R=parseFloat(v)||temp.R;renderTemp('R');if(window.__clim)__clim.syncOff();break;
     case 'seatVentL':seat.vent=Math.max(0,Math.min(4,parseInt(v,10)||0));renderSeat();break;
     case 'seatHeatR':seat.heat=Math.max(0,Math.min(3,parseInt(v,10)||0));renderSeat();break;
     case 'telltaleAll':TT.forEach(function(k){setState($('tt_'+k),v);});break;
@@ -1695,13 +1699,13 @@ function scheduleDoorExit(){clearTimeout(doorExitT);doorExitT=setTimeout(functio
   document.body.classList.add('dnotr');doorView(false);clearTimeout(blankT);blankT=setTimeout(function(){document.body.classList.remove('dnotr');},60);},1000);}
 function cancelDoorExit(){clearTimeout(doorExitT);clearTimeout(blankT);document.body.classList.remove('dblank','dnotr');}
 function anyDoorOpen(){return trunkS||DOORS.some(function(k){return doorS[k];});}
-function setTrunk(open,quiet){open=open?1:0;if(open===trunkS)return;trunkS=open;if(open){cancelDoorExit();doorView(true);}else clearTimeout(doorExitT);trunkEl.classList.toggle('on',!!open);
+function setTrunk(open,quiet){open=open?1:0;if(open===trunkS)return;trunkS=open;(window.__car3dState=window.__car3dState||{doors:{}}).doors.trunk=open;if(window.Car3D)Car3D.door('trunk',open);if(open){cancelDoorExit();doorView(true);}else clearTimeout(doorExitT);trunkEl.classList.toggle('on',!!open);
   if(!quiet)send('trunk',open?'open':'close');send('doorOpen',anyDoorOpen()?'1':'0');
   if(!open&&!anyDoorOpen()&&!doorT)scheduleDoorExit();}
 function doorView(on){clearTimeout(doorExitT);document.body.classList.toggle('doorv',on);send('doorView',on?'1':'0');}
 function doorTick(){var moving=false;DOORS.forEach(function(k){var t=doorS[k]?25:0;if(doorF[k]!==t){doorF[k]+=doorF[k]<t?1:-1;doorEl[k].src=DOOR.doors[k].f[doorF[k]];moving=true;}});
   if(!moving){clearInterval(doorT);doorT=null;if(!anyDoorOpen())scheduleDoorExit();}}
-function setDoor(k,open,quiet){if(!(k in doorS))return;open=open?1:0;if(open){cancelDoorExit();doorView(true);}doorS[k]=open;clearTimeout(doorExitT);
+function setDoor(k,open,quiet){if(!(k in doorS))return;open=open?1:0;if(open){cancelDoorExit();doorView(true);}doorS[k]=open;clearTimeout(doorExitT);(window.__car3dState=window.__car3dState||{doors:{}}).doors[k]=open;if(window.Car3D)Car3D.door(k,open);
   if(!doorT)doorT=setInterval(doorTick,28);if(!quiet)send('door_'+k,open?'open':'close');send('doorOpen',anyDoorOpen()?'1':'0');}
 function closeAllDoors(){DOORS.forEach(function(k){if(doorS[k])setDoor(k,0);});setTrunk(0);}
 /* 키보드 단축키: 1=앞왼쪽(fl) 2=앞오른쪽(fr) 3=뒤왼쪽(rl) 4=뒤오른쪽(rr) 5=트렁크 토글, 0=모두 닫기 (입력창 입력 중에는 무시) */
@@ -1727,7 +1731,7 @@ function setGear(g,quiet,anim,force){g=String(g||'').toUpperCase().trim();if(GEA
   GEAR=g;txt('gear',g);
   var ge=$('gear');ge.classList.remove('inR','inL','nudge');void ge.offsetWidth;if(anim)ge.classList.add(anim);
   if(g!=='D'&&window.Nav&&window.Nav.driving&&window.Nav.driving())window.Nav.drive(false); // D 이외 → 정지
-  driveView(g==='D');if(!quiet)send('gear',g);}
+  driveView(g==='D');if(!quiet)send('gear',g);(window.__car3dState=window.__car3dState||{doors:{}}).d=(g==='D');if(window.Car3D)Car3D.gear(g==='D');if(window.__rearCam)window.__rearCam(g==='R');}
 renderTemp('L');renderTemp('R');renderSeat();renderHV();renderDock();setEngine(69);
 connect();
 
@@ -1798,15 +1802,26 @@ window.NeoDisplay={setGear:setGear,gear:function(){return GEAR;},onGear:function
 (function(){
 'use strict';
 var qs=new URLSearchParams(location.search);
-var LANG=qs.get('ttlang')||'en-US'; // TomTom 언어. 한국어: ?ttlang=ko-KR
+var LANG=qs.get('ttlang')||'en-GB'; // TomTom 언어. 한국어: ?ttlang=ko-KR
 var KEY=(qs.get('ttkey')||'').trim(); // TomTom API 키: 설정 > System 에서 입력(브라우저에 저장) 또는 주소 끝에 ?ttkey=키
 try{if(KEY)localStorage.setItem('neoTTKey',KEY);else KEY=localStorage.getItem('neoTTKey')||'';}catch(e){}
 var SITE_KEY='FZXYwOCZm0jU4LnuuK9CHY9dJeaMNTGX';
 if(!KEY)KEY=SITE_KEY;
 function siteKeyFail(){if(KEY&&KEY===SITE_KEY){console.warn('TomTom 사이트 키 사용 불가 → 무료 지도로 전환');KEY='';freeTry=0;loadFreeTiles();return true;}return false;} /* 도메인 밖(PC 파일 등)에서는 무료 지도로 자동 전환 */
-var HOSTS=qs.get('tthost')?[qs.get('tthost')]:['kr-api.tomtom.com','api.tomtom.com'];
+/*neoRegion*/ /* 지도 국가 (Settings > System > Map Region): 시작 위치 · 검색 국가 · 빠른 목적지 */
+var NEO_REGS={
+ KR:{cs:'KR',hosts:['kr-api.tomtom.com','api.tomtom.com'],cur:{lat:37.2886,lon:127.0514,name:'Current location (Gwanggyo Jungang Stn.)'}},
+ IN:{cs:'IN',hosts:['api.tomtom.com'],cur:{lat:28.6315,lon:77.2167,name:'Current location (Connaught Place)'},
+  q:{'광교호수공원':'India Gate, New Delhi','판교역':'Cyber Hub, Gurugram','수원화성 행궁':'Qutub Minar','전기차 충전소':'EV charging station'},
+  preset:{'광교호수공원':{lat:28.6129,lon:77.2295,name:'India Gate'},'판교역':{lat:28.4950,lon:77.0895,name:'Cyber Hub, Gurugram'},'수원화성 행궁':{lat:28.5245,lon:77.1855,name:'Qutub Minar'}}},
+ RU:{cs:'RU',hosts:['api.tomtom.com'],cur:{lat:55.7575,lon:37.6156,name:'Current location (Tverskaya St.)'},
+  q:{'광교호수공원':'Gorky Park, Moscow','판교역':'Moscow City','수원화성 행궁':'Red Square','전기차 충전소':'EV charging station'},
+  preset:{'광교호수공원':{lat:55.7298,lon:37.6011,name:'Gorky Park'},'판교역':{lat:55.7494,lon:37.5395,name:'Moscow City'},'수원화성 행궁':{lat:55.7539,lon:37.6208,name:'Red Square'}}}};
+var NEO_REG=(function(){var k=qs.get('region');if(!k){try{k=localStorage.getItem('neoRegion');}catch(e){}}return NEO_REGS[String(k||'KR').toUpperCase()]||NEO_REGS.KR;})();
+window.NEO_REG=NEO_REG;window.NEO_REGS=NEO_REGS;
+var HOSTS=qs.get('tthost')?[qs.get('tthost')]:NEO_REG.hosts;
 var hostIdx=0;
-var CUR={lat:37.2886,lon:127.0514,name:'Current location (Gwanggyo Jungang Stn.)'};
+var CUR={lat:NEO_REG.cur.lat,lon:NEO_REG.cur.lon,name:NEO_REG.cur.name};
 if(qs.get('origin')){var o=qs.get('origin').split(',');CUR={lat:+o[0],lon:+o[1],name:'Current location'};}
 var $=function(id){return document.getElementById(id);};
 var send=function(id,v){if(window.NeoDisplay)window.NeoDisplay.send(id,v);};
@@ -1836,6 +1851,7 @@ function loadFreeTiles(){
   tiles.addTo(map);navLabels();
 }
 function loadTiles(){
+  if(window.__navVecOn)return;
   if(!KEY){loadFreeTiles();return;}
   if(tiles)map.removeLayer(tiles);
   tiles=L.tileLayer('https://'+host()+'/map/1/tile/basic/night/{z}/{x}/{y}.png?key='+KEY+'&tileSize=256&language='+LANG+'',{maxZoom:20,attribution:'© TomTom'});
@@ -1844,6 +1860,7 @@ function loadTiles(){
   tiles.addTo(map);navLabels();
 }
 loadTiles();
+window.__navMapApi={map:map,key:function(){return KEY;},lang:LANG,useVector:function(){window.__navVecOn=true;if(tiles){map.removeLayer(tiles);tiles=null;}if(lbl){map.removeLayer(lbl);lbl=null;}tileOk=true;$('nav').style.backgroundImage='none';}};
 (function(){var s=document.createElement('style');s.textContent='.osmDark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6)}';document.head.appendChild(s);})();
 /* 지도가 안 뜰 때 원인을 지도 영역에 표시 */
 var diagShown=false;
@@ -1876,7 +1893,8 @@ setTimeout(function(){if(!tileOk)diagnose();},8000);
 function pin(color){return L.divIcon({className:'',html:'<div class="pinMk" style="background:'+color+'"></div>',iconSize:[26,26],iconAnchor:[13,13]});}
 var carIcon=L.divIcon({className:'',html:'<div class="carMk"></div>',iconSize:[44,44],iconAnchor:[22,22]});
 var carMk=L.marker([CUR.lat,CUR.lon],{icon:carIcon,interactive:false}).addTo(map);
-var oMk=null,dMk=null,line=null,lineDone=null;
+var oMk=null,dMk=null,line=null,lineDone=null,lineCase=null;/*rtCase*/
+var ARRIVE_ICON=L.divIcon({className:'arrMk',html:'<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M28 4.69394C20.44 7.9606 12.8933 0.0406032 5.33333 3.30727C4.6 3.62727 4 4.6006 4 5.33394V29.3339H6.66667V20.1873C13.7733 18.2806 20.8933 25.1073 28 22.0406C28.7333 21.7206 29.3333 20.7473 29.3333 20.0139V5.33394C29.3333 4.6006 28.7333 4.38727 28 4.69394ZM26.6667 15.8273C25.3333 16.1873 24 16.2406 22.6667 16.0939V20.0939C21.3333 19.9606 20 19.6406 18.6667 19.2673V15.2673C17.3333 14.8939 16 14.4406 14.6667 14.0673V18.0673C13.3333 17.6939 12 17.3739 10.6667 17.2406V13.2406C9.33333 13.1073 8 13.1606 6.66667 13.5073V9.50727C8 9.14727 9.33333 9.09394 10.6667 9.2406V5.2406C12 5.37394 13.3333 5.69394 14.6667 6.06727V10.0673C16 10.4406 17.3333 10.8939 18.6667 11.2673V7.26727C20 7.6406 21.3333 7.9606 22.6667 8.09394V12.0939C24 12.2273 25.3333 12.1739 26.6667 11.8273V15.8273Z" fill="#E5E5E5"/><path d="M10.666 9.24023V13.2402C11.9993 13.3736 13.3327 13.6936 14.666 14.0669V10.0669C13.3327 9.69357 11.9993 9.37357 10.666 9.24023ZM18.666 11.2669V15.2669C19.9993 15.6402 21.3327 15.9602 22.666 16.0936V12.0936C21.3327 11.9602 19.9993 11.6402 18.666 11.2669Z" fill="#E5E5E5"/></svg>',iconSize:[40,40],iconAnchor:[7,37]});
 
 /* ---------- TomTom REST (한국 서버 → 글로벌 서버 순서로 시도) ---------- */
 function tt(path,params){
@@ -1930,7 +1948,7 @@ function freeRoute(o,d){
     return {routes:[{summary:{lengthInMeters:r.distance,travelTimeInSeconds:r.duration},
       legs:[{points:r.geometry.coordinates.map(function(c){return {latitude:c[1],longitude:c[0]};})}],guidance:{instructions:ins}}]};});}
 /* 키 없을 때 빠른 목적지 (주소 검색 없이 바로 경로) */
-var PRESET={'광교호수공원':{lat:37.2834,lon:127.0665,name:'Gwanggyo Lake Park'},'판교역':{lat:37.3947,lon:127.1115,name:'Pangyo Station'},'수원화성 행궁':{lat:37.2819,lon:127.0138,name:'Hwaseong Haenggung'}};
+var PRESET=NEO_REG.preset||{'광교호수공원':{lat:37.2834,lon:127.0665,name:'Gwanggyo Lake Park'},'판교역':{lat:37.3947,lon:127.1115,name:'Pangyo Station'},'수원화성 행궁':{lat:37.2819,lon:127.0138,name:'Hwaseong Haenggung'}};
 function fmtDist(m){return m<1000?{v:String(Math.max(0,Math.round(m/10)*10)),u:'m'}:{v:(m/1000).toFixed(m<100000?1:0),u:'km'};}
 
 /* ---------- 상태 ---------- */
@@ -1948,7 +1966,7 @@ function setActive(f){st.active=f;document.querySelectorAll('#navSetup .fld').fo
 function setPoint(f,p){
   st[f]=p; $(f==='origin'?'inOrigin':'inDest').value=p?p.name:'';
   if(f==='origin'){if(oMk)map.removeLayer(oMk);oMk=p?L.marker([p.lat,p.lon],{icon:pin('#16e484')}).addTo(map):null;}
-  else{if(dMk)map.removeLayer(dMk);dMk=p?L.marker([p.lat,p.lon],{icon:pin('#f0534e')}).addTo(map):null;}
+  else{if(dMk)map.removeLayer(dMk);dMk=p?L.marker([p.lat,p.lon],{icon:ARRIVE_ICON,zIndexOffset:500}).addTo(map):null;}
   if(f==='origin'&&p&&!st.dest)setActive('dest');
   if(st.origin&&st.dest)calcRoute();
 }
@@ -1962,9 +1980,9 @@ function renderChips(){
     d.onclick=function(){ if(c.cur){setPoint(st.active,{lat:CUR.lat,lon:CUR.lon,name:CUR.name});return;} quick(c.q,st.active); };box.appendChild(d);});
 }
 function near(){var p=st.origin||CUR;return 'lat='+p.lat+'&lon='+p.lon;}
-function search(q){
+function search(q){q=(NEO_REG.q&&NEO_REG.q[q])||q;
   if(!KEY)return freeSearch(q);
-  return tt('/search/2/search/'+encodeURIComponent(q)+'.json','countrySet=KR&language='+LANG+'&limit=6&openingHours=nextSevenDays&'+near()).then(function(d){
+  return tt('/search/2/search/'+encodeURIComponent(q)+'.json','countrySet='+NEO_REG.cs+'&language='+LANG+'&limit=6&openingHours=nextSevenDays&'+near()).then(function(d){
     return (d.results||[]).map(function(r){return {lat:r.position.lat,lon:r.position.lon,name:(r.poi&&r.poi.name)||r.address.freeformAddress,addr:r.address.freeformAddress||'',dist:r.dist,phone:(r.poi&&r.poi.phone)||'',hours:window.__nsHours?window.__nsHours(r.poi&&r.poi.openingHours):''};});
   });
 }
@@ -2004,18 +2022,20 @@ map.on('click',function(e){
 });
 
 /* ---------- 경로 ---------- */
-function clearRoute(){setTimeout(function(){if(window.__trafLine)window.__trafLine(true);},0);stopSim(true);if(line)map.removeLayer(line);if(lineDone)map.removeLayer(lineDone);line=lineDone=null;st.route=null;}
+function clearRoute(){setTimeout(function(){if(window.__trafLine)window.__trafLine(true);},0);stopSim(true);if(line)map.removeLayer(line);if(lineCase){map.removeLayer(lineCase);lineCase=null;}if(lineDone)map.removeLayer(lineDone);line=lineDone=null;st.route=null;}
 function calcRoute(){
   var o=st.origin,d=st.dest;clearRoute();
   $('navResults').innerHTML='<div class="nmsg" style="color:#9aa0a8">Calculating route…</div>';
-  (KEY?ttRoute('/routing/1/calculateRoute/'+o.lat+','+o.lon+':'+(st.via?st.via.lat+','+st.via.lon+':':'')+d.lat+','+d.lon+'/json','instructionsType=text&language='+LANG+'&traffic=true&travelMode=car&routeRepresentation=polyline&sectionType=traffic'):freeRoute(o,d)).then(function(res){
+  (KEY?ttRoute('/routing/1/calculateRoute/'+o.lat+','+o.lon+':'+(st.via?st.via.lat+','+st.via.lon+':':'')+d.lat+','+d.lon+'/json','instructionsType=text&language='+LANG+'&traffic=true&travelMode=car&routeRepresentation=polyline&sectionType=traffic'+(st.rtQ||'')):freeRoute(o,d)).then(function(res){
     var r=res.routes&&res.routes[0];if(!r)throw new Error('No route');
     var pts=[];r.legs.forEach(function(l){l.points.forEach(function(p){pts.push(L.latLng(p.latitude,p.longitude));});});
     var cum=[0];for(var i=1;i<pts.length;i++)cum.push(cum[i-1]+pts[i-1].distanceTo(pts[i]));
     var ins=((r.guidance&&r.guidance.instructions)||[]).map(function(x){return {off:x.routeOffsetInMeters,man:x.maneuver||'STRAIGHT',road:x.street||(x.roadNumbers&&x.roadNumbers.join(', '))||'',msg:x.message||''};});
     st.route={pts:pts,cum:cum,total:cum[cum.length-1],time:r.summary.travelTimeInSeconds,len:r.summary.lengthInMeters,ins:ins};st.route.traffic=(r.sections||[]).filter(function(s){return s.sectionType==='TRAFFIC'&&s.startPointIndex<cum.length;}).map(function(s){return {a:cum[s.startPointIndex]||0,b:cum[Math.min(s.endPointIndex,cum.length-1)]||0,m:s.magnitudeOfDelay||0,c:s.simpleCategory};});st.route.secs=(r.sections||[]).filter(function(s){return s.startPointIndex<cum.length;}).map(function(s){return {t:s.sectionType,a:cum[s.startPointIndex]||0,b:cum[Math.min(s.endPointIndex,cum.length-1)]||0,v:s.maxSpeedLimitInKmh||s.speedLimitInKmh};});if(window.__navRouteReady)window.__navRouteReady();
-    line=L.polyline(pts,{color:'#2e7bff',weight:14,opacity:1}).addTo(map);
-    if(!st.reroute)map.fitBounds(line.getBounds(),{paddingTopLeft:[560,60],paddingBottomRight:[60,60]});
+    if(lineCase)map.removeLayer(lineCase);lineCase=L.polyline(pts,{color:'#064A99',weight:22,opacity:1,interactive:false}).addTo(map);
+     line=L.polyline(pts,{color:'#018EFE',weight:14,opacity:1}).addTo(map);
+     (function(l,c){var f=l.setLatLngs,b=l.bringToFront;l.setLatLngs=function(x){c.setLatLngs(x);return f.call(l,x);};l.bringToFront=function(){c.bringToFront();return b.call(l);};})(line,lineCase);
+    if(window.__rtAfter)window.__rtAfter();if(!st.reroute&&!st.keepView)map.fitBounds(line.getBounds(),{paddingTopLeft:[560,60],paddingBottomRight:[60,60]});st.keepView=false;
     var km=(r.summary.lengthInMeters/1000).toFixed(1),min=Math.round(r.summary.travelTimeInSeconds/60);
     $('pvT').innerHTML=min+' min<span>'+km+' km</span>';
     $('pvR').innerHTML='<div><i style="background:#16e484"></i></div><div><i style="background:#f0534e"></i></div>';
@@ -2067,14 +2087,14 @@ function loop(){if(!sim.raf){sim.last=performance.now();sim.raf=requestAnimation
 /* 안내 시작: 모의주행 없이 현재(출발) 위치에 정지한 채 안내 화면 표시 */
 function startSim(){if(window.__freeReset)window.__freeReset();
   if(!st.route)return;show('guide');sim.guide=true;sim.s=0;sim.sent={};
-  carMk.setLatLng(st.route.pts[0]);map.setView(st.route.pts[0],17);hu.lock=true;if(oMk)oMk.setOpacity(0);if(window.__navHd&&st.route.pts[1])window.__navHd(st.route.pts[0],st.route.pts[1],true);send('navStart',st.dest.name);
+  carMk.setLatLng(st.route.pts[0]);map.setView(st.route.pts[0],17);hu.lock=true;if(window.__navHU)window.__navHU(true);if(oMk)oMk.setOpacity(0);if(window.__navHd&&st.route.pts[1])window.__navHd(st.route.pts[0],st.route.pts[1],true);send('navStart',st.dest.name);
   document.body.classList.add('guiding');renderGuide();loop();
 }
 function stopSim(silent){if(!sim.guide)return;sim.guide=false;if(oMk)oMk.setOpacity(1);document.body.classList.remove('guiding');hideClusterTbt();if(!silent)send('navStop','1');}
 /* 클러스터에서 호출: 주행 시작/정지 */
 function drive(on){
   if(on===sim.drive)return;sim.drive=on;
-  if(on){sim.go=performance.now()+1500;if(window.__freePrefetch)window.__freePrefetch();setCluster(sim.kmh,null,true);send('driveState','drive');}else send('driveState','stop'); // 출발 1.5초 지연 (차량 회전 전환 후 가속)
+  if(on){sim.go=performance.now()+1500;if(window.__navHU){hu.lock=true;window.__navHU(true);}if(window.__freePrefetch)window.__freePrefetch();setCluster(sim.kmh,null,true);send('driveState','drive');}else send('driveState','stop'); // 출발 1.5초 지연 (차량 회전 전환 후 가속)
   loop();
 }
 function nextIns(){var R=st.route;for(var k=0;k<R.ins.length;k++){if(R.ins[k].off>sim.s+1)return [R.ins[k],R.ins[k+1]||null];}return [null,null];}
@@ -2097,10 +2117,11 @@ function step(now){
   var dt=Math.min(.1,(now-sim.last)/1000);sim.last=now;
   var target=0;
   if(sim.drive){target=60;if(sim.guide){var n=nextIns()[0],tt=n?n.off-sim.s:1e9;target=tt<60?25:(tt<200?40:60);var _lm=window.__navLimitNow&&window.__navLimitNow();if(_lm)target=Math.min(target,_lm);}}
+  if(sim.drive&&window.__cruise){var _cz=window.__cruise();if(_cz){var _cl=window.__navLimitNow&&window.__navLimitNow(),_t=_cz.spd;if(_cl)_t=Math.min(_t,_cl);if(sim.guide){var _n=nextIns()[0],_tt=_n?_n.off-sim.s:1e9;if(_tt<60)_t=Math.min(_t,25);else if(_tt<200)_t=Math.min(_t,40);}target=_t;}}
   if(sim.drive&&now<(sim.go||0))target=0; // 스와이프 후 대기
   // 부드러운 가감속: 목표가 바뀌면 현재 속도→목표 속도를 S자 곡선(smootherstep)으로 일정 시간에 이동
   //  (천천히 출발 → 가속 → 목표에 매끄럽게 정확히 안착). 0→60km/h 약 4.3초, 감속은 조금 더 빠르게
-  if(sim.rT!==target){sim.rT=target;sim.rF=sim.kmh;sim.r0=now;var dv=Math.abs(target-sim.kmh);sim.rD=(target>sim.kmh?1300+dv*50:900+dv*40);}
+  if(sim.rT!==target){sim.rT=target;sim.rF=sim.kmh;sim.r0=now;var dv=Math.abs(target-sim.kmh);sim.rD=(target>sim.kmh?2200+dv*95:1600+dv*70);}
   var u=sim.rD?Math.min(1,(now-sim.r0)/sim.rD):1,e=u*u*u*(u*(u*6-15)+10);sim.kmh=sim.rF+(sim.rT-sim.rF)*e;
   var meters=sim.kmh/3.6*dt*sim.mult,ll;
   if(sim.guide){
@@ -2161,8 +2182,13 @@ window.__navHU=setHU;
 function huNorth(){if(!hu.on||hu.leave)return;hu.leave=true;huNav.classList.add('huLeave');huApply();send('navCompass','north');
   setTimeout(function(){if(hu.leave)setHU(false);hu.lock=true;},520);}
 bCmp.addEventListener('click',function(e){e.stopPropagation();huNorth();});
-window.__navHd=function(a,b,snap){if(!a||!b||(a.distanceTo(b)<0.2&&!snap))return;var tg=bearOf(a,b);
-  hu.cur=snap?tg:(hu.cur+adiff(hu.cur,tg)*0.12+360)%360;huApply();};
+var hdT=0;
+window.__navHd=function(a,b,snap){if(!a||!b)return;var tg=null;
+  if(sim.guide&&st.route&&!snap){var R=st.route,ah=posAt(Math.min(R.total,sim.s+45)).ll;if(ah&&b.distanceTo(ah)>3)tg=bearOf(b,ah);}
+  if(tg===null){if(a.distanceTo(b)<0.2&&!snap)return;tg=bearOf(a,b);}
+  var now=performance.now(),dt=hdT?Math.min(.2,(now-hdT)/1000):.016;hdT=now;
+  if(snap)hu.cur=tg;else{var d=adiff(hu.cur,tg),s=d*(1-Math.exp(-dt/0.65)),mx=55*dt;if(s>mx)s=mx;if(s<-mx)s=-mx;hu.cur=(hu.cur+s+360)%360;}
+  huApply();};
 window.__navLoc=function(){var ll=carMk.getLatLng();
   /* 지도를 둘러보는 중(따라가기 꺼짐)이면: 현재 위치로 이동 + 따라가기 재개. 따라가는 중이면: 진행방향 위로 전환 */
   if(!hu.lock||(!hu.on&&map.getCenter().distanceTo(ll)>30)){hu.lock=true;if(hu.on)map.setView(ll,map.getZoom(),{animate:false});else map.setView(ll,Math.max(16,map.getZoom()));return true;}
@@ -2219,11 +2245,13 @@ trip.innerHTML='<div class="nt-top"><div class="nt-row"><b id="ntEta">--:--</b><
 huNav.appendChild(trip);
 trip.addEventListener('pointerdown',function(e){e.stopPropagation();});
 var TC={0:'#f0a020',1:'#f0c419',2:'#f0a020',3:'#e5372f',4:'#e5372f'},barT=0,barS=-1e9,viaMk=null;
-function trafficBar(){var R=st.route;if(!R)return;var s0=sim.s,tot=Math.max(1,R.total-s0),g=[],pos=0;
-  var secs=(R.traffic||[]).filter(function(x){return x.b>s0;}).sort(function(a,b){return a.a-b.a;});
-  function pc(v){return (Math.max(0,Math.min(1,(v-s0)/tot))*100).toFixed(2)+'%';}
-  secs.forEach(function(x){var a=Math.max(x.a,s0),c=TC[x.m]||TC[0];if(a>pos+s0)g.push('#1fa83a '+pc(pos+s0)+' '+pc(a));g.push(c+' '+pc(a)+' '+pc(x.b));pos=x.b-s0;});
-  g.push('#1fa83a '+pc(pos+s0)+' 100%');$('ntBar').style.background='linear-gradient(90deg,'+g.join(',')+')';}
+/* 교통 막대 (Figma 696:34480): 전체 경로 기준 — 지나온 구간 회색, 남은 구간 교통색, 흰 화살표 = 현재 위치 */
+function trafficBar(){var R=st.route;if(!R)return;var tot=Math.max(1,R.total),s0=Math.min(sim.s,tot),g=[],pos=s0,GR='#009933';
+  function pc(v){return (Math.max(0,Math.min(1,v/tot))*100).toFixed(2)+'%';}
+  if(s0>0)g.push('rgba(255,255,255,.1) 0 '+pc(s0));
+  (R.traffic||[]).filter(function(x){return x.b>s0;}).sort(function(a,b){return a.a-b.a;}).forEach(function(x){var a=Math.max(x.a,s0),c=x.m>=3?'#ec1c15':'#ffa800';if(a>pos)g.push(GR+' '+pc(pos)+' '+pc(a));g.push(c+' '+pc(a)+' '+pc(x.b));pos=x.b;});
+  g.push(GR+' '+pc(pos)+' 100%');$('ntBar').style.background='linear-gradient(90deg,'+g.join(',')+')';
+  var mk=$('ntMk');if(!mk){mk=document.createElement('i');mk.id='ntMk';$('ntBar').appendChild(mk);}mk.style.left=pc(s0);}
 window.__navTrip=function(remain,rt){if(window.__navLimit)window.__navLimit();
   $('ntEta').textContent=$('stEta').textContent;
   var H=Math.floor(rt/3600),M=Math.round((rt%3600)/60);if(M===60){H++;M=0;}
@@ -2335,7 +2363,7 @@ window.__freeBusy=function(){return fr.busy&&!fr.pts;};
 
 /* ==== 검색 / 상세 / 화면 키보드 (Figma 679:18170, 689:15932, 689:16280, 684:33567, 684:27500) ==== */
 var NS_PIN='<svg width="36" height="36" viewBox="0 0 36 36"><path d="M18 3C11.9 3 7 7.8 7 13.8c0 7.9 9.4 17.5 10 18.1.5.5 1.4.5 1.9 0 .6-.6 10.1-10.2 10.1-18.1C29 7.8 24.1 3 18 3Zm0 15a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z" fill="#fff"/></svg>';
-var NS_FLAG='<svg width="32" height="32" viewBox="0 0 24 24"><path d="M5 21V4M5 4h13l-2.5 4L18 12H5" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M8 4h3v4H8zM14 4h3l-1.5 2.4V8H14zM11 8h3v4h-3zM5 8h3v4H5z" fill="#fff"/></svg>';
+var NS_FLAG='<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M28 4.69394C20.44 7.9606 12.8933 0.0406032 5.33333 3.30727C4.6 3.62727 4 4.6006 4 5.33394V29.3339H6.66667V20.1873C13.7733 18.2806 20.8933 25.1073 28 22.0406C28.7333 21.7206 29.3333 20.7473 29.3333 20.0139V5.33394C29.3333 4.6006 28.7333 4.38727 28 4.69394ZM26.6667 15.8273C25.3333 16.1873 24 16.2406 22.6667 16.0939V20.0939C21.3333 19.9606 20 19.6406 18.6667 19.2673V15.2673C17.3333 14.8939 16 14.4406 14.6667 14.0673V18.0673C13.3333 17.6939 12 17.3739 10.6667 17.2406V13.2406C9.33333 13.1073 8 13.1606 6.66667 13.5073V9.50727C8 9.14727 9.33333 9.09394 10.6667 9.2406V5.2406C12 5.37394 13.3333 5.69394 14.6667 6.06727V10.0673C16 10.4406 17.3333 10.8939 18.6667 11.2673V7.26727C20 7.6406 21.3333 7.9606 22.6667 8.09394V12.0939C24 12.2273 25.3333 12.1739 26.6667 11.8273V15.8273Z" fill="#E5E5E5"/><path d="M10.666 9.24023V13.2402C11.9993 13.3736 13.3327 13.6936 14.666 14.0669V10.0669C13.3327 9.69357 11.9993 9.37357 10.666 9.24023ZM18.666 11.2669V15.2669C19.9993 15.6402 21.3327 15.9602 22.666 16.0936V12.0936C21.3327 11.9602 19.9993 11.6402 18.666 11.2669Z" fill="#E5E5E5"/></svg>';
 var ns={open:false,ctx:'browse',sel:null,where:null,want:false,results:[]};
 function nsEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 /* 영업시간 (TomTom openingHours=nextSevenDays) */
@@ -2353,19 +2381,77 @@ var mc=document.createElement('div');mc.id='navMC';mc.className='nhide';huNav.ap
 [['Home','광교호수공원'],['Work','판교역'],['Favorite','수원화성 행궁'],['Charging','전기차 충전소']].forEach(function(q){var b=document.createElement('div');b.className='sp-qb';
   b.innerHTML='<img alt="'+q[0]+'" src="'+((typeof GS_ICONS!=='undefined'&&GS_ICONS[q[0]])||'')+'">';b.onclick=function(){nsQuick(q[0],q[1]);};$('spQuick').appendChild(b);});
 function nsView(v){$('spSearch').classList.toggle('nhide',v!=='search');$('spDetail').classList.toggle('nhide',v!=='detail');$('spTitle').textContent=v==='detail'?'Details':'Search';sp.classList.toggle('isDetail',v==='detail');}
-function nsOpen(){pickClose();nsMcClose();ns.open=true;ns.ctx=sim.guide?'guide':'browse';sp.classList.remove('nhide');huNav.classList.add('spOn');nsView('search');
+function nsOpen(){if(window.__evExit)window.__evExit();pickClose();nsMcClose();ns.open=true;ns.ctx=sim.guide?'guide':'browse';sp.classList.remove('nhide');huNav.classList.add('spOn');nsView('search');
   $('spInput').value='';$('spRes').innerHTML='';ns.results=[];kbShow(true);setTimeout(function(){$('spInput').focus();},30);send('navSearch','open');}
-function nsClose(){ns.open=false;sp.classList.add('nhide');huNav.classList.remove('spOn');kbShow(false);$('spInput').blur();nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}send('navSearch','close');}
-function nsClearPreview(){if(ns.ctx==='browse'&&!sim.guide&&(st.route||st.dest)){ns.want=false;clearRoute();setPoint('dest',null);setPoint('origin',null);}}
+function nsClose(){if(window.__evExit)window.__evExit();ns.open=false;sp.classList.add('nhide');huNav.classList.remove('spOn');kbShow(false);$('spInput').blur();nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}send('navSearch','close');}
+function nsClearPreview(){if(window.__clearAlts)window.__clearAlts();if(ns.ctx==='browse'&&!sim.guide&&(st.route||st.dest)){ns.want=false;clearRoute();setPoint('dest',null);setPoint('origin',null);}}
 function nsRow(p){var c=carMk.getLatLng(),m=hav({lat:c.lat,lon:c.lng},p),km=m<1000?Math.round(m)+'m':(m/1000).toFixed(1)+'km';
   var d=document.createElement('div');d.className='sp-row';d.innerHTML='<i>'+NS_PIN+'</i><div class="sp-t"><b>'+nsEsc(p.name)+'</b><small>'+nsEsc(p.addr||'')+'</small></div><em>'+km+'</em>';
   d.onclick=function(){d.classList.add('sel');setTimeout(function(){nsDetail(p,'panel');},120);};return d;}
-function nsList(l){ns.results=l;var box=$('spRes');box.innerHTML='';if(!l.length){box.innerHTML='<div class="sp-msg">No results</div>';return;}l.forEach(function(p){box.appendChild(nsRow(p));});}
+function nsList(l){if(ev.on&&l===ev.list){evRender();return;}ns.results=l;var box=$('spRes');box.innerHTML='';if(!l.length){box.innerHTML='<div class="sp-msg">No results</div>';return;}l.forEach(function(p){box.appendChild(nsRow(p));});}
 var nsT=null;
 function nsFind(q){if(!q){$('spRes').innerHTML='';return;}$('spRes').innerHTML='';
   if(!KEY&&PRESET[q]){var pp=PRESET[q];nsList([{lat:pp.lat,lon:pp.lon,name:pp.name,addr:''}]);return;}
   search(q).then(nsList).catch(function(){$('spRes').innerHTML='<div class="sp-msg">Cannot reach the search server.</div>';});}
-function nsQuick(name,q){if(!ns.open)nsOpen();kbShow(false);$('spInput').value='';
+/*evChargers*/ /* ---- EV 충전소: 가까운 순 번호 1·2·3… · 지도에 번호 핀 · 탭(경로 따라 / 주변 / 목적지 근처) · 필터(거리순 / 가격순) ---- */
+var ev={on:false,tab:'near',sort:'dist',list:[],seq:0,ly:L.layerGroup().addTo(map)};
+var EV_FLT='<svg width="30" height="30" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z" fill="#e5e5e5"/></svg>';
+(function(){var hd=sp.querySelector('.sp-head'),f=document.createElement('div');f.id='spFlt';f.innerHTML=EV_FLT;hd.insertBefore(f,$('spX'));
+  var bar=document.createElement('div');bar.id='evBar';bar.innerHTML='<div class="ev-tabs"><div data-t="route">Along Route</div><div data-t="near">Nearby</div><div data-t="dest">Near Destination</div></div>'+
+   '<div id="evFlt" class="nhide"><div class="ev-fh">Sort by</div><div class="ev-opt" data-g="sort"><div data-v="dist">Distance</div><div data-v="price">Price</div></div>'+
+   '<div class="ev-fh">Show</div><div class="ev-opt" data-g="tab"><div data-v="route">Along Route</div><div data-v="near">Nearby</div><div data-v="dest">Near Destination</div></div></div>';
+  $('spSearch').insertBefore(bar,$('spRes'));var ei=document.createElement('div');ei.id='evInfo';bar.insertBefore(ei,bar.firstChild);
+  f.onclick=function(e){e.stopPropagation();$('evFlt').classList.toggle('nhide');f.classList.toggle('on',!$('evFlt').classList.contains('nhide'));evMarkUI();};
+  bar.onclick=function(e){var t=e.target.closest('[data-t]'),o=e.target.closest('.ev-opt [data-v]');
+    if(t){evTab(t.getAttribute('data-t'));return;}
+    if(o){var g=o.parentNode.getAttribute('data-g'),v=o.getAttribute('data-v');$('evFlt').classList.add('nhide');f.classList.remove('on');
+      if(g==='sort'){ev.sort=v;send('navEvSort',v);evRender();}else evTab(v);}};})();
+function evMarkUI(){var ei=$('evInfo');if(ei)ei.textContent={route:'Along Route',near:'Nearby',dest:'Near Destination'}[ev.tab]+'  ·  '+(ev.sort==='price'?'Sorted by price':'Sorted by distance');document.querySelectorAll('#evBar [data-t]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-t')===ev.tab);});
+  document.querySelectorAll('#evFlt [data-g="sort"] [data-v]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-v')===ev.sort);});
+  document.querySelectorAll('#evFlt [data-g="tab"] [data-v]').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-v')===ev.tab);});}
+function evHash(s){var h=0;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);}
+function evPrice(p){return 280+(evHash(p.id||p.name)%23)*5;}             /* 데모용 요금 (원/kWh) — 실제 요금 API 없음 */
+function evKW(p){return p.kw||[50,100,200,350,7][evHash((p.id||p.name)+'k')%5];}
+function evAt(s){var R=st.route,c=R.cum,i=0;while(i<c.length-1&&c[i+1]<s)i++;return R.pts[Math.min(i,R.pts.length-1)];}
+function evQuery(lat,lon,rad){
+  if(KEY)return tt('/search/2/categorySearch/'+encodeURIComponent('electric vehicle station')+'.json','categorySet=7309&countrySet='+NEO_REG.cs+'&language=en-GB&limit=15&lat='+lat+'&lon='+lon+'&radius='+rad).then(function(d){
+    return (d.results||[]).map(function(r){var kw=0;((r.chargingPark&&r.chargingPark.connectors)||[]).forEach(function(c){kw=Math.max(kw,c.ratedPowerKW||0);});
+      return {id:r.id,lat:r.position.lat,lon:r.position.lon,name:(r.poi&&r.poi.name)||'EV Charger',addr:(r.address&&r.address.freeformAddress)||'',phone:(r.poi&&r.poi.phone)||'',kw:kw};});});
+  return jget('https://overpass-api.de/api/interpreter?data='+encodeURIComponent('[out:json][timeout:10];nwr[amenity=charging_station](around:'+rad+','+lat+','+lon+');out center 15;')).then(function(j){
+    return (j.elements||[]).map(function(e){var t=e.tags||{},la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);
+      return {id:'o'+e.id,lat:la,lon:lo,name:t['name:en']||t.operator||t.name||'EV Charger',addr:t['addr:street']||t['addr:city']||'',kw:0};});});}
+function evTab(t){ev.tab=t;ev.list=[];evMarkUI();send('navEvTab',t);var my=++ev.seq,c=carMk.getLatLng(),box=$('spRes');ev.ly.clearLayers();
+  box.innerHTML='<div class="sp-msg">Searching chargers…</div>';
+  var job;
+  if(t==='dest'){if(!st.dest){box.innerHTML='<div class="sp-msg">Set a destination first.</div>';return;}
+    job=evQuery(st.dest.lat,st.dest.lon,5000).then(function(l){l.forEach(function(p){p.dm=hav({lat:st.dest.lat,lon:st.dest.lon},p);});return l;});}
+  else if(t==='route'){if(!st.route||!sim.guide){box.innerHTML='<div class="sp-msg">Start route guidance to see chargers along the route.</div>';return;}
+    var R=st.route,s0=sim.s||0,left=R.total-s0,n=Math.max(1,Math.min(4,Math.ceil(left/4000))),pts=[];
+    for(var k=0;k<n;k++){var s=s0+left*(k+.5)/n;pts.push({s:s,ll:evAt(s)});}
+    job=Promise.all(pts.map(function(q){return evQuery(q.ll.lat,q.ll.lng,2500).then(function(l){l.forEach(function(p){var best=1e12,bs=q.s;
+        for(var i=0;i<R.pts.length;i++){if(R.cum[i]<s0)continue;var d=R.pts[i].distanceTo([p.lat,p.lon]);if(d<best){best=d;bs=R.cum[i];}}
+        p.dm=(bs-s0)+best;p.off=best;});return l.filter(function(p){return p.off<2500;});},function(){return [];});})).then(function(a){return [].concat.apply([],a);});}
+  else job=evQuery(c.lat,c.lng,5000).then(function(l){l.forEach(function(p){p.dm=hav({lat:c.lat,lon:c.lng},p);});return l;});
+  job.then(function(l){if(my!==ev.seq)return;var seen={};ev.list=l.filter(function(p){var k=p.id||p.name+p.lat.toFixed(4);if(seen[k]||p.lat==null)return false;seen[k]=1;return true;});
+      ev.list.forEach(function(p){p.price=evPrice(p);p.kwv=evKW(p);});evRender(true);})
+   .catch(function(){if(my===ev.seq)box.innerHTML='<div class="sp-msg">Cannot reach the search server.</div>';});}
+function evPinIcon(n,sel){return L.divIcon({className:'evPin'+(sel?' sel':''),iconSize:[44,54],iconAnchor:[22,52],
+  html:'<svg width="44" height="54" viewBox="0 0 44 54"><path d="M22 52C22 52 40 33 40 21A18 18 0 0 0 4 21C4 33 22 52 22 52Z" fill="#79b2f6" stroke="#fff" stroke-width="2.5"/></svg><b>'+n+'</b>'});}
+function evRender(fit){var box=$('spRes');$('spTitle').textContent='EV Chargers';ev.ly.clearLayers();evMarkUI();
+  var l=ev.list.slice().sort(function(a,b){return ev.sort==='price'?(a.price-b.price)||(a.dm-b.dm):a.dm-b.dm;}).slice(0,10);ns.results=ev.list;
+  if(!l.length){box.innerHTML='<div class="sp-msg">No chargers found.</div>';return;}
+  box.innerHTML='';var bb=[];
+  l.forEach(function(p,i){var n=i+1,dd=fmtDist(p.dm),d=document.createElement('div');d.className='ev-row';
+    d.innerHTML='<div class="ev-l1"><b>'+n+'. '+nsEsc(p.name)+'</b><em>'+dd.v+' '+dd.u+'</em></div><small>'+nsEsc(p.addr||'')+'</small>'+
+      '<div class="ev-l3"><span class="ev-pr">₩'+p.price+'<i>/kWh</i></span><span>'+p.kwv+' kW</span>'+(ev.tab==='dest'?'<span>from destination</span>':ev.tab==='route'?'<span>along route</span>':'')+'</div>';
+    d.onclick=function(){d.classList.add('sel');setTimeout(function(){nsDetail(p,'panel');},120);};box.appendChild(d);
+    var mk=L.marker([p.lat,p.lon],{icon:evPinIcon(n),zIndexOffset:900-n}).addTo(ev.ly);mk.on('click',function(){nsDetail(p,'panel');});bb.push([p.lat,p.lon]);});
+  if(fit){var c=carMk.getLatLng();bb.push([c.lat,c.lng]);try{map.fitBounds(L.latLngBounds(bb),{paddingTopLeft:[620,90],paddingBottomRight:[90,90],maxZoom:16});hu.lock=false;}catch(e){}}}
+function evOpen(){ev.on=true;sp.classList.add('evMode');nsView('search');$('spTitle').textContent='EV Chargers';$('evFlt').classList.add('nhide');$('spFlt').classList.remove('on');
+  ev.sort='dist';evTab(sim.guide&&st.route?'route':'near');send('navEvChargers','open');}
+function evExit(){if(!ev.on)return;ev.on=false;ev.seq++;sp.classList.remove('evMode');ev.ly.clearLayers();}
+window.__evExit=evExit;window.__ev=ev;
+function nsQuick(name,q){if(name==='Charging'){if(!ns.open)nsOpen();kbShow(false);evOpen();return;}if(!ns.open)nsOpen();kbShow(false);$('spInput').value='';
   if(!KEY&&PRESET[q]){var pp=PRESET[q];nsDetail({lat:pp.lat,lon:pp.lon,name:pp.name,addr:''},'panel');return;}
   $('spRes').innerHTML='';
   search(q).then(function(l){if(name==='Charging'||!l[0])nsList(l);else nsDetail(l[0],'panel');}).catch(function(){$('spRes').innerHTML='<div class="sp-msg">Cannot reach the search server.</div>';});}
@@ -2373,27 +2459,85 @@ $('spInput').addEventListener('input',function(){clearTimeout(nsT);var q=$('spIn
 $('spInput').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(nsT);kbShow(false);nsFind($('spInput').value.trim());}e.stopPropagation();});
 $('spInput').addEventListener('pointerdown',function(){kbShow(true);});
 $('spClr').onclick=function(){$('spInput').value='';$('spRes').innerHTML='';$('spInput').focus();kbShow(true);};
-$('spBack').onclick=function(){if(!$('spDetail').classList.contains('nhide')){nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}nsView('search');if(ns.results.length)nsList(ns.results);}else nsClose();};
+$('spBack').onclick=function(){var rl=$('spDetail').querySelector('.rt-list');if(rl&&ns.sel&&!$('spDetail').classList.contains('nhide')){window.__clearAlts();$('spDetail').innerHTML=nsDetailHTML(ns.sel);nsBind($('spDetail'),ns.sel);if(st.route)nsEta($('spDetail'),st.route.time,st.route.len);return;}
+  if(!$('spDetail').classList.contains('nhide')){nsClearPreview();if(pickMk){map.removeLayer(pickMk);pickMk=null;}nsView('search');if(ns.results.length)nsList(ns.results);}else nsClose();};
 $('spX').onclick=function(){nsClose();};
 /* 상세 내용 */
 function nsDetailHTML(p,wide){var g=ns.ctx==='guide';
   return '<div class="dt-body"><b class="dt-name">'+nsEsc(p.name)+'</b><div class="dt-addr">'+nsEsc(p.addr||'')+'</div>'+
    (p.phone?'<div class="dt-line">'+nsEsc(p.phone)+'</div>':'')+(p.hours?'<div class="dt-line">'+nsEsc(p.hours)+'</div>':'')+
    '<div class="dt-eta"><span class="dt-e1">'+NS_FLAG+'<b class="dtEta">--:--</b></span><span class="dtTime"><b>-</b></span><span class="dtDist"><b>-</b></span></div></div>'+
-   '<div class="dt-foot">'+(g?'<div class="dt-btn dt-go" data-a="dest">New Destination</div><div class="dt-btn dt-sub" data-a="via">Add Waypoint</div>':'<div class="dt-btn dt-go" data-a="go">Go</div>')+'</div>';}
+   '<div class="dt-foot">'+(g?'<div class="dt-btn dt-go" data-a="dest">New Destination</div><div class="dt-btn dt-sub" data-a="via">Add Waypoint</div>':'<div class="dt-btn dt-go" data-a="go">Go</div><div class="dt-btn dt-sub dt-rt" data-a="routes">Routes</div>')+'</div>';}
 function nsEta(root,time,len){var eta=new Date(Date.now()+time*1000),pad=function(n){return ('0'+n).slice(-2);};
   root.querySelectorAll('.dtEta').forEach(function(e){e.textContent=pad(eta.getHours())+':'+pad(eta.getMinutes());});
   var H=Math.floor(time/3600),M=Math.round((time%3600)/60);if(M===60){H++;M=0;}var d=fmtDist(len);
-  root.querySelectorAll('.dtTime').forEach(function(e){e.innerHTML='<b>'+H+'</b><small>h</small> <b>'+M+'</b><small>min</small>';});
+  root.querySelectorAll('.dtTime').forEach(function(e){e.innerHTML=(H?'<b>'+H+'</b><small>h</small> ':'')+'<b>'+M+'</b><small>min</small>';});
   root.querySelectorAll('.dtDist').forEach(function(e){e.innerHTML='<b>'+d.v+'</b><small>'+d.u+'</small>';});}
 function nsSummary(p,root){var c=carMk.getLatLng();
   var q=KEY?tt('/routing/1/calculateRoute/'+c.lat+','+c.lng+':'+p.lat+','+p.lon+'/json','travelMode=car&traffic=true&routeType=fastest&computeTravelTimeFor=none').then(function(d){var s=d.routes[0].summary;return [s.travelTimeInSeconds,s.lengthInMeters];})
     :jget('https://router.project-osrm.org/route/v1/driving/'+c.lng+','+c.lat+';'+p.lon+','+p.lat+'?overview=false').then(function(d){var r=d.routes[0];return [r.duration,r.distance];});
   q.then(function(v){if(ns.sel===p)nsEta(root,v[0],v[1]);}).catch(function(){});}
-function nsBind(root,p){root.querySelectorAll('.dt-btn').forEach(function(b){b.onclick=function(e){e.stopPropagation();var a=b.getAttribute('data-a');
-  if(a==='go'){if(!st.route){flashNav('Calculating route…');return;}ns.want=false;var keep=true;sp.classList.add('nhide');ns.open=false;huNav.classList.remove('spOn');kbShow(false);nsMcClose(keep);if(pickMk){map.removeLayer(pickMk);pickMk=null;}startSim();}
+function nsBind(root,p){setTimeout(function(){if(typeof rtCheck==='function')rtCheck(root,p);},0);root.querySelectorAll('.dt-btn').forEach(function(b){b.onclick=function(e){e.stopPropagation();var a=b.getAttribute('data-a');
+  if(a==='routes'){nsRoutes(root,p);return;}
+  if(a==='go'){if(!st.route){flashNav('Calculating route…');return;}if(window.__clearAlts)window.__clearAlts();ns.want=false;var keep=true;sp.classList.add('nhide');ns.open=false;huNav.classList.remove('spOn');kbShow(false);nsMcClose(keep);if(pickMk){map.removeLayer(pickMk);pickMk=null;}startSim();}
   else{nsClose();nsMcClose();applyChoice(p,a==='via'?'via':'dest');}};});}
-function nsDetail(p,where){ns.sel=p;ns.where=where;kbShow(false);
+var RT_ICO='<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="8" cy="25" r="3"/><circle cx="24" cy="7" r="3"/><path d="M11 25h9a4.5 4.5 0 000-9h-8a4.5 4.5 0 010-9h9"/></svg>';
+/* 추천 경로 보기 (리스트): 빠른 시간 / 짧은 거리 / 고속도로 우선 / 무료도로
+   지금 경로가 맨 위, 나머지는 아래 · 선택한 경로 = 파랑, 나머지 = 회색으로 지도에 함께 표시 */
+var RT_OPT=[{k:'fast',n:'Fastest',s:'Recommended',q:''},{k:'short',n:'Shortest',s:'Shortest distance',q:'&routeType=shortest'},
+{k:'hwy',n:'Highway first',s:'Prefer main roads',q:'&routeType=fastest&avoid=unpavedRoads'},{k:'free',n:'Toll-free',s:'Avoid toll roads',q:'&avoid=tollRoads'}];
+var altLy=L.layerGroup().addTo(map),altPts={};
+function clearAlts(){altLy.clearLayers();altPts={};}
+function drawAlts(){altLy.clearLayers();var sel=st.rtK||'fast',all=[];
+  RT_OPT.forEach(function(o){var p=altPts[o.k];if(!p)return;all=all.concat(p);if(o.k===sel)return;
+    L.polyline(p,{color:'#7d838d',weight:11,opacity:.9,interactive:false}).addTo(altLy);});
+  if(line)line.bringToFront();return all;}
+/*routes3*/ /* 경로 리스트: 같은 경로는 하나만 · 제목 = 경유 도로 · 소요시간 / 거리 / 도착시각 / 통행료(추정) */
+function rtRoads(r){var I=(r.guidance&&r.guidance.instructions)||[],acc={},ord=[];
+  for(var i=0;i<I.length;i++){var x=I[i],nm=(x.roadNumbers&&x.roadNumbers.length?x.roadNumbers[0]:'')||x.street||'';if(!nm)continue;
+    var len=((I[i+1]&&I[i+1].routeOffsetInMeters)||r.summary.lengthInMeters)-(x.routeOffsetInMeters||0);
+    if(!(nm in acc)){acc[nm]=0;ord.push(nm);}acc[nm]+=Math.max(0,len);}
+  var top=ord.slice().sort(function(a,b){return acc[b]-acc[a];}).slice(0,2);top.sort(function(a,b){return ord.indexOf(a)-ord.indexOf(b);});return top;}
+function rtToll(r,pts){var m=0;(r.sections||[]).forEach(function(s){if(s.sectionType!=='TOLL_ROAD'&&s.sectionType!=='TOLL')return;
+  for(var i=s.startPointIndex;i<s.endPointIndex&&i+1<pts.length;i++)m+=pts[i].distanceTo(pts[i+1]);});
+  return m<300?0:Math.round((900+44.3*m/1000)/100)*100;}
+function rtArr(sec){var e=new Date(Date.now()+sec*1000);return ('0'+e.getHours()).slice(-2)+':'+('0'+e.getMinutes()).slice(-2);}
+/*rtOne*/ /* 경로 옵션 조회 (60초 캐시) · 서로 다른 경로가 1개면 Routes 버튼 숨김 */
+var RTC={};function rtQ(o,c,p){var k=o.k+'|'+c.lat.toFixed(4)+','+c.lng.toFixed(4)+'|'+p.lat+','+p.lon,e=RTC[k];if(e&&Date.now()-e.t<60000)return e.q;
+  var q=KEY?tt('/routing/1/calculateRoute/'+c.lat+','+c.lng+':'+p.lat+','+p.lon+'/json','travelMode=car&traffic=true&routeRepresentation=polyline&computeTravelTimeFor=none&instructionsType=coded&sectionType=tollRoad&language=en-GB'+o.q).then(function(d){var r=d.routes[0],s=r.summary,pts=[];
+        r.legs.forEach(function(l){l.points.forEach(function(x){pts.push(L.latLng(x.latitude,x.longitude));});});return {t:s.travelTimeInSeconds,d:s.lengthInMeters,pts:pts,via:rtRoads(r),toll:rtToll(r,pts)};})
+      :(o.k==='fast'?jget('https://router.project-osrm.org/route/v1/driving/'+c.lng+','+c.lat+';'+p.lon+','+p.lat+'?overview=full&geometries=geojson').then(function(d){var r=d.routes[0];
+        return {t:r.duration,d:r.distance,pts:r.geometry.coordinates.map(function(x){return L.latLng(x[1],x[0]);}),via:(r.legs[0].summary||'').split(',').map(function(x){return x.trim();}).filter(Boolean).slice(0,2),toll:0};}):Promise.reject(0));RTC[k]={t:Date.now(),q:q};q.catch(function(){delete RTC[k];});return q;}
+function rtSame(w,v){return Math.abs(w.d-v.d)<=Math.max(30,w.d*.005)&&Math.abs(w.t-v.t)<=Math.max(20,w.t*.01);}
+function rtCheck(root,p){var b=root.querySelector('.dt-rt');if(!b)return;b.classList.add('rtH');var c=carMk.getLatLng();
+  Promise.all(RT_OPT.map(function(o){return rtQ(o,c,p).then(function(v){return v;},function(){return null;});})).then(function(a){var u=[];
+    a.forEach(function(v){if(v&&!u.some(function(w){return rtSame(w,v);}))u.push(v);});if(u.length>1&&b.isConnected)b.classList.remove('rtH');});}
+function nsRoutes(root,p){var body=root.querySelector('.dt-body');if(!body)return;var cur=st.rtK||'fast',c=carMk.getLatLng();
+  var ord=[RT_OPT.filter(function(o){return o.k===cur;})[0]].concat(RT_OPT.filter(function(o){return o.k!==cur;}));
+  body.classList.add('rtm');var rtb=root.querySelector('.dt-rt');if(rtb)rtb.classList.add('rtH');body.innerHTML='<div class="rt-list"><div class="rt-wait">Calculating routes…</div></div>';clearAlts();
+  var res={};
+  var jobs=ord.map(function(o){
+    var q=rtQ(o,c,p);
+    return q.then(function(v){res[o.k]=v;},function(){});});
+  Promise.all(jobs).then(function(){var shown=[],all=[];
+    ord.forEach(function(o){var v=res[o.k];if(!v)return;
+      if(shown.some(function(k){var w=res[k];return Math.abs(w.d-v.d)<=Math.max(30,w.d*.005)&&Math.abs(w.t-v.t)<=Math.max(20,w.t*.01);}))return;  /* 같은 경로는 하나만 */
+      shown.push(o.k);altPts[o.k]=v.pts;all=all.concat(v.pts);});
+    if(!shown.length){body.innerHTML='<div class="rt-list"><div class="rt-wait">No routes found</div></div>';return;}
+    if(shown.indexOf(st.rtK||'fast')<0)st.rtK=shown[0];var sel=st.rtK||'fast';
+    body.innerHTML='<div class="rt-list">'+shown.map(function(k){var v=res[k],H=Math.floor(v.t/3600),M=Math.round((v.t%3600)/60),dd=fmtDist(v.d);
+      var ttl=v.via.length?'via '+v.via.join(', '):'Recommended route';
+      return '<div class="rt-row'+(k===sel?' on':'')+'" data-k="'+k+'"><span class="rt-ic">'+RT_ICO+'</span><div class="rt-l"><b>'+ttl.replace(/</g,'&lt;')+'</b>'+
+        '<small>'+dd.v+' '+dd.u+'<em>·</em>'+(v.toll?'Toll ₩'+v.toll.toLocaleString('en-US'):'No tolls')+'</small></div>'+
+        '<div class="rt-r"><b class="rt-t">'+(H?H+'<i>h</i> ':'')+M+'<i>min</i></b><small class="rt-d">Arrive '+rtArr(v.t)+'</small></div></div>';}).join('')+'</div>';
+    drawAlts();try{map.fitBounds(L.latLngBounds(all),{paddingTopLeft:[600,80],paddingBottomRight:[80,80]});hu.lock=false;}catch(e){}});
+  body.onclick=function(e){var r=e.target.closest('.rt-row');if(!r)return;e.stopPropagation();var o=RT_OPT.filter(function(x){return x.k===r.getAttribute('data-k');})[0];
+    body.querySelectorAll('.rt-row').forEach(function(x){x.classList.toggle('on',x===r);});
+    st.rtK=o.k;st.rtQ=o.q;send('navRouteOption',o.k);drawAlts();
+    if(st.origin&&st.dest&&!sim.guide){st.keepView=true;ns.want=true;calcRoute();}else if(sim.guide){st.reroute=true;calcRoute();}};
+  send('navRoutes',p.name);}
+window.__clearAlts=clearAlts;window.__rtAfter=function(){if(Object.keys(altPts).length)drawAlts();};
+function nsDetail(p,where){if(where!=='panel'&&ns.open){ns.open=false;sp.classList.add('nhide');huNav.classList.remove('spOn');}/* 팝업은 하나만 */ns.sel=p;ns.where=where;kbShow(false);
   var root=where==='panel'?$('spDetail'):mc;root.innerHTML=nsDetailHTML(p);nsBind(root,p);
   if(where==='panel'){nsView('detail');if(pickMk)map.removeLayer(pickMk);pickMk=null;}
   if(ns.ctx==='guide'||sim.guide){nsSummary(p,root);if(where==='panel'){pickMk=L.marker([p.lat,p.lon],{icon:pin('#ffb020'),interactive:false}).addTo(map);map.setView([p.lat,p.lon],map.getZoom());hu.lock=false;}}
@@ -2526,7 +2670,7 @@ function trSlice(R,a,b){var c=R.cum,p=R.pts,o=[];function at(s){var i=1;while(i<
   o.push(at(a));for(var i=0;i<c.length;i++)if(c[i]>a&&c[i]<b)o.push(p[i]);o.push(at(b));return o;}
 function trafLine(force){var R=st.route;if(!line||!R){trLy.clearLayers();return;}
   var now=performance.now();if(!force&&now-trT<400)return;trT=now;
-  line.setStyle({color:KEY?'#1fa83a':'#2e7bff',weight:RW,opacity:1});
+  line.setStyle({color:'#018EFE',weight:RW,opacity:1});
   trLy.clearLayers();var s0=sim.guide?sim.s:0;
   (R.traffic||[]).forEach(function(x){if(x.b<=s0)return;var pts=trSlice(R,Math.max(x.a,s0),x.b);
     if(pts.length>1)L.polyline(pts,{pane:'trafPane',color:TC[x.m]||TC[0],weight:RW,opacity:1,interactive:false}).addTo(trLy);});}
@@ -2848,6 +2992,7 @@ music.appendChild(btNow);
 var PAUSE_SVG=svg('<path d="M12 8v16M20 8v16"/>',80);
 function renderBtNow(){var on=!!(window.NeoBT&&window.NeoBT.musicDev());btNow.classList.toggle('nodev',!on);$('btTi').textContent=on?BTN_T[btI][0]:'Nothing is playing';$('btAr').textContent=on?BTN_T[btI][1]:'';$('btPlayB').innerHTML=btPlay?PAUSE_SVG:img(IC.play,80);if(window.__btList)window.__btList();}
 var btProgT=null,btPos=0;function btTick(){clearInterval(btProgT);if(btPlay)btProgT=setInterval(function(){btPos=(btPos+0.4)%100;$('btProg').style.width=btPos+'%';},200);}
+window.__bt={st:function(){return {on:!!(window.NeoBT&&window.NeoBT.musicDev()),t:BTN_T[btI],play:btPlay,pos:btPos};}};
 $('btPlayB').onclick=function(){if(btNow.classList.contains('nodev'))return;btPlay=!btPlay;renderBtNow();btTick();send('btMusic',btPlay?'play':'pause');};
 $('btNext').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','next');};
 $('btPrev').onclick=function(){if(btNow.classList.contains('nodev'))return;btI=(btI+BTN_T.length-1)%BTN_T.length;btPos=0;$('btProg').style.width='0';renderBtNow();send('btMusic','prev');};
@@ -2898,7 +3043,7 @@ $('dial').addEventListener('click',function(e){var k=e.target.closest('.dk');if(
 /* 커스텀 스크롤바 */
 function plScroll(){var p=$('plist'),th=$('plThumb'),tr=$('plTrack'),h=tr.clientHeight,r=p.clientHeight/p.scrollHeight;if(r>=1){tr.style.visibility='hidden';return;}tr.style.visibility='';var hh=Math.max(60,h*r);th.style.height=hh+'px';th.style.top=((h-hh)*p.scrollTop/(p.scrollHeight-p.clientHeight))+'px';}
 $('plist').addEventListener('scroll',plScroll);
-function call(to){if(!to)to=LOG[0][0];flash('Calling '+to+' …');send('phoneCall',to);num='';$('dialNum').textContent='';return;inCall=true;$('cName').textContent=to;$('cState').textContent='Calling…';$('calling').style.display='block';$('dial').style.visibility='hidden';$('dialNum').style.display='none';$('callBtn').classList.add('end');send('phoneCall',to);
+function call(to){if(!to)to=LOG[0][0];num='';$('dialNum').textContent='';if(window.__callShow){window.__callShow(to);send('phoneCall',to);return;}flash('Calling '+to+' …');send('phoneCall',to);return;inCall=true;$('cName').textContent=to;$('cState').textContent='Calling…';$('calling').style.display='block';$('dial').style.visibility='hidden';$('dialNum').style.display='none';$('callBtn').classList.add('end');send('phoneCall',to);
   var s=0;clearInterval(callT);setTimeout(function(){if(!inCall)return;callT=setInterval(function(){s++;$('cState').textContent='In call '+Math.floor(s/60)+':'+('0'+s%60).slice(-2);},1000);},2000);}
 function hang(){inCall=false;clearInterval(callT);$('calling').style.display='none';$('dial').style.visibility='';$('dialNum').style.display='';$('callBtn').classList.remove('end');send('phoneEnd','1');}
 $('callBtn').onclick=function(){call(num);};
@@ -3014,8 +3159,10 @@ settings.addEventListener('click',function(e){if(sMenu!=='connection')return;
   var av=e.target.closest('[data-cxa]');if(av){pairFlow(cxDev(av.getAttribute('data-cxa')));return;}
 });
 function maskKey(k){return k?(k.length>8?'●●●●●●●●'+k.slice(-4):'●●●●'):'';}
-function renderSystem(){var info=window.Nav&&window.Nav.keyInfo?window.Nav.keyInfo():{key:''};
-  $('setBody').innerHTML='<div class="slab">Navigation · TomTom API Key</div>'+
+function renderSystem(){var info=window.Nav&&window.Nav.keyInfo?window.Nav.keyInfo():{key:''};var rg=(window.NEO_REG&&window.NEO_REG.cs)||'KR';
+  $('setBody').innerHTML='<div class="slab">Navigation · Map Region</div><div class="regs">'+[['KR','Korea'],['IN','India'],['RU','Russia']].map(function(r){return '<div class="regb'+(r[0]===rg?' on':'')+'" data-reg="'+r[0]+'">'+r[1]+'</div>';}).join('')+'</div>'+
+   '<div class="khelp">Changes the map start location, search area and quick destinations. The display restarts to apply.</div>'+
+   '<div class="slab" style="margin-top:48px">Navigation · TomTom API Key</div>'+
    '<div class="kbox"><input id="ttKeyIn" type="password" autocomplete="off" spellcheck="false" placeholder="Enter TomTom API key" value="'+esc(info.key||'')+'"><div class="kbtn" id="ttEye">Show</div></div>'+
    '<div class="kact"><div class="kbtn pri" id="ttSave">Save</div><div class="kbtn" id="ttTest">Test</div><div class="kbtn" id="ttDel">Delete</div></div>'+
    '<div class="kst" id="ttSt">'+(info.key?'Using saved key ('+maskKey(info.key)+')'+(info.fromUrl?' · from URL (?ttkey=)':''):'No saved key — maps, search and routing use the free OpenStreetMap service. Enter a TomTom key to switch to TomTom maps.')+'</div>'+
@@ -3113,11 +3260,11 @@ function closeCamMenu(){camMenu.style.display='none';}
 
 /* ---------------- Radio (Radio Browser API, 무료) ---------------- */
 var radio=el('<div class="scr" id="scrRadio"><div class="rhd"><img alt="" src="'+RI.app_radio+'">Radio</div>'+
- '<div class="rbar"><div class="rtabs" id="rTabs"><div data-rt="popular" class="on">Popular</div><div data-rt="recent">Recent</div><div data-rt="fav">Favorites</div></div>'+
+ '<div class="rbar"><div class="rtabs" id="rTabs"><div data-rt="popular" class="on">Popular</div><div data-rt="fav">Favorites</div></div>'+
  '<div class="rflt" id="rFlt"><i class="gl"></i><span id="rCty">KOR</span><i class="cv"></i></div></div>'+
  '<div class="rdd" id="rDD"></div>'+
 '<div id="rList"></div><div class="empty" id="rEmpty" style="display:none"></div>'+
- '<div id="rNow"><div class="bar"></div><div class="rlg ph" id="rLogo"></div><div class="info"><div class="trow"><div class="ti" id="rName">Select a station</div><div class="live" id="rLive">LIVE</div></div><div class="ar" id="rSub"></div></div>'+
+ '<div id="rNow"><div class="bar"></div><div class="rlg ph" id="rLogo"></div><div class="info"><div class="trow"><div class="ti" id="rName">Not playing</div><div class="live" id="rLive">LIVE</div></div><div class="ar" id="rSub"></div></div>'+
  '<div class="ctl"><div id="rPrev">'+img(IC.prev,80)+'</div><div id="rPlay">'+img(IC.play,80)+'</div><div id="rNext">'+img(IC.next,80)+'</div></div></div></div>');
 scrWrap.appendChild(radio);
 (function(){var s=document.createElement('style');s.textContent=
@@ -3152,6 +3299,10 @@ var rAudio=new Audio(),rStations=[],rTab='popular',rCur=null,rFav={},rRecent=[],
 try{rRecent=JSON.parse(localStorage.getItem('neoRadioRecent')||'[]');rCty=localStorage.getItem('neoRadioCountry')||'KOR';}catch(e){}
 /* 국가 필터 (ISO 3자리 → Radio Browser 2자리) */
 var R_CTY=[['ALL',''],['KOR','KR'],['USA','US'],['JPN','JP'],['CHN','CN'],['IND','IN'],['BRA','BR'],['RUS','RU'],['GBR','GB'],['DEU','DE'],['FRA','FR'],['ITA','IT'],['ESP','ES'],['CAN','CA'],['AUS','AU'],['MEX','MX'],['IDN','ID'],['VNM','VN'],['THA','TH'],['TUR','TR']];
+var R_NAME={ALL:'All countries',KOR:'South Korea',USA:'United States',JPN:'Japan',CHN:'China',IND:'India',BRA:'Brazil',RUS:'Russia',GBR:'United Kingdom',DEU:'Germany',FRA:'France',ITA:'Italy',ESP:'Spain',CAN:'Canada',AUS:'Australia',MEX:'Mexico',IDN:'Indonesia',VNM:'Vietnam',THA:'Thailand',TUR:'Turkey'};
+/* 채널명에서 주파수(FM 92 / 87.6 FM 등)를 분리 → 아래 카테고리 줄에 표시 */
+function rSplit(n){n=String(n||'').trim();var re=/\s*[-–|(]?\s*\b((?:FM|AM)\s*\d{2,3}(?:[.,]\d{1,2})?|\d{2,3}(?:[.,]\d{1,2})?\s*(?:FM|AM|MHz|Mhz|mhz))\b\s*\)?/i,m=n.match(re);if(!m)return [n,''];var nm=(n.slice(0,m.index)+' '+n.slice(m.index+m[0].length)).replace(/\s{2,}/g,' ').replace(/^[\s\-–|]+|[\s\-–|]+$/g,'');return [nm||n,m[1].replace(/\s+/,' ')];}
+function rSubOf(s){var f=rSplit(s.name)[1],t=(s.tags||s.country||'').split(',').map(function(x){return x.trim();}).filter(Boolean).slice(0,3).join(' · ')||s.codec||'';return [f,t].filter(Boolean).join(' · ');}
 function rCode(c){c=String(c||'').toUpperCase().trim();for(var i=0;i<R_CTY.length;i++){if(R_CTY[i][0]===c||(R_CTY[i][1]&&R_CTY[i][1]===c))return R_CTY[i];}if(c==='GLOBAL'||c==='WORLD')return R_CTY[0];return /^[A-Z]{2}$/.test(c)?[c,c]:null;}
 if(!rCode(rCty))rCty='KOR';
 function rb(path){function go(i){if(i>=RB_HOSTS.length)return Promise.reject(new Error('radio-browser unreachable'));
@@ -3168,18 +3319,22 @@ function loadRadio(tab){tab=({kr:'popular',top:'popular'})[tab]||tab;if(['popula
   rb(path).then(function(d){if(rCty+'|'+rTab!==want)return;rStations=d.filter(okStream).slice(0,60);renderRadio();rEmpty(rStations.length?'':'No playable stations found.');send('radioLoaded',rStations.length);})
   .catch(function(){rEmpty('Cannot reach the radio server. Check your internet connection.');});}
 function setCountry(c){var x=rCode(c);if(!x)return false;rCty=x[0];try{localStorage.setItem('neoRadioCountry',rCty);}catch(e){}closeCty();send('radioCountry',rCty);loadRadio(rTab);return true;}
-function openCty(){$('rDD').innerHTML=R_CTY.map(function(c){return '<div data-cty="'+c[0]+'"'+(c[0]===rCty?' class="on"':'')+'>'+c[0]+'</div>';}).join('');$('rDD').classList.add('show');$('rFlt').classList.add('open');var on=$('rDD').querySelector('.on');if(on)$('rDD').scrollTop=Math.max(0,on.offsetTop-88);}
+function openCty(){$('rDD').innerHTML=R_CTY.map(function(c){return '<div data-cty="'+c[0]+'"'+(c[0]===rCty?' class="on"':'')+'>'+(R_NAME[c[0]]||c[0])+'</div>';}).join('');$('rDD').classList.add('show');$('rFlt').classList.add('open');var on=$('rDD').querySelector('.on');if(on)$('rDD').scrollTop=Math.max(0,on.offsetTop-88);}
 function closeCty(){$('rDD').classList.remove('show');$('rFlt').classList.remove('open');}
 function initials(n){return (n||'?').replace(/[^\w가-힣]/g,'').slice(0,2).toUpperCase();}
-function logoStyle(s){return s.favicon?'background-image:url(\''+s.favicon.replace(/'/g,'')+'\')':'';}
+function rGrad(n){n=String(n||'');var h=7;for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%3600;h=h%360;var h2=(h+48)%360;return 'linear-gradient(135deg,hsl('+h+',58%,46%),hsl('+h2+',62%,26%))';}window.__rGrad=rGrad;
+function logoStyle(s){return '--rg:'+rGrad(s.name)+';'+(s.favicon?'background-image:url(\''+s.favicon.replace(/'/g,'')+'\')':'');}
 var EQ='<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>';
 function rLogoHtml(s,id){return '<div class="rlg'+(s&&s.favicon?'':' ph')+'"'+(id?' id="'+id+'"':'')+' style="'+(s?logoStyle(s):'')+'">'+EQ+'</div>';}
 function rLogoFallback(l,s){if(!s||!s.favicon)return;var im=new Image();im.onerror=function(){l.style.backgroundImage='';l.classList.add('ph');};im.src=s.favicon;}
 function renderRadio(){var pl=!rAudio.paused;$('rList').innerHTML=rStations.map(function(s,i){var on=rCur&&rCur.stationuuid===s.stationuuid;
-  return '<div class="rs'+(on?' on':'')+(on&&pl?' playing':'')+'" data-ri="'+i+'">'+rLogoHtml(s)+'<div class="tx"><b>'+esc(s.name.trim())+'</b><small>'+esc((s.tags||s.country||'').split(',').slice(0,3).join(' · ')||s.codec||'')+'</small></div><div class="st'+(rFav[s.stationuuid]?' on':'')+'" data-fav="'+i+'"></div></div>';}).join('');
+  return '<div class="rs'+(on?' on':'')+(on&&pl?' playing':'')+'" data-ri="'+i+'">'+rLogoHtml(s)+'<div class="tx"><b><span>'+esc(rSplit(s.name)[0])+'</span></b><small>'+esc(rSubOf(s))+'</small></div><div class="st'+(rFav[s.stationuuid]?' on':'')+'" data-fav="'+i+'"></div></div>';}).join('');
   // 로고 로드 실패 시 기본 라디오 아이콘으로 대체
-  $('rList').querySelectorAll('.rlg').forEach(function(l,i){rLogoFallback(l,rStations[i]);});}
-function rRenderNow(){var s=rCur,np=$('rNow');$('rName').textContent=s?s.name.trim():'Select a station';$('rSub').textContent=s?((s.tags||'').split(',').slice(0,3).join(' · ')||s.country||''):'';
+  $('rList').querySelectorAll('.rlg').forEach(function(l,i){rLogoFallback(l,rStations[i]);});requestAnimationFrame(rMqAll);}
+/* 채널명 마퀴: 칸보다 긴 이름만 흐르게 */
+function rMq(b){var sp=b.firstElementChild;if(!sp||b.dataset.mq)return;if(!b.offsetParent||!b.clientWidth)return;b.dataset.mq='1';var over=sp.scrollWidth-b.clientWidth;if(over<=2)return;var t=sp.textContent,gap=48,d=sp.scrollWidth+gap;b.classList.add('mq');b.innerHTML='<span class="mqi" style="--d:-'+d+'px;animation-duration:'+(2+d/40).toFixed(1)+'s"><span>'+esc(t)+'</span><span style="padding-left:'+gap+'px">'+esc(t)+'</span></span>';}
+function rMqAll(){radio.querySelectorAll('.rs b,#rName').forEach(rMq);}setInterval(rMqAll,800);
+function rRenderNow(){var s=rCur,np=$('rNow');var rn=$('rName');rn.removeAttribute('data-mq');rn.classList.remove('mq');rn.innerHTML='<span>'+esc(s?rSplit(s.name)[0]:'Not playing')+'</span>';$('rSub').textContent=s?rSubOf(s):'';
   var lg=$('rLogo');lg.outerHTML=rLogoHtml(s,'rLogo');rLogoFallback($('rLogo'),s);np.classList.toggle('playing',!rAudio.paused);var on=$('rList').querySelector('.rs.on');if(on)on.classList.toggle('playing',!rAudio.paused);$('rPlay').innerHTML=img(rAudio.paused?IC.play:IC.pause,80);}
 function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('neoRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('This station cannot be played');});renderRadio();rRenderNow();}
 function stopRadio(){if(!rAudio.paused){rAudio.pause();send('radioStop','1');}rRenderNow();}
@@ -3191,9 +3346,9 @@ $('rFlt').addEventListener('click',function(e){e.stopPropagation();if($('rDD').c
 $('rDD').addEventListener('click',function(e){e.stopPropagation();var d=e.target.closest('[data-cty]');if(d)setCountry(d.getAttribute('data-cty'));});
 radio.addEventListener('click',function(e){if(!e.target.closest('#rDD,#rFlt'))closeCty();});
 dragScroll($('rDD'),'y');
-$('rPlay').onclick=function(){if(!rCur){playStation(rStations[0]);return;}if(rAudio.paused)playStation(rCur);else stopRadio();};
+$('rPlay').onclick=function(){if(!rCur){playStation(rRecent[0]||rStations[0]);return;}if(rAudio.paused)playStation(rCur);else stopRadio();};
 function rStep(k){if(!rStations.length)return;var i=rCur?rStations.findIndex(function(s){return s.stationuuid===rCur.stationuuid;}):-1;playStation(rStations[(i+k+rStations.length)%rStations.length]);}
-$('rPrev').onclick=function(){rStep(-1);};$('rNext').onclick=function(){rStep(1);};window.__radio={audio:rAudio,cur:function(){return rCur;},step:function(k){rStep(k);},play:function(){if(rCur)playStation(rCur);else if(rStations.length)playStation(rStations[0]);},stop:function(){stopRadio();}};
+$('rPrev').onclick=function(){rStep(-1);};$('rNext').onclick=function(){rStep(1);};window.__radio={audio:rAudio,cur:function(){return rCur;},step:function(k){rStep(k);},play:function(){if(rCur)playStation(rCur);else if(rRecent.length||rStations.length)playStation(rRecent[0]||rStations[0]);},stop:function(){stopRadio();}};
 dragScroll($('rList'),'y');
 
 /* ---------------- Video (YouTube IFrame Player API, 무료) ---------------- */
@@ -3417,22 +3572,26 @@ function renderAir(){var run=climate.classList.contains('show')&&clim.power&&cli
   clearInterval(airT);airT=null;if(run)airT=setInterval(airTick,Math.round(95-clim.fan*7));}
 
 function renderClim(){
-  climate.querySelectorAll('[data-c]').forEach(function(b){b.classList.toggle('on',!!clim[b.getAttribute('data-c')]);});
-  climate.querySelectorAll('[data-f]').forEach(function(b){b.classList.toggle('on',clim.flow===b.getAttribute('data-f'));});
-  $('fanFill').style.width=(clim.fan/8*100)+'%';
-  climate.style.filter=clim.power?'':'saturate(.3)';
+  /* 전원 OFF: 모든 버튼·풍량 꺼진 표시 (설정값은 그대로 저장 → 다시 켜면 복원) */
+  climate.querySelectorAll('[data-c]').forEach(function(b){var k=b.getAttribute('data-c');b.classList.toggle('on',k==='power'?clim.power:(clim.power&&!!clim[k]));});
+  climate.querySelectorAll('[data-f]').forEach(function(b){b.classList.toggle('on',clim.power&&clim.flow===b.getAttribute('data-f'));});
+  $('fanFill').style.width=(clim.power?clim.fan/8*100:0)+'%';
+  climate.classList.toggle('pwoff',!clim.power);climate.style.filter='';
   if(typeof renderAir==='function')renderAir();
 }
+function climOn(){if(clim.power)return;clim.power=true;renderClim();send('climate_power','on');}
+window.__clim={sync:function(){return clim.power&&clim.sync;},syncOff:function(){if(clim.sync){clim.sync=false;renderClim();send('climate_sync','off');}},wake:climOn,state:function(){return clim;}};
 function openClimate(){closeSeat();climate.classList.add('show');shade.style.display='block';renderClim();send('climatePopup','open');}
 function closeClimate(){if(!climate.classList.contains('show'))return;climate.classList.remove('show');renderAir();shade.style.display='none';send('climatePopup','close');}
 climate.addEventListener('click',function(e){
+  var c0=e.target.closest('[data-c],[data-f],#fanDn,#fanUp');if(c0&&!clim.power&&c0.getAttribute('data-c')!=='power'){climOn();return;}  /* 꺼진 상태에서 아무 버튼 → 마지막 설정으로 켜짐 */
   var c=e.target.closest('[data-c]');if(c){var k=c.getAttribute('data-c');clim[k]=!clim[k];if(k==='sync'&&clim.sync){SD.temp.R=SD.temp.L;SD.renderTemp('R');}renderClim();send('climate_'+k,clim[k]?'on':'off');return;}
   var f=e.target.closest('[data-f]');if(f){clim.flow=f.getAttribute('data-f');renderClim();send('climate_airflow',clim.flow);return;}
   if(e.target.closest('#fanDn')){clim.fan=Math.max(0,clim.fan-1);renderClim();send('fanSpeed',clim.fan);}
   if(e.target.closest('#fanUp')){clim.fan=Math.min(8,clim.fan+1);renderClim();send('fanSpeed',clim.fan);}
 });
 (function(){var sl=$('fanSl'),on=false;function set(e){var r=sl.getBoundingClientRect();var p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));clim.fan=Math.round(p*8);renderClim();}
-  sl.addEventListener('pointerdown',function(e){on=true;sl.setPointerCapture(e.pointerId);set(e);});sl.addEventListener('pointermove',function(e){if(on)set(e);});
+  sl.addEventListener('pointerdown',function(e){if(!clim.power){climOn();return;}on=true;sl.setPointerCapture(e.pointerId);set(e);});sl.addEventListener('pointermove',function(e){if(on)set(e);});
   sl.addEventListener('pointerup',function(){if(on){on=false;send('fanSpeed',clim.fan);}});})();
 
 /* ================= Seat 팝업 (롱프레스) ================= */
@@ -3515,22 +3674,27 @@ var VID_ICO='<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x
 var RAD_ICO='<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="10" width="22" height="14" rx="3"/><path d="M8 10L20 4"/><circle cx="10" cy="17" r="3"/><path d="M17 15h5M17 19h5"/></svg>';
 var q=function(s){return card.querySelector(s);};
 var ti=document.getElementById('mTitle'),ar=document.getElementById('mArtist'),pr=document.getElementById('mProg'),pi=document.getElementById('mPlayIco'),art=q('.m-art'),src=q('.m-usb');
-var active=null,snap=null,lastArt='';
+var active=null,snap=null,lastArt='',btWas=false;
+var BT_ICO='<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l11 10-5.5 5V4l5.5 5L8 19"/></svg>';
 function Y(){return window.__ytPlayer;}function R(){return window.__radio;}
 function save(){var im=pi.querySelector('img');snap={t:ti.textContent,tt:ti.style.top,a:ar.textContent,pw:pr.style.width,pi:im?im.src:'',ab:art.style.backgroundImage,ah:art.classList.contains('has'),src:src.innerHTML};}
-function restore(){if(!snap)return;ti.textContent=snap.t;ti.style.top=snap.tt;ar.textContent=snap.a;pr.style.width=snap.pw;var im=pi.querySelector('img');if(im&&snap.pi)im.src=snap.pi;art.style.backgroundImage=snap.ab;art.classList.toggle('has',snap.ah);src.innerHTML=snap.src;snap=null;card.classList.remove('xsrc');}
-function activate(k){if(active===k)return;if(!active)save();active=k;window.__vidActive=(k==='video');card.classList.add('xsrc');src.innerHTML=k==='video'?VID_ICO:RAD_ICO;lastArt='';}
+function restore(){if(!snap)return;ti.textContent=snap.t;ti.style.top=snap.tt;ar.textContent=snap.a;pr.style.width=snap.pw;var im=pi.querySelector('img');if(im&&snap.pi)im.src=snap.pi;art.style.backgroundImage=snap.ab;art.style.backgroundSize=art.style.backgroundRepeat=art.style.backgroundPosition='';art.classList.toggle('has',snap.ah);src.innerHTML=snap.src;snap=null;card.classList.remove('xsrc');}
+function activate(k){if(active===k)return;if(!active)save();active=k;window.__vidActive=(k==='video');card.classList.add('xsrc');src.innerHTML=k==='video'?VID_ICO:k==='bt'?BT_ICO:RAD_ICO;lastArt='';}
 function deactivate(){if(!active)return;active=null;window.__vidActive=false;restore();}
 function setPlayIcon(pl){var im=pi.querySelector('img');if(im&&ICON.mPause){var w=u(pl?ICON.mPause:ICON.mPlay);if(im.src!==w)im.src=w;}}
-function setArt(url){if(url===lastArt)return;lastArt=url;if(url){art.style.backgroundImage="url('"+url+"')";art.classList.add('has');}else{art.style.backgroundImage='';art.classList.remove('has');}}
-function render(){var y=Y(),s=-9;try{if(y&&y.getPlayerState)s=y.getPlayerState();}catch(e){}
+function setArtGrad(n){var k='g:'+n;if(k===lastArt)return;lastArt=k;art.style.backgroundImage='var(--rph),'+(window.__rGrad?window.__rGrad(n):'linear-gradient(#3a3e45,#3a3e45)');art.style.backgroundSize='44% auto,cover';art.style.backgroundRepeat='no-repeat';art.style.backgroundPosition='center';art.classList.add('has');}
+function setArt(url){if(url===lastArt)return;lastArt=url;art.style.backgroundSize=art.style.backgroundRepeat=art.style.backgroundPosition='';if(url){art.style.backgroundImage="url('"+url+"')";art.classList.add('has');}else{art.style.backgroundImage='';art.classList.remove('has');}}
+function render(){var B=window.__bt&&window.__bt.st();
+  if(B){if(B.play&&!btWas&&B.on)activate('bt');btWas=B.play;
+    if(active==='bt'){if(!B.on){deactivate();}else{ti.textContent=B.t[0];ti.style.top='';ar.textContent=B.t[1];setArt('');pr.style.width=(557*B.pos/100).toFixed(1)+'px';setPlayIcon(B.play);return;}}}
+  var y=Y(),s=-9;try{if(y&&y.getPlayerState)s=y.getPlayerState();}catch(e){}
   if(s===1&&active!=='video')activate('video');
   if(active==='video'&&y){var d={},c=0,du=0;try{d=y.getVideoData()||{};c=y.getCurrentTime()||0;du=y.getDuration()||0;}catch(e){}
     ti.textContent=d.title||'';ti.style.top='';ar.textContent=d.author||'';setArt(d.video_id?'https://i.ytimg.com/vi/'+d.video_id+'/mqdefault.jpg':'');
     pr.style.width=(du?557*Math.min(1,c/du):0)+'px';setPlayIcon(s===1);}
   else if(active==='radio'&&R()){var st=R().cur(),a=R().audio;if(!st)return;
     ti.textContent=(st.name||'').trim();ti.style.top='';ar.textContent=(st.tags||'').split(',').filter(Boolean).slice(0,3).join(' · ')||st.country||'Radio';
-    setArt(st.favicon||'');pr.style.width=a.paused?'0px':'557px';setPlayIcon(!a.paused);}}
+    if(st.favicon)setArt(st.favicon);else setArtGrad(st.name);pr.style.width=a.paused?'0px':'557px';setPlayIcon(!a.paused);}}
 setInterval(render,400);
 /* 미디어 재생 감지: 라디오면 라디오 표시, USB 음악 등 다른 소리면 원래 카드로 */
 var op=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){var r=R();
@@ -3539,7 +3703,8 @@ var op=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(
 /* 카드 버튼이 현재 소스를 조작 */
 card.addEventListener('pointerdown',function(e){if(!active)return;var t=e.target.closest('[data-tap]');if(!t)return;var n=t.getAttribute('data-tap');
   e.stopPropagation();e.preventDefault();
-  try{if(active==='video'){var y=Y();if(!y)return;
+  try{if(active==='bt'){var m={mediaPlay:'btPlayB',mediaNext:'btNext',mediaPrev:'btPrev'}[n];if(m)document.getElementById(m).click();else if(window.Screens)window.Screens.openApp('btmusic');}
+    else if(active==='video'){var y=Y();if(!y)return;
       if(n==='mediaPlay'){y.getPlayerState()===1?y.pauseVideo():y.playVideo();}else if(n==='mediaNext')y.nextVideo();
       else if(n==='mediaPrev'){if((y.getCurrentTime()||0)>3)y.seekTo(0,true);else y.previousVideo();}
       else if(window.Screens)window.Screens.openApp('video');}
@@ -3570,7 +3735,7 @@ function phones(){var L=(window.NeoBT&&window.NeoBT.list&&window.NeoBT.list())||
 window.__phoneSync=function(){if(window.__phMenu)window.__phMenu();var d=dev(),name=d?d.name:null;if(name===lastName)return;var was=lastName;lastName=name;
   ph.classList.toggle('nodev',!d);if(tn)tn.nodeValue=d?d.name:'Phone';
   clearTimeout(syncT);ph.classList.remove('sync');
-  if(d){ph.classList.add('sync');syncT=setTimeout(function(){ph.classList.remove('sync');},1300);}
+  if(d){ph.classList.add('sync');syncT=setTimeout(function(){ph.classList.remove('sync');},2600);}
   if(window.NeoDisplay)window.NeoDisplay.send('phoneDevice',name||'none');if(window.__phMenu)window.__phMenu();};
 window.__phoneSync();
 })();</script>
@@ -3649,5 +3814,432 @@ setInterval(function(){['tbRoad','ctRoad','ntDest'].forEach(function(id){var el=
 <style id="navLabelLayer">#nav .leaflet-lbl-pane img{filter:brightness(1.15)}</style>
 <style id="navPoiTone">.pkMk b{display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:6px;background:#a8d4fa;border:1.5px solid rgba(255,255,255,.75);box-sizing:border-box;color:#1d4f86;font:700 15px Pretendard,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.3);opacity:.92;transform:rotate(calc(-1 * var(--hur,0deg)))}</style>
 <style id="navBtnBlur">#btnCurrent,#btnCompass{backdrop-filter:blur(100px)!important;-webkit-backdrop-filter:blur(100px)!important}</style>
+<style id="car3dMod">#car3d{left:0;top:100px;width:605px;height:600px;pointer-events:none}body.c3d:not(.c2d) #car,body.c3d:not(.c2d) #drvAnim,body.c3d:not(.c2d) #drvCar,body.c3d:not(.c2d) #drvLight,body.c3d:not(.c2d) #carLight,body.c3d:not(.c2d) #doorV,body.c3d:not(.c2d) #doorLight{visibility:hidden!important}body.c2d #car3d{display:none!important}</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script><script type="module">/* ===== 클러스터 3D 차량 (car3d.glb, three.js) v3 =====
+   카메라: 50mm 렌즈 화각(세로 27°) · 부드러운 전체 조명
+   정차(P): 앞쪽 3/4 뷰(드래그로 돌려보기) · D: 뒤에서 보는 주행 뷰 · 문/트렁크: 정차 뷰에서 열림·닫힘
+   조명/창문/사이드미러: 모델 애니메이션 (Low 3·7·8·10 / High 7·8·9·10 / Tail 4)
+   WebGL 또는 모델 로드 실패 시 기존 PNG 차량 그대로 사용 */
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const $=id=>document.getElementById(id);
+const cl=$('cluster');
+const W=605,H=1080;                       /* 캔버스: 화면 세로 전체 1080 (클러스터 좌표 y -75.74 ~ 1004.26) */
+const FOV=27;                             /* 50mm (35mm 판, 세로 24mm) 화각 */
+const VIEWS={                             /* az: 차량 앞(+z) 기준 카메라 방위(°) · el: 고도 · d: 거리 · sx,sy: 차량 중심이 놓일 캔버스 위치 */
+  park:{az:33,el:23,d:12.6,fov:FOV,sx:326,sy:466,ty:.62},
+  drive:{az:180,el:17,d:22.9,fov:FOV,sx:302,sy:581,ty:.75}
+};
+window.CAR3D_VIEWS=VIEWS;
+
+const cv=document.createElement('canvas');cv.id='car3d';cv.className='abs lv-idle';
+cl.insertBefore(cv,$('speed'));
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true,powerPreference:'high-performance'});}catch(e){console.warn('car3d: WebGL unavailable',e);cv.remove();throw e;}
+renderer.setPixelRatio(window.CAR3D_DPR||Math.min(1.5,(window.devicePixelRatio||1)*1.25));
+renderer.setSize(W,H,false);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.18;
+const scene=new THREE.Scene();
+scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),0.04).texture;
+/* 부드러운 조명: 위·아래 반구광 + 앞/뒤/좌/우에서 약하게 고르게 (한쪽으로 그림자 지지 않게) */
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,1.1));
+[[0,6,8],[0,6,-8],[8,5,0],[-8,5,0]].forEach(p=>{const l=new THREE.DirectionalLight(0xffffff,.45);l.position.set(p[0],p[1],p[2]);scene.add(l);});
+const cam=new THREE.PerspectiveCamera(FOV,W/H,.1,200);
+const clock=new THREE.Clock();
+let mixer=null,model=null,actions={},dirtyUntil=0;
+const cur=Object.assign({},VIEWS.park);let tw=null;
+
+function place(v){
+  const t=new THREE.Vector3(0,v.ty,0),a=v.az*Math.PI/180,e=v.el*Math.PI/180;
+  cam.fov=2*Math.atan(Math.tan(v.fov*Math.PI/360)*H/600)*180/Math.PI;   /* 50mm 원근 그대로, 세로 1080 영역만큼 화각 확장 */
+  cam.position.set(t.x+v.d*Math.cos(e)*Math.sin(a),t.y+v.d*Math.sin(e),t.z+v.d*Math.cos(e)*Math.cos(a));
+  cam.lookAt(t);cam.setViewOffset(W,H,-(v.sx-W/2),-(v.sy-H/2),W,H);cam.updateProjectionMatrix();}
+function lerpAng(a,b,t){let d=((b-a+540)%360)-180;return a+d*t;}
+/*smooth3d*/ let sTg=null;
+function ease(t){return t*t*t*(t*(t*6-15)+10);}  /* 시작·끝 가속도 0 (smootherstep) */
+function goView(name,ms){const to=VIEWS[name];if(!to)return;sTg=null;const from=Object.assign({},cur);ms=(ms||1100)*1.45;tw={from,to,t0:performance.now(),ms:ms};wake(ms+200);}
+let raf=0;
+function wake(ms){dirtyUntil=Math.max(dirtyUntil,performance.now()+(ms||400));if(!raf)raf=requestAnimationFrame(loop);}
+function loop(){raf=0;const now=performance.now(),dt=clock.getDelta();
+  if(tw){let k=Math.min(1,(now-tw.t0)/tw.ms),e=ease(k);
+    for(const p of ['el','d','fov','sx','sy','ty'])cur[p]=tw.from[p]+(tw.to[p]-tw.from[p])*e;
+    cur.az=lerpAng(tw.from.az,tw.to.az,e);if(k>=1)tw=null;}
+  if(sTg&&!tw){const st=Math.min(.1,dt),kk=1-Math.exp(-st/0.09);   /* 드래그: 손가락을 부드럽게 따라가고, 놓으면 관성으로 천천히 멈춤 */
+    if(!spin&&sTg.coast){sTg.az+=sTg.v*st;sTg.v*=Math.exp(-st/0.35);}
+    cur.az+=(sTg.az-cur.az)*kk;cur.el+=(sTg.el-cur.el)*kk;
+    if(spin||Math.abs(sTg.az-cur.az)>.02||Math.abs(sTg.el-cur.el)>.02||Math.abs(sTg.v)>1)dirtyUntil=Math.max(dirtyUntil,now+80);else sTg=null;}
+  place(cur);
+  if(flares.length){const f=Math.max(0,Math.min(1,Math.cos(cur.az*Math.PI/180)*1.6));flares.forEach(x=>x.material.opacity=.9*f);}   /* 램프 번짐은 앞에서 볼 때만 */
+  if(mixer){mixer.update(dt);if(wheelSpin)dirtyUntil=Math.max(dirtyUntil,now+100);}
+  renderer.render(scene,cam);
+  if(now<dirtyUntil||tw||running())raf=requestAnimationFrame(loop);else clock.getDelta();}
+function running(){for(const k in actions){const a=actions[k];if(a.isRunning()&&a.loop!==THREE.LoopRepeat&&!(a.paused))return true;}return false;}
+
+/* ---- 1회성 동작(문·트렁크·창문·미러): open 애니메이션을 정방향(열림)·역방향(닫힘)으로 재생 ---- */
+function play(name,on){const a=actions[name];if(!a)return;const d=a.getClip().duration;
+  a.setLoop(THREE.LoopOnce,1);a.clampWhenFinished=true;a.enabled=true;
+  if(on){if(!a.isScheduled())a.reset();a.timeScale=1;a.paused=false;a.play();}
+  else{if(!a.isScheduled())return;a.timeScale=-1;a.paused=false;if(a.time<=0)a.time=d;a.play();}
+  wake(1500);}
+/* ---- 켜짐/꺼짐 동작(조명): 애니메이션 끝 상태로 고정 = 켜짐, 정지 = 꺼짐(모델 기본값 scale 0) ---- */
+function hold(name,on){const a=actions[name];if(!a)return;
+  if(on){a.setLoop(THREE.LoopOnce,1);a.clampWhenFinished=true;a.enabled=true;if(!a.isScheduled()){a.reset();a.play();}a.time=a.getClip().duration;a.paused=true;}
+  else a.stop();
+  wake(300);}
+
+const DOOR_CLIPS={
+  fl:['door_front_left_open'],fr:['door_front_right_open'],rl:['door_rear_left_open'],rr:['door_rear_right_open'],
+  trunk:['tunrk_open','trunk_stick_top_left_open','trunk_stick_top_right_open','trunk_stick_btom_left_open','trunk_stick_btom_right_open']
+};
+const WINDOW_CLIPS={fl:'window_front_left_open',fr:'window_front_right_open',rl:'window_rear_left_open',rr:'window_rear_right_open'};
+const MIRROR_CLIPS=['side_mirror_left_open','side_mirro_right_open'];   /* 모델 기본 = 펼침, open 애니메이션 = 접힘 */
+const LIGHT_CLIPS={
+  low:['Dark_Headlight_LR_on','body_Headlight_Beam_glow','body_Headlight_Beam_side','body_Headlight_LR'],      /* 3,7,8,10 */
+  high:['Dark_Headlight_LR_on','body_Headlight_Beam_glow','body_Headlight_Beam_side','body_Headlight_Beam_top','body_Headlight_LR'],  /* 3,7,8,9,10 */
+  tail:['Dark_Taillight_on']                                                                                   /* 4 */
+};
+const open={fl:0,fr:0,rl:0,rr:0,trunk:0};
+let gearD=false,doorTimer=0,hl=0,tail=0,mirror=0;const win={fl:0,fr:0,rl:0,rr:0};
+function anyOpen(){return Object.keys(open).some(k=>open[k]);}
+/* 문 열림: 정차 뷰에서 동작 (D 상태여도 정차 뷰로 이동) → 모두 닫히면 원래 뷰로 */
+function door(k,on){on=on?1:0;if(open[k]===on)return;open[k]=on;(DOOR_CLIPS[k]||[]).forEach(n=>play(n,on));
+  clearTimeout(doorTimer);
+  if(on){if(gearD)goView('park',900);}
+  else if(!anyOpen()&&gearD)doorTimer=setTimeout(()=>{if(!anyOpen()&&gearD)goView('drive',900);},1100);}
+function gear(d){gearD=!!d;if(anyOpen())return;goView(gearD?'drive':'park',1200/1.45);}/*gearSpd*/
+function headlight(v){v=+v||0;if(v===hl)return;hl=v;
+  const on=new Set(v===2?LIGHT_CLIPS.high:v===1?LIGHT_CLIPS.low:[]);
+  [...new Set(LIGHT_CLIPS.low.concat(LIGHT_CLIPS.high))].forEach(n=>hold(n,on.has(n)));
+  lampLook();}
+/* 실제 조명처럼: 빛 기둥은 가산 합성 + 낮은 불투명도로 부드럽게, 바닥 빛은 은은하게, 램프에는 번짐(글로우) — Low/High 밝기 차이 */
+const LOOK={pool:[0,0],side:[0,0],top:[0,0],glow:[0,0],flare:[.75,1.1]};
+let flares=[];
+function lampLook(){if(!model)return;const k=hl===2?1:0;
+  model.traverse(o=>{if(!o.isMesh||!o.material)return;const n=o.material.name,m=o.material;let op=null;
+    if(n==='Dark_Headlight_LR_on_0')op=LOOK.pool[k];else if(n==='Headlight_Beam_0')op=(o.parent&&/top/i.test(o.parent.name)?LOOK.top:LOOK.side)[k];else if(n==='Headlight_Beam_1')op=LOOK.glow[k];
+    if(op===null)return;o.visible=op>0;m.transparent=true;m.depthWrite=false;m.blending=THREE.AdditiveBlending;m.opacity=op;m.color&&m.color.set(0xfff4e2);m.needsUpdate=true;});
+  poolLook();wake(300);}
+/* 실제 조명처럼: 두 전조등에서 나가는 빛을 계산해 바닥에 비춤 (원뿔 감쇠 + 거리 감쇠 + 바닥 입사각) — Low는 가깝고 넓게, High는 멀리 */
+let pool=null;
+function makeLightPool(){
+  const u={uOn:{value:0},uInt:{value:1},uCos:{value:new THREE.Vector2(.9,.97)},uDir:{value:new THREE.Vector3(0,-.12,1).normalize()},
+    uL1:{value:new THREE.Vector3(.72,.76,2.3)},uL2:{value:new THREE.Vector3(-.72,.76,2.3)},uCol:{value:new THREE.Color(0xeef3ff)},uRange:{value:16}};
+  const m=new THREE.ShaderMaterial({uniforms:u,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    vertexShader:'varying vec3 vP;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+    fragmentShader:'uniform float uOn,uInt,uRange;uniform vec2 uCos;uniform vec3 uDir,uL1,uL2,uCol;varying vec3 vP;'+
+      'float lamp(vec3 L){vec3 v=vP-L;float d=length(v);vec3 n=v/d;float c=dot(n,uDir);float s=smoothstep(uCos.x,uCos.y,c);'+
+      'float inc=clamp(-n.y,0.,1.);float att=1./(1.+.05*d*d);float far=1.-smoothstep(uRange*.35,uRange,d);return s*inc*att*far;}'+
+      'void main(){float a=(lamp(uL1)+lamp(uL2))*uInt*uOn;a=1.-exp(-a*1.6);gl_FragColor=vec4(uCol*a,a*.85);}'});
+  pool=new THREE.Mesh(new THREE.PlaneGeometry(40,40),m);pool.rotation.x=-Math.PI/2;pool.position.set(0,.035,12);pool.renderOrder=5;pool.frustumCulled=false;scene.add(pool);makeBeams();}
+/*beamAir*/ /* 공기 중 빛줄기: 두 전조등에서 앞으로 퍼지는 원뿔 — 가장자리·끝으로 갈수록 부드럽게 사라짐 (가산 합성) */
+let beams=[];
+function makeBeams(){const g=new THREE.ConeGeometry(1,1,48,1,true);g.translate(0,-.5,0);
+  [pool.material.uniforms.uL1.value,pool.material.uniforms.uL2.value].forEach(L=>{
+    const m=new THREE.ShaderMaterial({uniforms:{uOn:{value:0},uInt:{value:1},uL:{value:L.clone()},uD:{value:new THREE.Vector3(0,0,1)},uCo:{value:.94},uCi:{value:.995},uLen:{value:6},uCol:{value:new THREE.Color(0xf2f5ff)}},
+      transparent:true,depthWrite:false,side:THREE.FrontSide,blending:THREE.AdditiveBlending,
+      vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+      fragmentShader:'uniform float uOn,uInt,uCo,uCi,uLen;uniform vec3 uL,uD,uCol;varying vec3 vW;'+
+        'void main(){vec3 V=normalize(vW-cameraPosition);float seg=uLen*2.2;vec3 P0=vW;float acc=0.;'+
+        'for(int i=0;i<40;i++){vec3 P=P0+V*seg*((float(i)+.5)/40.);vec3 v=P-uL;float d=max(length(v),.001);float c=dot(v/d,uD);'+
+        'acc+=smoothstep(uCo,uCi,c)/(1.+d*d*.3)*(1.-smoothstep(uLen*.35,uLen,d))*smoothstep(0.,.08,P.y);}'+
+        'acc*=seg/40.;float a=1.-exp(-acc*uInt*uOn);gl_FragColor=vec4(uCol*a,a);}'});
+    const b=new THREE.Mesh(g,m);b.position.copy(L);b.renderOrder=6;b.frustumCulled=false;b.visible=false;scene.add(b);beams.push(b);});}
+function beamLook(){if(!beams.length)return;const hi=hl===2,d=new THREE.Vector3(0,hi?-.1:-.17,1).normalize();
+  const len=hi?8.5:5.5,out=(hi?15:20)*Math.PI/180,inn=(hi?3:5)*Math.PI/180,r=Math.tan(out+.05)*len;
+  beams.forEach(b=>{const u=b.material.uniforms;u.uOn.value=hl>0?1:0;u.uInt.value=hi?3.2:2.6;u.uD.value.copy(d);u.uCo.value=Math.cos(out);u.uCi.value=Math.cos(inn);u.uLen.value=len;
+    b.visible=false;/*beamOff*/b.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),d);b.scale.set(r,len,r);});}
+function poolLook(){if(!pool)return;const u=pool.material.uniforms,hi=hl===2;
+  u.uOn.value=hl>0?1:0;u.uInt.value=hi?2.1:1.8;u.uRange.value=hi?6.5:4.2;
+  u.uDir.value.set(0,hi?-.36:-.5,1).normalize();u.uCos.value.set(hi?.8:.72,hi?.97:.95);beamLook();}
+function makeFlares(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.18,'rgba(255,248,232,.85)');g.addColorStop(.45,'rgba(255,240,215,.22)');g.addColorStop(1,'rgba(255,240,215,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  [-0.74,0.74].forEach(px=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.9}));
+    sp.position.set(px,0.79,2.36);sp.visible=false;sp.renderOrder=10;scene.add(sp);flares.push(sp);});}
+let tailShown=0;
+function tailApply(on){on=on?1:0;if(on===tailShown)return;tailShown=on;LIGHT_CLIPS.tail.forEach(n=>hold(n,on));}
+function hazardOn(){const l=$('turnL'),r=$('turnR');return !!(l&&r&&l.classList.contains('blink')&&r.classList.contains('blink'));}
+function taillight(on){tail=on?1:0;if(!hazardOn())tailApply(tail);}
+/* 비상등: 클러스터 비상등 깜빡임(0.8s)과 같은 박자로 후미등 점멸 */
+setInterval(()=>{if(!mixer)return;if(hazardOn()){const t=$('turnL');tailApply(t&&parseFloat(getComputedStyle(t).opacity)>.5);}else tailApply(tail);},50);
+function windows(k,on){if(typeof k!=='string'){on=k;Object.keys(win).forEach(x=>windows(x,on));return;}on=on?1:0;if(!(k in win)||win[k]===on)return;win[k]=on;play(WINDOW_CLIPS[k],on);}
+function mirrors(fold){fold=fold?1:0;if(fold===mirror)return;mirror=fold;MIRROR_CLIPS.forEach(n=>play(n,fold));}
+
+/* ---- 주행 중 바퀴 회전 (wheel speed normal 애니메이션, 속도에 비례) ---- */
+const WHEELS=['wheel_back_roll_1','wheel_front_left_roll_1','wheel_front_right_roll_0_2'];
+let wheelSpin=false;
+setInterval(()=>{if(!mixer)return;const kmh=parseFloat(($('speed')||{}).textContent)||0,on=kmh>0.5&&gearD;
+  WHEELS.forEach(n=>{const a=actions[n];if(!a)return;if(on){if(!a.isRunning()){a.setLoop(THREE.LoopRepeat,Infinity);a.enabled=true;a.paused=false;a.play();}a.paused=false;a.timeScale=Math.min(3,kmh/40);}else if(a.isRunning())a.paused=true;});
+  wheelSpin=on;if(on)wake(600);},500);
+
+/* ---- P 정차 화면: 드래그로 차량 돌려보기 (좌우 = 회전, 상하 = 내려다보는 각도) ----
+   하부가 보이지 않도록 카메라 고도 6°~65° 로 제한 · 손을 떼고 5초 지나면 초기 각도로 복귀 */
+let spin=null,backT=0;
+function canSpin(){return !!model&&!gearD&&!document.body.classList.contains('c2d');}
+setInterval(()=>document.body.classList.toggle('c3dp',canSpin()),300);
+const hit=document.createElement('div');hit.id='car3dHit';hit.className='abs';cl.insertBefore(hit,$('speed'));  /* 드래그 영역: 차량 주변(클러스터 y 100~700)만 */
+hit.addEventListener('pointerdown',e=>{if(!canSpin())return;e.stopPropagation();e.preventDefault();hit.setPointerCapture(e.pointerId);tw=null;sTg=null;clearTimeout(backT);
+  spin={x:e.clientX,y:e.clientY,az:cur.az,el:cur.el,s:(hit.getBoundingClientRect().width/W)||1};});
+hit.addEventListener('pointermove',e=>{if(!spin)return;const dx=(e.clientX-spin.x)/spin.s,dy=(e.clientY-spin.y)/spin.s;
+  const tN=performance.now(),na=spin.az-dx*0.45,ne=Math.max(6,Math.min(65,spin.el+dy*0.3));if(!sTg)sTg={az:cur.az,el:cur.el,v:0,lt:tN};
+  const dm=Math.max(8,tN-sTg.lt);sTg.v=.6*sTg.v+.4*((na-sTg.az)/dm*1000);sTg.az=na;sTg.el=ne;sTg.lt=tN;sTg.coast=false;wake(400);});
+function spinEnd(){if(!spin)return;spin=null;if(sTg){sTg.coast=true;if(performance.now()-sTg.lt>80)sTg.v=0;sTg.v=Math.max(-360,Math.min(360,sTg.v));wake(400);}clearTimeout(backT);backT=setTimeout(()=>{if(canSpin()&&!spin)goView('park',1400);},3000);}
+hit.addEventListener('pointerup',spinEnd);hit.addEventListener('pointercancel',spinEnd);
+
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(window.CAR3D_URL||'car3d.glb',g=>{
+  model=g.scene;scene.add(model);
+  model.traverse(o=>{if(o.isMesh){
+    if(o.material&&/^(Headlight_Beam|Dark_Headlight)/.test(o.material.name))o.material=o.material.clone();   /* 빛 기둥별 밝기 따로 조절 */
+    if(o.material&&o.material.transparent)o.material.envMapIntensity=.25;   /* 유리 반사 줄임 (기존 이미지처럼 어두운 유리) */
+    o.frustumCulled=false;}});
+  makeLightPool();
+  mixer=new THREE.AnimationMixer(model);
+  g.animations.forEach(c=>{actions[c.name]=mixer.clipAction(c);});
+  mixer.addEventListener('finished',()=>wake(100));
+  place(cur);renderer.render(scene,cam);
+  document.body.classList.add('c3d');
+  /* 모델 로드 전에 바뀐 상태 반영 */
+  const st=window.__car3dState||{};gearD=!!st.d;Object.keys(st.doors||{}).forEach(k=>{if(st.doors[k])door(k,1);});
+  if(st.hl)headlight(st.hl);if(st.tail)taillight(1);Object.keys(st.win||{}).forEach(k=>{if(st.win[k])windows(k,1);});if(st.mirror)mirrors(1);
+  lampLook();
+  Object.assign(cur,VIEWS[gearD&&!anyOpen()?'drive':'park']);
+  wake(300);
+},undefined,e=>{console.warn('car3d: load failed',e);cv.remove();});
+
+window.Car3D={door,gear,headlight,taillight,windows,mirrors,goView,wake,views:VIEWS,
+  state:()=>({hl,tail,win:Object.assign({},win),mirror}),
+  place:()=>{Object.assign(cur,VIEWS[gearD&&!anyOpen()?'drive':'park']);wake(200);}};
+</script>
+<style>#ctrlBar{gap:15px!important;padding:0 24px!important}</style><script id="carViewToggle">(function(){
+/* 데모 바 CAR VIEW: 2D(기존 이미지) / 3D(car3d.glb) 비교 전환 · 키보드 V 로도 전환 · 마지막 선택 기억 */
+var mode='3d';try{mode=localStorage.getItem('neoCarView')||'3d';}catch(e){}
+var bar=document.getElementById('ctrlBar'),g=document.createElement('div');g.className='grp';
+g.innerHTML='<div class="lbl">CAR VIEW</div><div class="row"><div class="dbtn" data-v="2d">2D</div><div class="dbtn" data-v="3d">3D</div></div>';
+var sp=bar&&bar.querySelector('.sp');if(sp){var sep=document.createElement('div');sep.className='sep';bar.insertBefore(sep,sp);bar.insertBefore(g,sp);}
+function apply(){var on=mode==='3d';document.body.classList.toggle('c2d',!on);
+  g.querySelectorAll('[data-v]').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===mode);});
+  if(on&&window.Car3D)window.Car3D.place();}
+function set(m){m=String(m).toLowerCase()==='2d'?'2d':'3d';mode=m;try{localStorage.setItem('neoCarView',m);}catch(e){}apply();}
+g.addEventListener('click',function(e){var b=e.target.closest('[data-v]');if(b)set(b.getAttribute('data-v'));});
+document.addEventListener('keydown',function(e){var t=e.target;if(e.ctrlKey||e.altKey||e.metaKey||(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)))return;
+  if(e.key==='v'||e.key==='V'){set(mode==='3d'?'2d':'3d');e.preventDefault();}});
+window.setCarView=set;apply();
+})();</script>
+<style id="car3dSpin">body.c3dp:not(.c2d) #car3d{pointer-events:auto;cursor:grab;touch-action:none;z-index:3}body.c3dp:not(.c2d) #car3d:active{cursor:grabbing}</style>
+<style id="car3dV2">#ctrlBar{gap:12px!important;padding:0 18px!important}#ctrlBar .dbtn{padding:0 12px!important;font-size:19px!important;min-width:54px!important}#ctrlBar .dbtn.go{min-width:150px!important}#ctrlBar .dmode{min-width:120px!important;font-size:19px!important}#ctrlBar .sep{margin:22px 0!important}</style><script id="car3dBar">(function(){
+/* 데모 바: 3D(Tail · Mirror) + WINDOW(FL FR RL RR, 문처럼 개별) — 3D 차량에 적용 */
+var S=window.__car3dState=window.__car3dState||{doors:{}};S.win=S.win||{};
+var bar=document.getElementById('ctrlBar');if(!bar)return;
+var g=document.createElement('div');g.className='grp';
+g.innerHTML='<div class="lbl">3D</div><div class="row"><div class="dbtn" data-x="mirror">Mirror</div></div>';
+var gw=document.createElement('div');gw.className='grp gwin';
+gw.innerHTML='<div class="lbl">WINDOW</div><div class="row">'+['fl','fr','rl','rr'].map(function(k){return '<div class="dbtn" data-w="'+k+'">'+k.toUpperCase()+'</div>';}).join('')+'</div>';
+var cv=bar.querySelector('[data-v="2d"]'),cg=cv&&cv.closest('.grp'),ref=cg||bar.querySelector('.sp');
+function sep(){var s=document.createElement('div');s.className='sep';return s;}
+bar.insertBefore(gw,ref);bar.insertBefore(sep(),ref);bar.insertBefore(g,ref);bar.insertBefore(sep(),ref);
+function mark(){g.querySelectorAll('[data-x]').forEach(function(b){b.classList.toggle('on',!!S[b.getAttribute('data-x')]);});
+  gw.querySelectorAll('[data-w]').forEach(function(b){b.classList.toggle('on',!!S.win[b.getAttribute('data-w')]);});}
+function setX(k,v){S[k]=v?1:0;var C=window.Car3D;if(C){if(k==='tail')C.taillight(S.tail);else if(k==='mirror')C.mirrors(S.mirror);}mark();}
+function setW(k,v){if(k==='all'){['fl','fr','rl','rr'].forEach(function(x){setW(x,v);});return;}S.win[k]=v?1:0;if(window.Car3D)Car3D.windows(k,S.win[k]);mark();}
+g.addEventListener('click',function(e){var b=e.target.closest('[data-x]');if(b){var k=b.getAttribute('data-x');setX(k,!S[k]);}});
+gw.addEventListener('click',function(e){var b=e.target.closest('[data-w]');if(b){var k=b.getAttribute('data-w');setW(k,!S.win[k]);}});
+window.setCar3D=setX;window.setCarWindow=setW;mark();
+})();
+</script>
+<style id="car3dV3">#car3d{top:-75.74px!important;height:1080px!important}#car3dHit{left:0;top:100px;width:605px;height:600px;pointer-events:none}body.c3dp:not(.c2d) #car3dHit{pointer-events:auto;cursor:grab;touch-action:none;z-index:3}body.c3dp:not(.c2d) #car3dHit:active{cursor:grabbing}body.c3dp:not(.c2d) #car3d{pointer-events:none!important}body.c2d #car3dHit{display:none}#ctrlBar .gwin .dbtn{min-width:46px!important;padding:0 8px!important}</style>
+<style id="batch1015">body.camR #camScr{display:block}body.camR #camTop{display:none!important}body.camR #nav{visibility:hidden}.rlg.ph{background-image:var(--rph),var(--rg,linear-gradient(#3a3e45,#3a3e45))!important;background-size:36px 36px,cover!important;background-position:center!important;background-repeat:no-repeat!important}#rNow .rlg.ph{background-size:43px 43px,cover!important}.rlg.ph .eq{background:rgba(0,0,0,.35)!important}#climArt{z-index:0}#climate .cb,#climate #fanBox{z-index:5}#climate .air{pointer-events:none}#climate.pwoff #fanBox{opacity:.45}#ctrlBar{gap:7px!important;padding:0 12px!important}#ctrlBar .dbtn{padding:0 9px!important;font-size:17px!important;min-width:44px!important;gap:6px!important}#ctrlBar .sep{margin:22px 1px!important}#ctrlBar .dmode{min-width:88px!important;font-size:17px!important;padding:0 10px!important}#ctrlBar .gadas .row{align-items:center}#ctrlBar .dbtn.hl .hls{font-size:12px!important;padding:2px 6px!important}#ctrlBar .dbtn.go{min-width:120px!important}#ctrlBar .gadas .dbtn.sm{min-width:46px!important;padding:0 6px!important;font-size:26px!important}#ctrlBar .gadas .spd{height:60px;min-width:64px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;color:#cfd3da}#ctrlBar .gadas .spd small{font-size:13px;color:#7d8490;margin-left:3px}</style><script>(function(){
+/* ---- R 기어: 우측 스크린만 카메라 뷰 (클러스터는 그대로) → R 해제 시 이전 화면으로 ---- */
+var prev=null,on=false;
+window.__rearCam=function(r){var S=window.Screens;if(!S)return;
+  if(r&&!on){on=true;prev=S.current();S.show('camera');}
+  else if(!r&&on){on=false;document.body.classList.remove('camR');if(S.current()==='camera')S.show(prev&&prev!=='camera'?prev:'home');}};
+setInterval(function(){if(on&&window.Screens&&window.Screens.current()!=='camera'){on=false;document.body.classList.remove('camR');}},300);
+
+/* ---- 데모 바: CAR VIEW 그룹 삭제(3D 고정) + ADAS 그룹 추가 ---- */
+var bar=document.getElementById('ctrlBar');if(!bar)return;
+if(window.setCarView)window.setCarView('3d');
+var cv=bar.querySelector('[data-v="2d"]'),cg=cv&&cv.closest('.grp');
+if(cg){var ps=cg.previousElementSibling;if(ps&&ps.classList.contains('sep'))ps.remove();cg.remove();}
+document.addEventListener('keydown',function(e){if(e.key==='v'||e.key==='V'){var t=e.target;if(!(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)))e.stopImmediatePropagation();}},true);
+/* Mirror 버튼을 WINDOW 그룹으로 합치고 3D 그룹 삭제 (바 폭 확보) */
+var mb=bar.querySelector('[data-x="mirror"]'),g3=mb&&mb.closest('.grp'),gwr=bar.querySelector('.gwin .row');
+if(mb&&g3&&gwr){var nx=g3.nextElementSibling;if(nx&&nx.classList.contains('sep'))nx.remove();g3.remove();
+  var nb=document.createElement('div');nb.className='dbtn';nb.setAttribute('data-m','mirror');nb.textContent='Mirror';gwr.appendChild(nb);
+  var gl=bar.querySelector('.gwin .lbl');if(gl)gl.textContent='WINDOW · MIRROR';
+  nb.addEventListener('click',function(){var S=window.__car3dState||{};var v=S.mirror?0:1;if(window.setCar3D)window.setCar3D('mirror',v);nb.classList.toggle('on',!!v);});}
+var A={acc:0,spd:100,lka:0,ldw:0,gap:2};window.__cruise=function(){return A.acc?{spd:A.spd,gap:A.gap}:null;};window.__adasState=function(){return A;};
+var g=document.createElement('div');g.className='grp gadas';
+g.innerHTML='<div class="lbl">ADAS</div><div class="row"><div class="dbtn" data-a="acc">Cruise</div><div class="dbtn sm" data-a="dn">−</div>'+
+  '<div class="spd" id="adasSpd"></div><div class="dbtn sm" data-a="up">+</div><div class="dbtn sm" data-a="gdn">◀</div><div class="gapi" id="adasGap"></div><div class="dbtn sm" data-a="gup">▶</div><div class="dbtn" data-a="lka">LKA</div><div class="dbtn" data-a="ldw">LDW</div></div>';
+var ref=bar.querySelector('.sp');
+var sep=document.createElement('div');sep.className='sep';bar.insertBefore(sep,ref);bar.insertBefore(g,ref);
+function D(){return window.NeoDisplay;}
+function apply(){var d=D();if(!d)return;d.handle('acc',A.acc?'on':'off');d.handle('accSpeed',A.spd);d.handle('lka',A.lka?'on':'off');d.handle('ldw',A.ldw?'on':'off');}
+function mark(){g.querySelectorAll('[data-a]').forEach(function(b){var k=b.getAttribute('data-a');if(k in A&&k!=='spd')b.classList.toggle('on',!!A[k]);});
+  document.getElementById('adasSpd').innerHTML=A.spd;var gi=document.getElementById('adasGap');gi.innerHTML=[1,2,3].map(function(i){return '<b'+(i<=A.gap?' class="f"':'')+'></b>';}).join('');gi.classList.toggle('dis',!A.acc);g.querySelector('[data-a="gdn"]').classList.toggle('dis',!A.acc||A.gap<=1);g.querySelector('[data-a="gup"]').classList.toggle('dis',!A.acc||A.gap>=3);g.querySelector('[data-a="dn"]').classList.toggle('dis',!A.acc);g.querySelector('[data-a="up"]').classList.toggle('dis',!A.acc);}
+g.addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b)return;var k=b.getAttribute('data-a'),d=D();
+  if(k==='gdn'||k==='gup'){if(!A.acc)return;var ng=Math.max(1,Math.min(3,A.gap+(k==='gup'?1:-1)));if(ng===A.gap)return;A.gap=ng;if(d)d.send('accGap',A.gap);if(window.__gapPop)window.__gapPop(A.gap);mark();return;}
+  if(k==='up'||k==='dn'){if(!A.acc)return;A.spd=Math.max(30,Math.min(180,A.spd+(k==='up'?5:-5)));if(d){d.handle('accSpeed',A.spd);d.send('accSpeed',A.spd);}}
+  else{A[k]=A[k]?0:1;if(d){d.handle(k,A[k]?'on':'off');d.send(k,A[k]?'on':'off');}}
+  mark();});
+window.setAdas=function(k,v){if(k==='spd'||k==='accSpeed'){A.spd=Math.max(30,Math.min(180,+v||A.spd));}else if(k in A)A[k]=v?1:0;apply();mark();};
+mark();setTimeout(function(){var d=D();if(d)d.handle('accSpeed',A.spd);},500);
+[].slice.call(bar.children).forEach(function(c){var p=c.previousElementSibling;if(c.classList.contains('sep')&&p&&(p.classList.contains('sep')||p.classList.contains('sp')))c.remove();});
+})();</script>
+<style id="radio1015b">:root{--rph:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2036%2036%22%3E%3Cpath%20d%3D%22M20.4326%204.52329C21.072%204.13993%2021.9017%204.34795%2022.2852%204.98715C22.6686%205.62659%2022.4607%206.45627%2021.8213%206.83969L15.3311%2010.7313H25.1445C28.5385%2010.7313%2030.2356%2010.7317%2031.29%2011.786C32.3444%2012.8404%2032.3447%2014.5376%2032.3447%2017.9315V24.4686C32.3447%2027.8626%2032.3443%2029.5597%2031.29%2030.6141C30.2356%2031.6685%2028.5386%2031.6688%2025.1445%2031.6688H10.8545C7.46038%2031.6688%205.7634%2031.6685%204.70898%2030.6141C3.65472%2029.5597%203.6543%2027.8626%203.6543%2024.4686V17.9315C3.6543%2014.5376%203.6546%2012.8404%204.70898%2011.786C5.67964%2010.8155%207.19494%2010.7384%2010.0771%2010.7323L20.4326%204.52329ZM10.085%2018.95C8.84242%2018.95%207.83512%2019.9575%207.83496%2021.2C7.83501%2022.4426%208.84235%2023.45%2010.085%2023.45C11.3274%2023.4498%2012.3349%2022.4425%2012.335%2021.2C12.3348%2019.9577%2011.3273%2018.9503%2010.085%2018.95Z%22%20fill%3D%22%23ffffff%22/%3E%3C/svg%3E")}#scrRadio .rbar{right:70px!important}#scrRadio .rdd{right:70px!important;width:420px}#scrRadio .rdd div{font-size:25px}#scrRadio .rdd .on{font-size:26px}#scrRadio .rs b>span,#rName>span{display:inline-block;white-space:nowrap}#scrRadio .rs b{text-overflow:clip!important}#scrRadio .rs b.mq,#rName.mq{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent)}.mqi{display:inline-flex;white-space:nowrap;animation:rMqA linear infinite;will-change:transform}@keyframes rMqA{0%,18%{transform:translateX(0)}100%{transform:translateX(var(--d))}}#scrRadio .rs small{white-space:normal!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:23px!important;margin-top:3px!important}#rNow .rlg{top:36px!important}#rNow .info{top:81px!important;transform:translateY(-50%);max-width:640px!important}#rNow .ctl{top:41px!important}#rNow .ti{text-overflow:clip!important;max-width:560px}#rNow .rlg.ph{background-image:var(--rph),linear-gradient(90deg,#4b7bbc,#79b2ff)!important;background-size:43px 43px,cover!important}#rNow .rlg.ph .eq{background:rgba(0,0,0,.25)!important}</style>
+<style id="cruise1015">#ctrlBar{gap:6px!important}#ctrlBar .gadas .spd{min-width:46px!important}#ctrlBar .gwin .lbl{letter-spacing:.06em}#ctrlBar .gapb{gap:8px!important}#ctrlBar .gapb i{display:flex;gap:2px}#ctrlBar .gapb b{width:5px;height:16px;border-radius:1px;background:rgba(255,255,255,.22)}#ctrlBar .gapb b.f{background:#cfd3da}#ctrlBar .gapb.dis{opacity:.4}#accBar{position:absolute;left:262.7px;width:80px;top:338px;height:187px;pointer-events:none;opacity:0;background:linear-gradient(to bottom,rgba(22,201,120,.2),#16C978 78%,#fff);clip-path:polygon(25% 0,75% 0,100% 100%,0 100%);transition:top .7s cubic-bezier(.3,.7,.3,1),height .7s cubic-bezier(.3,.7,.3,1),clip-path .7s cubic-bezier(.3,.7,.3,1),opacity .4s}#accLine{position:absolute;left:302.7px;top:338px;width:40px;height:5px;transform:translate(-50%,-50%);background:#6CE9B2;box-shadow:0 4px 9px #16C978;pointer-events:none;opacity:0;transition:top .7s cubic-bezier(.3,.7,.3,1),width .7s cubic-bezier(.3,.7,.3,1),opacity .4s}body.accOn.drv:not(.doorv):not(.cam) #accBar,body.accOn.drv:not(.doorv):not(.cam) #accLine{opacity:1}#lkaLanes{position:absolute;left:0;top:0;width:605px;height:894px;pointer-events:none;opacity:0;transition:opacity .4s}body.lkaOn.drv:not(.doorv):not(.cam) #lkaLanes{opacity:1}#gapPop{position:absolute;left:22px;top:558px;width:559px;height:83px;box-sizing:border-box;border-radius:8px;background:rgba(44,50,58,.94);-webkit-backdrop-filter:blur(100px);backdrop-filter:blur(100px);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:space-between;padding:0 28px;opacity:0;transition:opacity .25s;z-index:8;pointer-events:none}#gapPop.on{opacity:1}#gapPop img{width:78px;height:64px;flex:none}#gapPop .gs{display:flex;gap:3px}#gapPop .gs b{width:77px;height:8px;border-radius:1px;background:rgba(255,255,255,.18);box-shadow:0 0 5px rgba(0,0,0,.4);transition:background .25s}#gapPop .gs b.f{background:#fff}</style><script>(function(){
+/* ===== 크루즈 차간 거리: 클러스터 초록 영역 길이 + 팝업 (Figma 499:60507) ===== */
+var cl=document.getElementById('cluster');if(!cl)return;
+var ref=document.getElementById('car3d')||document.getElementById('speed');
+var lanes=document.createElementNS('http://www.w3.org/2000/svg','svg');lanes.id='lkaLanes';lanes.setAttribute('viewBox','0 0 605 894');
+lanes.innerHTML='<defs><linearGradient id="lkaG" x1="0" y1="288" x2="0" y2="742" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#16C978" stop-opacity="0"/><stop offset=".25" stop-color="#16C978" stop-opacity=".9"/><stop offset=".8" stop-color="#3BE38F"/><stop offset="1" stop-color="#16C978" stop-opacity="0"/></linearGradient>'+
+  '<filter id="lkaF" x="-50%" y="-10%" width="200%" height="120%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'+
+  '<path d="M249 288L176 742" stroke="url(#lkaG)" stroke-width="7" stroke-linecap="round" filter="url(#lkaF)"/><path d="M355 288L428 742" stroke="url(#lkaG)" stroke-width="7" stroke-linecap="round" filter="url(#lkaF)"/>';
+var bar=document.createElement('div');bar.id='accBar';var line=document.createElement('div');line.id='accLine';
+[lanes,bar,line].forEach(function(e){e.classList.add('abs');cl.insertBefore(e,ref);});
+/* 차간 거리 단계 → 초록 영역 위쪽 끝 위치 (아래 끝 525 고정, 도로 원근에 맞춰 폭 변화) */
+var TOP={1:430,2:361,3:292},B=525;
+function wAt(y){return 40+(80-40)*(y-338)/(B-338);}
+function setGapBar(g){var t=TOP[g]||338,w=wAt(t),ins=((80-w)/2/80*100).toFixed(2);
+  bar.style.top=t+'px';bar.style.height=(B-t)+'px';bar.style.clipPath='polygon('+ins+'% 0,'+(100-ins)+'% 0,100% 100%,0 100%)';
+  line.style.top=t+'px';line.style.width=w.toFixed(1)+'px';}
+/* 팝업 */
+var pop=document.createElement('div');pop.id='gapPop';var CAR='data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2278%22%20height%3D%2264%22%20viewBox%3D%220%200%2078%2064%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20xmlns%3Ac2pa%3D%22http%3A//c2pa.org/manifest%22%3E%3Cmetadata%3E%3Cc2pa%3Amanifest%3EAAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTo4YzFhZjE1Ny0wMzIwLTQyZGEtODQyOS1mMzhjMWM4YTU5ZjEAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaM/4thsOyhi1bMZ1VClIkTMAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDpiOTM0MTM4NS01MzQwLTQyZDYtODdhOC0zZTM5MWM3OWZjOWNscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNobzkfUR1ghPUv1TZkYjC%2BogAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggdwueeX34o6R99faJilcx0GuGRyMH1pJjpxgIiU2gg06kZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaEbDtHXHtaQoZFaREYSCMVMAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRNAAAAAAAAAAAAAAAAAGRoYXNoWCCIvQ53Z%2BdmNFUEWiED4Qz3LJkqbA4mwepWnaJkuBrQwGRuYW1lbmp1bWJmIG1hbmlmZXN0amV4Y2x1c2lvbnOBomVzdGFydBieZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjhjMWFmMTU3LTAzMjAtNDJkYS04NDI5LWYzOGMxYzhhNTlmMS9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOmJjYjFkMTYwLWYwOGQtNDkwNy04NmEzLTFkYzVhMGEwMzMyMXJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCB3C555ffijpH319omKVzHQa4ZHIwfWkmOnGAiJTaCDTqJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFgghQ4qJEmRTD7pqJUkF/%2BwfmFrQVukNY8uf/jW89tb9qeiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFgg1i48BB/n7MexbYOABcvwZKjPdyAELJdf4q/1TpiplaV0Y2xhaW1fZ2VuZXJhdG9yX2luZm%2BjZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj%2BOPEz5o%2BnMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1%2BUCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9%2B1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQOgOvJpzo%2BnOpmo23urNZRdiaFONHvnw8ynSAhynYyCnfvQ1pvkDcjtsgsBdAterOm/5zPpQ9HhygTwM3V16VnY%3D%3C/c2pa%3Amanifest%3E%3C/metadata%3E%3Cpath%20d%3D%22M39.4679%2017.1543C33.2936%2016.8771%2026.8821%2016.687%2021.6241%2020.2197C19.3307%2021.7607%2018.5262%2022.5014%2016.8614%2023.3223C16.2631%2023.6168%2010.9935%2023.4565%209.37805%2025.3428C7.76273%2027.2294%207.83994%2028.9359%207.61828%2031.6748C7.61828%2031.6748%207.61088%2031.7711%207.60656%2031.833C7.29313%2036.3295%207.21249%2041.2142%2012.84%2040.9853C12.84%2040.9853%2013.2878%2040.9633%2013.5802%2040.9853L14.1642%2040.9785C14.7839%2044.2816%2017.7759%2046.7871%2021.3771%2046.7871C25.0371%2046.787%2028.0709%2044.1995%2028.6212%2040.8164C30.9838%2040.8188%2040.5403%2040.8466%2045.298%2040.8555C45.7803%2044.3133%2048.8467%2046.9802%2052.5616%2046.9805C56.2765%2046.9805%2059.3446%2044.314%2059.8273%2040.8564H62.2013C62.5377%2040.859%2064.1095%2040.8154%2064.1095%2040.8154C65.4686%2040.7848%2069.2247%2041.4294%2069.962%2038.042C70.1449%2037.2021%2070.4239%2036.176%2070.4239%2035.166C71.2334%2026.0396%2066.2999%2025.8887%2061.587%2025.3428C57.2333%2024.8384%2056.6507%2024.4132%2055.5011%2024.0869C54.3338%2023.7548%2045.201%2017.4119%2039.4679%2017.1543Z%22%20fill%3D%22%231D1D1D%22%20stroke%3D%22%23F0F0F0%22%20stroke-width%3D%223%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E';
+pop.innerHTML='<img alt="" src="'+CAR+'"><div class="gs"><b></b><b></b><b></b></div><img alt="" src="'+CAR+'">';cl.appendChild(pop);
+var popT=0;
+window.__gapPop=function(g){pop.querySelectorAll('.gs b').forEach(function(b,i){b.classList.toggle('f',i<g);});pop.classList.add('on');clearTimeout(popT);popT=setTimeout(function(){pop.classList.remove('on');},3000);setGapBar(g);};
+var last={};
+setInterval(function(){var A=window.__adasState&&window.__adasState();if(!A)return;
+  document.body.classList.toggle('accOn',!!A.acc);document.body.classList.toggle('lkaOn',!!A.lka);
+  if(A.gap!==last.gap)setGapBar(A.gap);
+   /* 크루즈 켤 때 현재 차간 거리 표시 */
+  last={gap:A.gap,acc:A.acc};},150);
+setGapBar(3);
+/* 바 폭 확보: Hazard 버튼은 아이콘만 */
+var hz=document.querySelector('#ctrlBar [data-c="hz"]');if(hz)hz.innerHTML='<span class="hzi">▲</span>';
+})();</script>
+<style id="nav1015">.dt-rt{flex:0 0 190px!important}.rt-list{display:flex;flex-direction:column;gap:12px;margin-top:20px}.rt-row{height:92px;border-radius:8px;background:rgba(255,255,255,.07);border:2px solid transparent;display:flex;align-items:center;justify-content:space-between;padding:0 22px;cursor:pointer;box-sizing:border-box}.rt-row.on{border-color:#79b2f6;background:rgba(121,178,246,.14)}.rt-row:active{opacity:.75}.rt-row.na{opacity:.4;cursor:default}.rt-row b{display:block;font-size:25px;font-weight:600;color:#fff}.rt-row small{display:block;font-size:19px;color:#b2b2b2;margin-top:4px}.rt-r{text-align:right}.rt-r b{font-size:27px}.rt-r b i{font-style:normal;font-size:19px;font-weight:500;color:#b2b2b2;margin-left:3px}.rt-row.on .rt-l b{color:#79b2f6}</style>
+<style id="routes2">#drvLane{display:none!important}.dt-body.rtm{padding:0!important}.rt-list{display:block!important;margin:0!important;gap:0!important}.rt-row{height:102px!important;border-radius:0!important;background:none!important;border:0!important;padding:0 40px!important;gap:16px;justify-content:flex-start!important}.rt-row+.rt-row{border-top:1px solid rgba(255,255,255,.06)!important}.rt-row.on{background:rgba(255,255,255,.1)!important}.rt-row .rt-ic{display:flex;flex:none}.rt-row .rt-r{white-space:nowrap;flex:none}.rt-row .rt-l{flex:1;min-width:0}.rt-row b{font-size:23px!important}.rt-row small{font-size:20px!important;color:#9aa0a8!important}.rt-row.on .rt-l b{color:#fff!important}.rt-row .rt-r b{font-size:24px!important}</style>
+<style id="navVector">html.navVec #nav .leaflet-tile-pane{filter:none!important}#nav .leaflet-vecPane-pane canvas,#nav .leaflet-vec-pane canvas{image-rendering:auto}</style><script>(function(){
+/* ===== 내비 지도: TomTom 벡터 지도 (MapLibre) — 글자 크기 조절 가능 =====
+   실패(WebGL·스타일·네트워크) 시 기존 이미지 지도 그대로 사용 · navTextScale(1.4) 로 글자 크기 변경 */
+var API=window.__navMapApi;if(!API)return;var key=API.key();if(!key)return;var map=API.map;
+var F=1.4;try{F=parseFloat(localStorage.getItem('neoMapText'))||1.4;}catch(e){}
+var ML='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/',PL='https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js';
+function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+var l=document.createElement('link');l.rel='stylesheet';l.href=ML+'maplibre-gl.css';document.head.appendChild(l);
+var STY=['basic_street-dark-driving','basic_street-dark','basic_street-light-driving'];
+function getStyle(i){if(i>=STY.length)return Promise.reject(new Error('no style'));
+  return fetch('https://api.tomtom.com/maps/orbis/assets/styles/0.*/style?key='+key+'&apiVersion=1&language=en-GB&map='+STY[i]).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(s){s.__name=STY[i];return s;}).catch(function(){return getStyle(i+1);});}
+/* 글자 크기 배율: 숫자 · interpolate/step(줌) 출력값 · 옛 stops 형식 모두 처리 */
+function sc(v,f){if(typeof v==='number')return +(v*f).toFixed(2);
+  if(Array.isArray(v)){var o;if(/^interpolate/.test(v[0])){o=v.slice();for(var i=4;i<o.length;i+=2)o[i]=sc(o[i],f);return o;}
+    if(v[0]==='step'){o=v.slice();o[2]=sc(o[2],f);for(var j=4;j<o.length;j+=2)o[j]=sc(o[j],f);return o;}
+    if(v[0]==='literal')return v;return ['*',f,v];}
+  if(v&&typeof v==='object'&&v.stops){o=JSON.parse(JSON.stringify(v));o.stops.forEach(function(s){s[1]=sc(s[1],f);});return o;}
+  return v;}
+var ORIG={},gm=null;
+/*mapEn*/ /* 지도 글자 영어: 이름 필드를 영어(라틴) 우선으로 */
+var EN=['coalesce',['get','name_en'],['get','name:en'],['get','name_en-GB'],['get','name_en-US'],['get','name_latin'],['get','name:latin'],['get','name']];
+function enX(v){if(typeof v==='string'){return v==='{name}'?EN:v.replace(/\{name\}/g,'{name_en}');}
+  if(Array.isArray(v)){if(v.length===2&&v[0]==='get'&&v[1]==='name')return EN;return v.map(enX);}return v;}
+function applyEn(style){(style.layers||[]).forEach(function(L0){if(L0.type==='symbol'&&L0.layout&&L0.layout['text-field']!=null)L0.layout['text-field']=enX(L0.layout['text-field']);});}
+function applyScale(style){applyEn(style);(style.layers||[]).forEach(function(L0){if(L0.type!=='symbol'||!L0.layout||L0.layout['text-size']==null)return;
+  if(!(L0.id in ORIG))ORIG[L0.id]=L0.layout['text-size'];L0.layout['text-size']=sc(ORIG[L0.id],F);});}
+window.navTextScale=function(f){F=+f||1.4;try{localStorage.setItem('neoMapText',String(F));}catch(e){}
+  if(gm)Object.keys(ORIG).forEach(function(id){try{gm.setLayoutProperty(id,'text-size',sc(ORIG[id],F));}catch(e){}});return F;};
+window.__navVecSc=sc;
+Promise.all([load(ML+'maplibre-gl.js'),getStyle(0)]).then(function(v){return load(PL).then(function(){return v[1];});}).then(function(style){
+  if(!window.maplibregl||!L.maplibreGL)throw new Error('lib');
+  applyScale(style);
+  if(!map.getPane('vecPane')){map.createPane('vecPane');map.getPane('vecPane').style.zIndex=200;map.getPane('vecPane').style.pointerEvents='none';}
+  var gl=L.maplibreGL({style:style,pane:'vecPane',interactive:false,updateInterval:16,attributionControl:false,
+    transformRequest:function(u){if(/api\.tomtom\.com/.test(u)&&!/[?&]key=/.test(u))return {url:u+(u.indexOf('?')<0?'?':'&')+'key='+key};return {url:u};}}).addTo(map);
+  gm=gl.getMaplibreMap();var done=false;
+  gm.on('load',function(){if(done)return;done=true;API.useVector();document.documentElement.classList.add('navVec');if(window.NeoDisplay)window.NeoDisplay.send('navMap','vector:'+style.__name);});
+  gm.on('error',function(e){if(!done)console.warn('navVector',e&&e.error);});
+  window.__navGL=gm;
+}).catch(function(e){console.warn('navVector: raster fallback',e);});
+})();</script>
+<style id="batch1015c">#lka.dis,#ldw.dis{filter:grayscale(1) brightness(.9);opacity:.45}#ctrlBar .gapi{display:flex;gap:3px;align-items:center;height:60px;padding:0 4px}#ctrlBar .gapi b{width:6px;height:18px;border-radius:1px;background:rgba(255,255,255,.22)}#ctrlBar .gapi b.f{background:#cfd3da}#ctrlBar .gapi.dis{opacity:.4}#ctrlBar .gadas .dbtn{padding:0 8px!important}#ctrlBar .gadas .dbtn.sm{min-width:34px!important;font-size:17px!important;padding:0 4px!important}#ctrlBar .gadas .row{gap:5px!important}#ctrlBar .gadas .spd{min-width:44px!important}body.cam #car3d,body.cam #accBar,body.cam #accLine,body.cam #lkaLanes,body.cam #gapPop{visibility:hidden!important}#car,#carLight,#drvCar,#drvAnim,#drvLight,#doorLight,#doorV{visibility:hidden!important}#scrPhone.sync #dial,#scrPhone.sync #callBtn,#scrPhone.sync #bksp,#scrPhone.sync #dialNum,#scrPhone.sync #plWrap{display:none!important}#phSync{left:0!important;right:0!important;width:auto!important;top:430px!important;gap:24px!important;font-size:22px!important;color:#b2b2b2!important}#phSync i{width:44px!important;height:44px!important;border-width:4px!important}#callView{display:none;position:absolute;left:0;right:0;top:0;bottom:0;z-index:3;pointer-events:none}#scrPhone.incall #callView{display:block}#scrPhone.incall .tabs,#scrPhone.incall #plWrap,#scrPhone.incall #dial,#scrPhone.incall #callBtn,#scrPhone.incall #bksp,#scrPhone.incall #dialNum,#scrPhone.incall #phSync,#scrPhone.incall #phMenu{display:none!important}#callView .cv-s{position:absolute;left:0;right:0;top:350px;text-align:center;font-size:24px;font-weight:500;color:#e5e5e5;font-variant-numeric:tabular-nums}#callView .cv-n{position:absolute;left:0;right:0;top:405px;text-align:center;font-size:56px;font-weight:600;color:#e5e5e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 60px}#callView .cv-p{position:absolute;left:0;right:0;top:500px;text-align:center;font-size:32px;font-weight:500;color:#e5e5e5;letter-spacing:.5px}#callView .cv-end{position:absolute;left:50%;top:735px;width:400px;height:84px;margin-left:-200px;border-radius:4px;background:#ef5350;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto}#callView .cv-end:active{opacity:.8}#callView .cv-end svg{width:58px!important;height:36px!important}#navTrip{width:454px!important}#navTrip .nt-top{padding:24px 32px 24px!important}#navTrip .nt-row{justify-content:flex-start!important;gap:16px}#navTrip .nt-row b{font-size:30px!important}#navTrip .nt-row small{font-size:22px!important;color:#b2b2b2!important;margin:0 3px 0 5px!important}#navTrip .nt-dest{margin-top:8px!important;font-size:24px!important;font-weight:500;color:#b2b2b2!important;line-height:36px}#navTrip .nt-bar{height:8px!important;position:relative;overflow:visible!important}#ntMk{position:absolute;top:-8px;width:26px;height:24px;margin-left:-6px;pointer-events:none;transition:left .4s linear;background:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 24'%3E%3Cpath d='M4 3.5Q4 1 6.2 2.3L23 10.6Q25 12 23 13.4L6.2 21.7Q4 23 4 20.5Q8 12 4 3.5Z' fill='%23fff'/%3E%3C/svg%3E") center/contain no-repeat;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}#navTrip .nt-btns{height:97px!important}</style><script>(function(){
+/* ---- 차선 아이콘 (클러스터): LKA 켜짐 > LDW 켜짐 > 둘 다 꺼짐이면 LKA 아이콘을 회색으로 ---- */
+function laneSlot(){var A=window.__adasState&&window.__adasState();if(!A||!document.body.classList.contains('pw-on'))return;
+  var k=document.getElementById('lka'),w=document.getElementById('ldw');if(!k||!w)return;
+  /*laneDep*/ /* LDW(차선) · LKA(핸들) 아이콘은 같은 자리에 겹쳐서 각각 표시: 켜짐 = 원래 색, 꺼짐 = 회색 */
+  k.classList.remove('off');k.classList.toggle('dis',!A.lka);if(!A.lka)k.classList.remove('blink');
+  w.classList.remove('off');w.classList.toggle('dis',!A.ldw);if(!A.ldw)w.classList.remove('blink');}
+var laneL={lka:0,ldw:0,last:'lka'};
+setInterval(laneSlot,250);
+
+/* ---- 전화 걸기 화면 (Figma 684:27922): Calling → 통화 시간, 빨간 종료 버튼 ---- */
+var ph=document.getElementById('scrPhone');if(!ph)return;
+var NUM={Bell:'010-1234-4567',Lilly:'010-2345-6789',Mum:'010-3456-7890',Office:'02-952-8833',Sam:'010-4567-8901',Yuna:'010-5678-9012'};
+var v=document.createElement('div');v.id='callView';
+v.innerHTML='<div class="cv-s" id="cvS">Calling</div><div class="cv-n" id="cvN"></div><div class="cv-p" id="cvP"></div>'+
+  '<div class="cv-end" id="cvEnd"><svg viewBox="4 10 32 20"><path d="M20 15c-4.7 0-9.1 1.2-12.6 3.4-1 .6-1.4 1.8-1 2.9l1 2.6c.4 1 1.5 1.6 2.6 1.3l3.8-1.1c.9-.3 1.5-1.1 1.5-2v-2.4c1.5-.5 3.1-.7 4.7-.7s3.2.2 4.7.7v2.4c0 .9.6 1.7 1.5 2l3.8 1.1c1.1.3 2.2-.3 2.6-1.3l1-2.6c.4-1.1 0-2.3-1-2.9C29.1 16.2 24.7 15 20 15z" fill="#fff"/></svg></div>';
+ph.appendChild(v);
+var t=null,s=0;
+function fmt(n){return ('0'+Math.floor(n/60)).slice(-2)+':'+('0'+n%60).slice(-2);}
+window.__callShow=function(to){to=String(to||'').trim();var isNum=/^[+\d][\d\s\-+()]*$/.test(to);
+  var nm=to,pn=NUM[to]||'';if(isNum){var d=to.replace(/^\+82\s*/,'').replace(/\D/g,'');nm=to;pn='';for(var k in NUM)if(NUM[k].replace(/\D/g,'')===d){nm=k;pn=NUM[k];}}
+  document.getElementById('cvN').textContent=nm;document.getElementById('cvP').textContent=pn;
+  document.getElementById('cvS').textContent='Calling';ph.classList.add('incall');clearInterval(t);s=0;
+  t=setTimeout(function(){t=setInterval(function(){s++;document.getElementById('cvS').textContent=fmt(s);},1000);document.getElementById('cvS').textContent=fmt(0);},2500);};
+function end(){clearTimeout(t);clearInterval(t);ph.classList.remove('incall');if(window.NeoDisplay)window.NeoDisplay.send('phoneEnd','1');}
+window.__callEnd=end;document.getElementById('cvEnd').addEventListener('click',function(e){e.stopPropagation();end();});
+})();</script>
+<style id="routes3css">.rt-row{height:auto!important;min-height:102px;padding-top:14px!important;padding-bottom:14px!important}.rt-row .rt-l b{display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow:hidden;font-size:21px!important;line-height:28px;word-break:keep-all}.rt-row .rt-l small{margin-top:6px!important}.rt-row .rt-l small em{font-style:normal;margin:0 8px;color:#6b717a}.rt-row .rt-r{text-align:right}.rt-wait{padding:28px 8px;font-size:22px;color:#9aa0a8}</style>
+<style id="evcss">.evMode .sp-in,.evMode .sp-quick{display:none!important}#evBar{display:none}.evMode #evBar{display:block}#spFlt{display:none;width:70px;height:90px;align-items:center;justify-content:center;cursor:pointer;opacity:.9}.evMode:not(.isDetail) #spFlt{display:flex}#spFlt.on svg path{fill:#79b2f6}.ev-tabs{display:flex;gap:10px;padding:0 32px 18px;border-bottom:1px solid rgba(255,255,255,.08)}.ev-tabs div{flex:1;height:64px;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:21px;font-weight:500;color:#c9ced6;cursor:pointer;line-height:1.15;padding:0 6px;border:2px solid transparent}.ev-tabs div.on{border-color:#14907e;background:rgba(20,144,126,.16);color:#fff;font-weight:600}#evFlt{margin:0 32px 16px;padding:18px 20px;border-radius:12px;background:rgba(255,255,255,.07)}#evFlt .ev-fh{font-size:18px;color:#9aa0a8;margin:4px 0 10px}#evFlt .ev-opt{display:flex;gap:10px;margin-bottom:12px}#evFlt .ev-opt div{flex:1;height:54px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:20px;color:#c9ced6;cursor:pointer;text-align:center;line-height:1.1}#evFlt .ev-opt div.on{background:#14907e;color:#fff;font-weight:600}.ev-row{padding:20px 40px;cursor:pointer}.ev-row+.ev-row{border-top:1px solid rgba(255,255,255,.08)}.ev-row.sel,.ev-row:active{background:rgba(255,255,255,.1)}.ev-l1{display:flex;align-items:baseline;gap:14px}.ev-l1 b{flex:1;min-width:0;font-size:23px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ev-l1 em{font-style:normal;font-size:22px;font-weight:600;color:#e5e5e5;flex:none}.ev-row small{display:block;font-size:19px;color:#9aa0a8;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ev-l3{display:flex;gap:18px;margin-top:10px;font-size:19px;color:#b2b2b2}.ev-l3 .ev-pr{color:#5fd3bf;font-weight:600}.ev-l3 i{font-style:normal;font-weight:500;color:#8fb9b2;margin-left:2px}.evPin{position:relative}.evPin svg{position:absolute;left:0;top:0;z-index:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}.evPin b{position:absolute;z-index:2;left:0;top:7px;width:44px;text-align:center;font:700 20px Pretendard,sans-serif;color:#fff}</style>
+<style id="ev2css">.ev-tabs{display:none!important}#evInfo{padding:0 40px 16px;font-size:19px;font-weight:500;color:#9aa0a8;border-bottom:1px solid rgba(255,255,255,.08)}#evFlt{margin:0 32px 16px!important}#evFlt:not(.nhide){margin-top:16px!important}#evFlt .ev-opt div.on{background:#79b2f6!important;color:#fff!important}.ev-l3 .ev-pr{color:#79b2f6!important}.ev-l3 i{color:#9cc4f5!important}#spFlt.on svg path{fill:#79b2f6}</style>
+<style id="regcss">.regs{display:flex;gap:16px}.regb{flex:1;height:84px;border-radius:8px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:500;color:#e5e5e5;cursor:pointer}.regb.on{background:#79b2f6;color:#fff;font-weight:600}.regb:active{opacity:.8}#regMsg{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:500;color:#fff}</style><script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.regb');if(!b)return;var k=b.getAttribute('data-reg');if(window.NEO_REG&&window.NEO_REG.cs===k)return;try{localStorage.setItem('neoRegion',k);}catch(x){}if(window.NeoDisplay)window.NeoDisplay.send('mapRegion',k);var m=document.createElement('div');m.id='regMsg';m.textContent='Loading '+b.textContent+' map…';(document.getElementById('stage')||document.body).appendChild(m);var u=new URL(location.href);u.searchParams.delete('region');setTimeout(function(){location.replace(u.toString());},600);});</script>
+<style id="rtcasecss">.arrMk svg{display:block;filter:drop-shadow(0 0 1.5px #000) drop-shadow(0 2px 4px rgba(0,0,0,.6))}</style>
+<style id="rtonecss">.dt-rt.rtH{display:none!important}</style>
+<style id="ldwFx">#ldwLanes{position:absolute;left:0;top:0;width:605px;height:894px;pointer-events:none;opacity:0;transition:opacity .4s}body.ldwOn.drv:not(.doorv):not(.cam) #ldwLanes{opacity:1}#ldwLanes path{stroke:url(#ldwG);opacity:.6}body.lkaOn #ldwLanes path{stroke:transparent}#ldwLanes.wL .pl,#ldwLanes.wR .pr{stroke:url(#ldwA)!important;opacity:1;animation:ldwB .4s steps(2) infinite}@keyframes ldwB{50%{opacity:.2}}#ldw.blink{animation:ldwI .4s steps(2) infinite}@keyframes ldwI{50%{opacity:.25}}</style><script>(function(){
+/* ===== LDW (차선 이탈 경고): 켜면 주행 중 차선 표시(흰색) · 데모로 일정 간격 좌/우 차선 이탈 경고 (주황 깜빡임 + 아이콘 깜빡임) ===== */
+var cl=document.getElementById('cluster');if(!cl)return;var ref=document.getElementById('car3d')||document.getElementById('speed');
+var s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.id='ldwLanes';s.setAttribute('viewBox','0 0 605 894');s.classList.add('abs');
+s.innerHTML='<defs><linearGradient id="ldwG" x1="0" y1="288" x2="0" y2="742" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#e5e5e5" stop-opacity="0"/><stop offset=".25" stop-color="#e5e5e5" stop-opacity=".9"/><stop offset=".8" stop-color="#e5e5e5"/><stop offset="1" stop-color="#e5e5e5" stop-opacity="0"/></linearGradient><linearGradient id="ldwA" x1="0" y1="288" x2="0" y2="742" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFB020" stop-opacity="0"/><stop offset=".25" stop-color="#FFB020" stop-opacity=".9"/><stop offset=".8" stop-color="#FFB020"/><stop offset="1" stop-color="#FFB020" stop-opacity="0"/></linearGradient></defs><path class="pl" d="M249 288L176 742" stroke-width="7" stroke-linecap="round"/><path class="pr" d="M355 288L428 742" stroke-width="7" stroke-linecap="round"/>';
+cl.insertBefore(s,ref);
+var side=0,wT=0,next=0;
+function spd(){return parseFloat((document.getElementById('speed')||{}).textContent)||0;}
+function warn(){side=1-side;var c=side?'wR':'wL';s.classList.remove('wL','wR');s.classList.add(c);window.__ldwW=true;
+  var ic=document.getElementById('ldw');if(ic)ic.classList.add('blink');
+  if(window.NeoDisplay)window.NeoDisplay.send('ldwWarn',side?'right':'left');
+  clearTimeout(wT);wT=setTimeout(stop,2400);}
+function stop(){s.classList.remove('wL','wR');window.__ldwW=false;var ic=document.getElementById('ldw');if(ic)ic.classList.remove('blink');}
+window.ldwWarn=warn;
+setInterval(function(){var A=window.__adasState&&window.__adasState();if(!A)return;document.body.classList.toggle('ldwOn',!!A.ldw);
+  var act=A.ldw&&document.body.classList.contains('drv')&&spd()>30;
+  if(!act){if(window.__ldwW)stop();next=0;return;}
+  var now=Date.now();if(!next)next=now+4000;if(now>=next){warn();next=now+12000;}},250);
+})();</script>
+
+<style id="range3">#assist3.rng{background:none!important}#assist3.rng svg{display:block}#assist3.rng path{fill:#16E484;transition:fill .25s}#assist3.rng .rb:not(.f){fill:rgba(22,228,132,.22)}#assist3.rng.dis path{fill:#8a8f97!important}#assist3.rng.dis{opacity:.45}#assist3.rng.dis .rb:not(.f){fill:#8a8f97!important}#gapPop .gs b{width:104px!important}</style><script>(function(){/* 차간 거리 아이콘 (adas_range): 크루즈 켜짐 = 초록 + 단계만큼 막대, 꺼짐 = 회색 */
+var el=document.getElementById('assist3');if(!el)return;el.innerHTML='<svg width="56" height="56" viewBox="0 0 56 56" fill="none"><path class="rc" d="M16.1355 14.6716C15.9335 14.9025 15.6627 15.1954 15.6627 15.1954C15.7248 15.1244 15.4674 15.6438 15.4674 15.6438L14.9724 17.1976V17.1931L14.4241 19.0687C14.3997 19.3173 14.362 19.9432 14.362 20.7201C14.362 21.5858 14.4019 22.6445 14.5529 23.6301L14.5618 27.7297C14.6239 28.5865 15.1655 28.8107 15.443 28.7974L18.3951 28.8107C18.708 28.7974 19.3007 28.5532 19.334 27.6987C19.334 27.6987 19.3895 26.944 19.4006 26.9062C20.0132 26.9129 39.0443 26.9329 39.6658 26.9329L39.7146 27.7275C39.7479 28.5754 40.3406 28.8196 40.6402 28.8284H43.6146C43.8809 28.8484 44.4225 28.6331 44.498 27.7586C44.5002 27.7275 44.7332 24.5024 44.4403 23.5435L44.5202 23.6545C44.7665 21.9342 44.7266 19.8123 44.6556 19.1131L44.0962 17.1953C44.1029 17.2331 43.6234 15.6793 43.6234 15.6793L43.3637 15.1644C43.3882 15.191 43.1706 14.9535 42.9198 14.6805C43.821 14.6894 45.6255 14.2388 45.9341 13.9347C46.2848 13.5751 46.0761 12.9536 45.9651 12.6961C45.388 12.0769 43.8165 11.8638 41.2462 11.957C40.0809 9.53982 39.031 8.41668 38.9933 8.37007C39.0066 8.38783 38.061 7.76189 38.061 7.76189L37.4883 7.69754C36.3164 7.65537 28.6409 7.25139 21.7689 7.75303H21.7556L21.6202 7.6731L21.0431 7.74414C21.0564 7.73083 20.1042 8.36343 20.1042 8.36343C20.0665 8.38785 19.0188 9.51985 17.8335 11.957C17.6315 11.9459 17.263 11.9415 17.263 11.9415C13.8381 11.8838 13.3099 12.4142 13.139 12.5896C12.9858 12.887 12.7283 13.5596 13.1012 13.9369C13.4009 14.2432 15.2543 14.6938 16.1399 14.6761L16.1355 14.6716ZM21.7622 9.69741C24.2349 9.31119 29.3689 9.39332 29.3689 9.39332C29.3689 9.39332 34.514 9.31119 36.9889 9.69741C38.2009 10.9182 39.193 14.6494 39.193 14.6494H19.5604C19.5604 14.6494 20.5414 10.9182 21.7645 9.69741H21.7622Z"/><path class="rb r1" d="M35.7859 30.5842L22.6301 30.5975L20.6569 33.4542L37.9878 33.4409L35.9679 30.5842H35.7837H35.7859Z"/><path class="rb r2" d="M15.9202 40.3039L42.8732 40.2884L40.223 36.5306H40.0409L18.4927 36.5395L15.918 40.3039H15.9202Z"/><path class="rb r3" d="M45.1106 43.6822H44.9286L13.6229 43.7044L10.3711 48.4944L48.4822 48.4722L45.1106 43.6822Z"/></svg>';el.classList.add('rng');var lg=-1,la=-1;
+setInterval(function(){var A=window.__adasState&&window.__adasState();if(!A||!document.body.classList.contains('pw-on'))return;
+  el.classList.remove('off');el.classList.toggle('dis',!A.acc);if(A.gap===lg&&A.acc===la)return;lg=A.gap;la=A.acc;
+  ['r1','r2','r3'].forEach(function(c,i){el.querySelector('.'+c).classList.toggle('f',i<A.gap);});},200);})();</script>
+<style id="accGray">#acc.dis,#lka.dis,#ldw.dis,#assist3.rng.dis{filter:grayscale(1) brightness(.9)!important;opacity:.45!important}#acc.dis #accTxt{visibility:hidden}#assist3.rng.dis path{fill:#16E484!important}#assist3.rng.dis .rb:not(.f){fill:rgba(22,228,132,.22)!important}</style><script>(function(){/* 크루즈 아이콘: 꺼짐 = 회색 (속도 숫자 숨김) */
+setInterval(function(){var A=window.__adasState&&window.__adasState(),e=document.getElementById('acc');if(!A||!e||!document.body.classList.contains('pw-on'))return;
+  e.classList.remove('off');e.classList.toggle('dis',!A.acc);if(!A.acc)e.classList.remove('blink');},100);})();</script>
+<script>(function(){/* LKA 는 LDW 가 켜져 있어야 켤 수 있음 · LDW 끄면 LKA 도 꺼짐 */
+function S(){return window.__adasState&&window.__adasState();}
+function ui(){var A=S();if(!A)return;var kb=document.querySelector('#ctrlBar [data-a="lka"]'),wb=document.querySelector('#ctrlBar [data-a="ldw"]');
+  if(kb){kb.classList.toggle('dis',!A.ldw);kb.classList.toggle('on',!!A.lka);}if(wb)wb.classList.toggle('on',!!A.ldw);}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#ctrlBar [data-a="lka"],#ctrlBar [data-a="ldw"]');if(!b)return;var A=S();if(!A)return;
+  var k=b.getAttribute('data-a'),d=window.NeoDisplay;
+  if(k==='lka'&&!A.ldw){e.stopPropagation();e.preventDefault();return;}
+  if(k==='ldw'&&A.ldw&&A.lka){A.lka=0;if(d)d.handle('lka','off');}
+  setTimeout(ui,0);},true);
+setInterval(function(){var A=S();if(A&&A.lka&&!A.ldw){A.lka=0;if(window.NeoDisplay)window.NeoDisplay.handle('lka','off');}ui();},300);})();</script>
+<script id="navUpright">(function(){/* 진행방향 위 회전 시 지도 글자가 뒤집히지 않게: 벡터 지도는 MapLibre 자체 회전(bearing)으로 그리고 캔버스만 반대로 돌려 화면 기준 정방향 유지 */
+var m=document.getElementById('map'),last=null;
+function tick(){var gm=window.__navGL;if(gm&&m){var r=parseFloat(m.style.getPropertyValue('--hur'))||0;if(!m.style.transform)r=0;
+  if(r!==last){last=r;try{gm.jumpTo({bearing:-r});var c=gm.getCanvasContainer();c.style.position='absolute';c.style.left='0';c.style.top='0';c.style.width='100%';c.style.height='100%';c.style.transformOrigin='50% 50%';c.style.transform=r?'rotate('+(-r)+'deg)':'';}catch(e){}}}
+  requestAnimationFrame(tick);}requestAnimationFrame(tick);})();</script>
+<style id="popAlign">#navSP,#navMC,#navPick{left:38.26px!important;top:37.51px!important;bottom:auto!important;right:auto!important;transform:none!important}#navSP{max-height:818px!important}#navMC{max-height:818px;overflow:auto}</style>
 </body>
 </html>

@@ -6,7 +6,8 @@
 ## 주요 화면
 - **클러스터**: 3D 차량(P/D 뷰, 도어·창문·미러·트렁크 애니메이션, 전조등·비상등), ADAS(크루즈·차간거리·LDW·LKA), Telltale, 클러스터 TBT·미디어
 - **내비게이션**: 지도, 장소 검색, 경유지(최대 5개), 경로 옵션, TBT, 주유소·전기차 충전소
-- **미디어**: USB 음악, Bluetooth 음악, 라디오, YouTube, 이미지
+- **미디어**: USB 음악, Bluetooth 음악, 라디오, YouTube(카테고리·검색·자막·전체화면, 주행 중 영상 가림), 이미지
+- **Zoom**: 회의 홈·참가·호스트(실내 카메라 미리보기)·참가자·주행 중 영상 일시정지·클러스터 회의 카드 (웹 버전은 데모 데이터로 동작)
 - **전화**: 연락처·통화 화면, Bluetooth 기기 연결 시나리오
 - **카메라**: 서라운드 뷰(Top / Rear / Left / Right), 후방 주차 가이드라인, 근접 센서 표시
 - **설정**: Connection / Vehicle(차량 색상) / Assist Driving / User Profile / System(Color theme) / Sound / Display / Exterior Light / Voice
@@ -31,7 +32,8 @@
 | 장소 검색 | Photon, Nominatim, Overpass (OpenStreetMap) | TomTom Search (한국은 `kr-api.tomtom.com` 우선) |
 | 경로 안내 | OSRM 공개 서버 | TomTom Routing (교통 반영) |
 | 라디오 | Radio Browser | — |
-| YouTube | 목록 없음 (재생은 YouTube 임베드 플레이어, 키 불필요) | YouTube Data API v3 인기 영상(한국) |
+| YouTube | 영상 목록 표시 안 됨 (키 필요 안내 표시) | YouTube Data API v3 카테고리별 인기 영상·검색 (설정 국가 기준), 재생은 YouTube 임베드 플레이어 |
+| Zoom | 데모 데이터 (회의·참가자 예시) | — (실제 Zoom 연동은 사내 로컬 실행 환경에서만 동작) |
 | 3D 차량 | three.js | — |
 | 폰트 | Pretendard | — |
 

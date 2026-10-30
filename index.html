@@ -1260,7 +1260,7 @@ TT_ALL.forEach(function(el){el.classList.add('off');});
 
 /* ---------- 공조 ---------- */
 var temp={L:24,R:24};
-function renderTemp(s){var t=Math.max(16,Math.min(30,temp[s]));temp[s]=t;var p=t.toFixed(1).split('.');txt('temp'+s+'i',p[0]);txt('temp'+s+'d','.'+p[1]+'°');}
+function renderTemp(s){var t=Math.max(17.5,Math.min(32.5,temp[s]));temp[s]=t;/*loHi1030*/if(t<=17.5){txt('temp'+s+'i','LO');txt('temp'+s+'d','');return;}if(t>=32.5){txt('temp'+s+'i','HI');txt('temp'+s+'d','');return;}var p=t.toFixed(1).split('.');txt('temp'+s+'i',p[0]);txt('temp'+s+'d','.'+p[1]+'°');}
 /* ---------- 좌석 통풍(0~4)/열선(0~3) ---------- */
 var seat={vent:4,heat:3};
 function renderSeat(){setImg('seatLIco',I.vent(seat.vent));setImg('seatRIco',I.heat(seat.heat));}
@@ -1318,6 +1318,8 @@ var APPS={
   btmusic:{n:'Bluetooth Music',s:I.btmusic}, usbmusic:{n:'USB Music',s:I.usbmusic}, zoom:{n:'Zoom',s:I.btmusic}
 };
 var ORDER=['phone','navigation','radio','camera','settings','image','video','androidauto','carplay','btmusic','usbmusic','zoom'];
+try{var _ao=JSON.parse(localStorage.getItem('neoAppOrder')||'null');if(_ao&&_ao.length===ORDER.length&&_ao.every(function(x){return ORDER.indexOf(x)>=0;}))ORDER.splice.apply(ORDER,[0,ORDER.length].concat(_ao));}catch(e){}
+window.__appOrder=ORDER;window.__isDockEdit=function(){return editMode;};
 function src(id){var a=APPS[id],k=window.APP_IMG&&window.APP_IMG[id];if(k&&window.RES_IMG[k])return window.RES_IMG[k];return a.p?png(a.p):uri(a.s);}
 var MAX_BASIC=4, MAX_RECENT=2;
 var basic=['phone','navigation','btmusic'], recent=['camera','settings'];
@@ -2264,7 +2266,7 @@ window.addEventListener('pointermove',function(e){if(!tp)return;var s=navScale()
     map.panBy([-(dx*Math.cos(a)-dy*Math.sin(a)),-(dx*Math.sin(a)+dy*Math.cos(a))],{animate:false,noMoveStart:true});}
   tp.lx=e.clientX;tp.ly=e.clientY;},true);
 window.addEventListener('pointerup',function(e){if(!tp)return;var t=tp;tp=null;
-  if(t.mv||Date.now()-t.t>600)return;if(st.mode!=='guide'&&st.mode!=='browse')return;if(window.__navPanelOpen&&window.__navPanelOpen())return;
+  if(t.mv||Date.now()-t.t>600)return;if((window.__navTapEat&&performance.now()-window.__navTapEat<1500)||(window.__spClosedAt&&window.__spClosedAt>=t.t-30)){window.__navTapEat=0;return;}if(st.mode!=='guide'&&st.mode!=='browse')return;if(window.__navPanelOpen&&window.__navPanelOpen())return;if(mc&&!mc.classList.contains('nhide')){window.__navMcClose();return;}
   pickAt(map.containerPointToLatLng(scrToMapPt(e.clientX,e.clientY)));},true);
 window.addEventListener('pointercancel',function(){tp=null;},true);
 
@@ -2328,6 +2330,8 @@ function applyChoice(p,kind){
   if(kind==='via'){st.vias=(window.__viaList?window.__viaList():[]).concat([p]).slice(-5);st.via=st.vias[0];window.__viaDraw();}
   else{st.via=null;st.vias=[];window.__navViaClear();}
   st.reroute=true;setPoint('dest',null);setPoint('origin',{lat:c.lat,lon:c.lng,name:'Current location'});setPoint('dest',kind==='via'?d0:p);}
+window.__navViaRemove=function(i){var L0=window.__viaList();if(!(i>=0&&i<L0.length))return;st.vias=L0.slice(0,i).concat(L0.slice(i+1));st.via=st.vias[0]||null;window.__viaDraw();
+  if(!sim.guide||!st.dest)return;var c=carMk.getLatLng(),d0=st.dest;st.reroute=true;setPoint('dest',null);setPoint('origin',{lat:c.lat,lon:c.lng,name:'Current location'});setPoint('dest',d0);flashNav('Waypoint removed');send('navViaRemove',String(i));};
 $('ntEnd').onclick=function(e){e.stopPropagation();resetNav();};
 var refreshing=false;
 $('ntRef').onclick=function(e){e.stopPropagation();if(!sim.guide||!st.dest||refreshing)return;refreshing=true;$('ntRef').classList.add('spin');window.__ntPend=((window.__ntOffR===st.route&&window.__ntOff)||0)+(sim.s||0);
@@ -2608,6 +2612,7 @@ function nsDetail(p,where){if(where!=='panel'&&ns.open){ns.open=false;sp.classLi
 window.__navDetailRoute=function(){if(!ns.want)return false;ns.want=false;if(ns.goBtn){var gb=ns.goBtn;setTimeout(function(){if(ns.goBtn===gb)gb.click();},0);}var R=st.route;if(R&&ns.sel){[$('spDetail'),mc].forEach(function(r){nsEta(r,R.time,R.len);});
   if(ns.where==='map')map.fitBounds(line.getBounds(),{paddingTopLeft:[80,80],paddingBottomRight:[80,460]});}return true;};
 /* 지도 탭 → 상세 카드 (Figma 684:27500) */
+window.__navMcClose=function(){nsMcClose();if(pickMk){map.removeLayer(pickMk);pickMk=null;}};
 function nsMcClose(keepRoute){mc.classList.add('nhide');huNav.classList.remove('mcOn');if(!keepRoute&&ns.where==='map')nsClearPreview();if(ns.where==='map')ns.where=null;}
 window.__navMapDetail=function(ll){if(ns.open)return;ns.ctx=sim.guide?'guide':'browse';
   var p={lat:ll.lat,lon:ll.lng,name:'Selected location',addr:''};if(pickMk)map.removeLayer(pickMk);ns.goBtn=null;pickMk=L.marker(ll,{icon:L.divIcon({className:'naviPin',html:((window.RES_SVG&&window.RES_SVG.nav_navi)||(window.ICONS&&window.ICONS.navIco)||''),iconSize:[64,64],iconAnchor:[32,58]}),interactive:false,zIndexOffset:800}).addTo(map);
@@ -2684,7 +2689,8 @@ function build(nxt,nxt2){var R=st.route;if(!R)return;var i0=R.ins.indexOf(nxt2||
   var h='',prev=(nxt2||nxt);
   for(var i=i0+1;i<R.ins.length;i++){var x=R.ins[i];if(/^ARRIVE/.test(x.man))break;
     var d=fmtDist(x.off-prev.off);
-    h+='<div class="tl-row" data-o="'+x.off+'"><b class="tl-tf" style="background:'+tColor(prev.off,x.off)+'"></b><img src="'+uri(arrow(x.man))+'"><div class="tl-tx"><div class="tl-d">'+d.v+'<span>'+d.u+'</span></div><div class="tl-r">'+esc(label(x))+'</div></div></div>';
+    var _vi=-1;(st.viaOffs||[]).forEach(function(o,j){if(_vi<0&&Math.abs(o-x.off)<80)_vi=j;});if(_vi<0&&/^WAYPOINT/.test(x.man||''))_vi=(h.match(/tl-via/g)||[]).length;
+    h+='<div class="tl-row'+(_vi>=0?' tl-via':'')+'"'+(_vi>=0?' data-via="'+_vi+'"':'')+' data-o="'+x.off+'"><b class="tl-tf" style="background:'+tColor(prev.off,x.off)+'"></b><img src="'+uri(arrow(x.man))+'"><div class="tl-tx"><div class="tl-d">'+d.v+'<span>'+d.u+'</span></div><div class="tl-r">'+esc(label(x))+'</div></div></div>';
     prev=x;}
   /* 마지막 안내 → 목적지 구간도 교통 라인으로 이어서 표시 */
   if(h)h+='<div class="tl-end"><b class="tl-tf" style="background:'+tColor(prev.off,R.total)+'"></b></div>';
@@ -3330,7 +3336,7 @@ var radio=el('<div class="scr" id="scrRadio"><div class="rhd"><img alt="" src="'
  '<div class="rflt" id="rFlt"><i class="gl"></i><span id="rCty">KOR</span><i class="cv"></i></div></div>'+
  '<div class="rdd" id="rDD"></div>'+
 '<div id="rList"></div><div class="empty" id="rEmpty" style="display:none"></div>'+
- '<div id="rNow"><div class="bar"></div><div class="rlg ph" id="rLogo"></div><div class="info"><div class="trow"><div class="ti" id="rName">Not playing</div><div class="live" id="rLive">LIVE</div></div><div class="ar" id="rSub"></div></div>'+
+ '<div id="rNow"><div class="bar"></div><div class="rlg ph" id="rLogo"></div><div class="info"><div class="trow"><div class="ti" id="rName">Nothing is playing</div><div class="live" id="rLive">LIVE</div></div><div class="ar" id="rSub"></div></div>'+
  '<div class="ctl"><div id="rPrev">'+img(IC.prev,80)+'</div><div id="rPlay">'+img(IC.play,80)+'</div><div id="rNext">'+img(IC.next,80)+'</div></div></div></div>');
 scrWrap.appendChild(radio);
 (function(){var s=document.createElement('style');s.textContent=
@@ -3409,7 +3415,7 @@ function renderRadio(){var pl=!rAudio.paused;$('rList').innerHTML=rStations.map(
 /* 채널명 마퀴: 칸보다 긴 이름만 흐르게 */
 function rMq(b){var sp=b.firstElementChild;if(!sp||b.dataset.mq)return;if(!b.offsetParent||!b.clientWidth)return;b.dataset.mq='1';var over=sp.scrollWidth-b.clientWidth;if(over<=2)return;var t=sp.textContent,gap=48,d=sp.scrollWidth+gap;b.classList.add('mq');b.innerHTML='<span class="mqi" style="--d:-'+d+'px;animation-duration:'+(2+d/40).toFixed(1)+'s"><span>'+esc(t)+'</span><span style="padding-left:'+gap+'px">'+esc(t)+'</span></span>';}
 function rMqAll(){radio.querySelectorAll('.rs b,#rName').forEach(rMq);}setInterval(rMqAll,800);
-function rRenderNow(){var s=rCur,np=$('rNow');var rn=$('rName');rn.removeAttribute('data-mq');rn.classList.remove('mq');rn.innerHTML='<span>'+esc(s?rSplit(s.name)[0]:'Not playing')+'</span>';$('rSub').textContent=s?rSubOf(s):'';
+function rRenderNow(){var s=rCur,np=$('rNow');var rn=$('rName');rn.removeAttribute('data-mq');rn.classList.remove('mq');rn.innerHTML='<span>'+esc(s?rSplit(s.name)[0]:'Nothing is playing')+'</span>';$('rSub').textContent=s?rSubOf(s):'';
   var lg=$('rLogo');lg.outerHTML=rLogoHtml(s,'rLogo');rLogoFallback($('rLogo'),s);np.classList.toggle('playing',!rAudio.paused);var on=$('rList').querySelector('.rs.on');if(on)on.classList.toggle('playing',!rAudio.paused);$('rPlay').innerHTML=img(rAudio.paused?IC.play:IC.pause,80);}
 function playStation(s){if(!s)return;rCur=s;rRecent=[s].concat(rRecent.filter(function(x){return x.stationuuid!==s.stationuuid;})).slice(0,30);try{localStorage.setItem('neoRadioRecent',JSON.stringify(rRecent));}catch(e){}P.pause();stopVideo();rAudio.src=s.url_resolved||s.url;rAudio.play().then(function(){send('radioPlay',s.name.trim());}).catch(function(){flash('This station cannot be played');});renderRadio();rRenderNow();}
 function stopRadio(){if(!rAudio.paused){rAudio.pause();send('radioStop','1');}rRenderNow();}
@@ -3731,7 +3737,7 @@ function renderSeatPop(from,which){if(!seatSide)return;var m=seatM[seatSide];sea
     d.innerHTML=seatSvg(md,a?from:lv);d.classList.toggle('on',act&&lv>0);if(a)animSeat(d,md,from,lv);});
   var cur=m[m.mode],SL=$('spLv'),OR=[0,3,2,1];if(!SL.querySelector('.ind')){SL.innerHTML='<i class="ind"></i>'+OR.map(function(i){return '<div data-lv="'+i+'">'+(i===0?'OFF':i)+'</div>';}).join('');from=null;}
   if(from==null)SL.classList.add('noanim');SL.querySelectorAll('[data-lv]').forEach(function(d){d.classList.toggle('on',+d.getAttribute('data-lv')===cur);});
-  SL.querySelector('.ind').style.transform='translateX('+(Math.max(0,OR.indexOf(cur))*100)+'%)';if(SL.classList.contains('noanim')){void SL.offsetWidth;SL.classList.remove('noanim');}}
+  SL.querySelector('.ind').style.transform='translateX(calc('+Math.max(0,OR.indexOf(cur))+' * (100% + 4px)))';if(SL.classList.contains('noanim')){void SL.offsetWidth;SL.classList.remove('noanim');}}
 function openSeat(s){closeClimate();if(window.__volClose)window.__volClose();if(seatSide&&seatSide!==s){var ob=seatBtn(seatSide);if(ob)ob.classList.remove('sel');}seatSide=s;renderSeatPop();
   var b=seatBtn(s),r=b?b.getBoundingClientRect():null,sr=stage.getBoundingClientRect(),k=sr.width/1920||1,c=r?((r.left+r.width/2-sr.left)/k):(s==='L'?422:1475);
   seatPop.style.left=Math.round(c-(s==='L'?209:201))+'px';seatPop.style.right='';seatPop.classList.add('show');if(b)b.classList.add('sel');shade.style.display='block';send('seatPopup',(s==='L'?'left':'right'));}
@@ -3762,7 +3768,7 @@ window.Screens={
     if(suppress[name]){suppress[name]=false;return true;}
     switch(name){
       case 'mediaList':show('music');return true;
-      case 'climateL':case 'climateR':climate.classList.contains('show')?closeClimate():openClimate();return true;
+      case 'climateL':case 'climateR':/*climKeep1030n*/if(!climate.classList.contains('show'))openClimate();return true;
       case 'seatLeft':cycleSeat('L');return true;
       case 'seatRight':cycleSeat('R');return true;
       case 'home':closeClimate();closeSeat();return false;
@@ -4512,11 +4518,11 @@ function mv(e){var r=drag.getBoundingClientRect(),v=Math.max(0,Math.min(100,(e.c
 (function(){var v=get('d_br',100);if(v<99){var st=document.getElementById('stage');if(st)st.style.filter='brightness('+(0.45+0.55*v/100).toFixed(3)+')';}})();
 
 /* ===== 테마: 파란 계열(강조색)만 색상(hue)을 바꾸고 채도·명도는 그대로 ===== */
-var BASE=214,delta=0,EXC=/#ctrlBar|#ctrlShow|#dbg|#cluster|\.tt\b|#lt_|#turn|#acc\b|#accTxt|#lka|#ldw|#assist3|#tt_|telltale|\.st-cs|\.st-cc|\.btg|\.st-csw/;
+var BASE=214,delta=0,EXC=/#ctrlBar|#ctrlShow|#dbg|#cluster|\.tt\b|#lt_|#turn|#acc\b|#accTxt|#lka|#ldw|#assist3|#tt_|telltale|\.st-cs|\.st-cc|\.btg|\.st-csw|\.tpg/;
 function hsl(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2;if(mx!==mn){var d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return [h,s,l];}
 function rgb(h,s,l){h=((h%360)+360)%360/360;function f(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}if(!s)return [l*255,l*255,l*255];var q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;return [f(p,q,h+1/3)*255,f(p,q,h)*255,f(p,q,h-1/3)*255];}
 function isAccent(r,g,b){var x0=hsl(r,g,b);if(x0[0]>=190&&x0[0]<=250&&x0[1]>=.06&&x0[1]<.35&&x0[2]>=.06&&x0[2]<=.5)return true;var x=hsl(r,g,b);return x[0]>=195&&x[0]<=245&&x[1]>=.35&&x[2]>=.2&&x[2]<=.88;}
-function rot(r,g,b){var x=hsl(r,g,b),c=rgb(x[0]+delta,x[1],x[2]);return c.map(function(v){return Math.round(Math.max(0,Math.min(255,v)));});}
+function rot(r,g,b){var x=hsl(r,g,b),sf=x[1]<.35,c=rgb(x[0]+delta,sf?x[1]*.45:x[1],x[2]);/*thSat1030q*/if(sf){var y0=.2126*r+.7152*g+.0722*b,y1=.2126*c[0]+.7152*c[1]+.0722*c[2];if(y1>0){var k=y0/y1;c=c.map(function(v){return v*k;});}}return c.map(function(v){return Math.round(Math.max(0,Math.min(255,v)));});}
 function hex2(n){return ('0'+n.toString(16)).slice(-2);}
 var RE=/(%23|#)([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*[\d.]+\s*)?\)/g;
 function conv(str){if(!delta||!str)return str;return str.replace(RE,function(m,pre,hx,r,g,b,a){var R,G,B;
@@ -4531,7 +4537,7 @@ function themeCSS(){[].forEach.call(document.styleSheets,function(sh){var rs;try
    if(!o){o={};for(var i=0;i<st.length;i++){var p=st[i],v=st.getPropertyValue(p);if(/#|rgb/.test(v))o[p]=[v,st.getPropertyPriority(p)];}ORIG.set(r,o);}
    for(var p in o){var nv=conv(o[p][0]);if(st.getPropertyValue(p)!==nv)st.setProperty(p,nv,o[p][1]);}});});}
 var ATTR=['fill','stroke','stop-color','style','src'];
-function inCluster(el){return !!(el.closest&&el.closest('#cluster,[data-tap^="seat"],.st-ccrow,.btg,.st-csw,[data-app="btmusic"],#hwVolPop'));}
+function inCluster(el){return !!(el.closest&&el.closest('#cluster,[data-tap^="seat"],.st-ccrow,.btg,.st-csw,[data-app="btmusic"],#hwVolPop,#seatPop'));}
 function themeEl(el){if(el.nodeType!==1||inCluster(el))return;ATTR.forEach(function(a){if(!el.hasAttribute(a))return;var v=el.getAttribute(a);
   if(a==='src'&&v.indexOf('data:image/svg')!==0)return;if(a==='style'&&!/#|rgb/.test(v))return;
   var ok='data-tho-'+a,nk='data-thn-'+a;if(el.getAttribute(nk)===v){}else{el.setAttribute(ok,v);}
@@ -4701,8 +4707,9 @@ function hue(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2
 function build(d){var c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;var x=c.getContext('2d');x.drawImage(img,0,0);
   var id=x.getImageData(0,0,c.width,c.height),a=id.data;
   for(var i=0;i<a.length;i+=4){var r=a[i]/255,g=a[i+1]/255,b=a[i+2]/255;var t=hsl(r,g,b);if(t[1]<.06||t[0]<170||t[0]>265)continue;
-    var h=(((t[0]+d)%360)+360)%360/360,S=t[1],L=t[2],q=L<.5?L*(1+S):L+S-L*S,P=2*L-q;
-    a[i]=hue(P,q,h+1/3)*255;a[i+1]=hue(P,q,h)*255;a[i+2]=hue(P,q,h-1/3)*255;}
+    var h=(((t[0]+d)%360)+360)%360/360,S=t[1]*.45,L=t[2],q=L<.5?L*(1+S):L+S-L*S,P=2*L-q;/*bgSat1030q*/
+    var R2=hue(P,q,h+1/3),G2=hue(P,q,h),B2=hue(P,q,h-1/3),y0=.2126*r+.7152*g+.0722*b,y1=.2126*R2+.7152*G2+.0722*B2,k=y1>0?y0/y1:1;
+    a[i]=Math.min(255,R2*k*255);a[i+1]=Math.min(255,G2*k*255);a[i+2]=Math.min(255,B2*k*255);}
   x.putImageData(id,0,0);
   return new Promise(function(res){c.toBlob(function(bl){res(URL.createObjectURL(bl));},'image/jpeg',.92);});}
 function apply(d){want=d;
@@ -5341,15 +5348,20 @@ var nav=$('nav');if(nav&&!nav.querySelector(':scope>.dots')){var d=document.crea
 var cs0=$('camScr');if(cs0&&!cs0.querySelector(':scope>.dots')){var d2=document.createElement('div');d2.className='dots';d2.id='camDots';d2.innerHTML='<i></i><i></i><i></i>';cs0.appendChild(d2);}
 var GA=[['nav',-621],['appScr',-621],['camFront',-624],['camLeft',-624],['camRight',-624],['camDots',-624]];
 var GC=[['cluster',1283],['camTop',1283],['rpmBox',1283],['turnL',1283],['gear',1283],['turnR',1283],['fuelBox',1283],['gearHit',1283],['telltales',120]];
-var SYS='sysRight',SYSX=-1547;
+var SYS='sysRight',SYSX=-1547;/*stMirror1030*/
+function mir(e){return 1920-2*e.offsetLeft-e.offsetWidth;}
+function turnUnit(){var a=$('turnL'),b=$('turnR');if(!a||!b)return 1283;return (1920-(b.offsetLeft+b.offsetWidth))-a.offsetLeft;}
+var MIR={rpmBox:function(e){return 1920-26-e.offsetWidth-e.offsetLeft;},turnL:turnUnit,gear:turnUnit,turnR:turnUnit,gearHit:turnUnit,fuelBox:mir,telltales:function(){return 0;}};/*ttKeep1030*/
+function sysX(){var e=$(SYS);return e?mir(e):SYSX;}
 var fa=0,fc=0,sysT=0;
 function setA(v){fa=v;GA.forEach(function(g){var e=$(g[0]);if(e)e.style.translate=v?(g[1]*v).toFixed(1)+'px 0':'';});}
-function setC(v){fc=v;GC.forEach(function(g){var e=$(g[0]);if(e)e.style.translate=v?(g[1]*v).toFixed(1)+'px 0':'';});}
+function setC(v){fc=v;GC.forEach(function(g){var e=$(g[0]);if(!e)return;var dx=MIR[g[0]]?MIR[g[0]](e):g[1];e.style.translate=v?(dx*v).toFixed(1)+'px 0':'';});}
+setInterval(function(){if(fc===1)setC(1);},500); /* rpm 숫자 폭이 바뀌어도 오른쪽 끝 정렬 유지 */
 function sysMove(to,instant){var e=$(SYS);if(!e||sysT===to)return;sysT=to;
   if(e.getAnimations)e.getAnimations().forEach(function(a){a.cancel();});clearTimeout(sysMove.t);
-  if(instant||!e.animate){e.style.translate=to?SYSX+'px 0':'';e.style.opacity='';return;}
+  if(instant||!e.animate){e.style.translate=to?sysX()+'px 0':'';e.style.opacity='';return;}
   e.animate([{opacity:1},{opacity:0}],{duration:160,easing:'ease-out'});e.style.opacity='0';
-  sysMove.t=setTimeout(function(){e.style.translate=to?SYSX+'px 0':'';
+  sysMove.t=setTimeout(function(){e.style.translate=to?sysX()+'px 0':'';
     sysMove.t=setTimeout(function(){e.style.opacity='';e.animate([{opacity:0,transform:'translateY(32px)'},{opacity:1,transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.2,.8,.2,1)'});},220);},170);}
 function tween(get,set,to,D,raf,done){cancelAnimationFrame(raf.id);var a=get(),t0=performance.now();if(a===to){if(done)done();return;}
   (function step(n){var k=Math.min(1,(n-t0)/D),e=1-Math.pow(1-k,3);set(a+(to-a)*e);if(k<1)raf.id=requestAnimationFrame(step);else{set(to);if(done)done();}})(t0);}
@@ -5722,7 +5734,7 @@ function find(n){for(var i=0;i<CT.length;i++)if(CT[i].n===n)return CT[i];return 
 function dial(c,i){var x=c.nums[i||0];if(window.__callShow){window.__callShow(c.n);var cp=document.getElementById('cvP');if(cp&&!cp.textContent)cp.textContent=x[1];}else if(window.Screens&&window.Screens.handle)window.Screens.handle('phoneCall',c.n);if(window.NeoDisplay&&window.NeoDisplay.send)window.NeoDisplay.send('phoneCallNumber',x[1]);}
 view.addEventListener('click',function(e){var nr=e.target.closest('.pc-nr');var g=e.target.closest('[data-c]');if(!g)return;var c=find(g.getAttribute('data-c'));if(!c)return;
   if(nr){if(ph.classList.contains('psearch'))closeSearch();dial(c,+nr.getAttribute('data-num'));return;}
-  if(g.classList.contains('pf-c')&&e.target.closest('.pf-c > i')){/*pfCall1029*/dial(c,0);return;}
+  if(g.classList.contains('pf-c')){/*pfCall1030*/dial(c,0);return;}
   if(g.classList.contains('pf-c')){if(c.nums.length===1){dial(c,0);return;}mode='contacts';setTab('contacts');open=c.n;render();var el=$('pcList').querySelector('[data-c="'+CSS.escape(c.n)+'"]');if(el)el.scrollIntoView({block:'center'});return;}
   if(c.nums.length===1){if(ph.classList.contains('psearch'))closeSearch();dial(c,0);return;}
   open=open===c.n?null:c.n;render();});
@@ -5750,9 +5762,10 @@ body.climAuto .temp .tAuto{display:block}
 body.climOff .temp .tAuto{display:none!important}
 </style><script id="b1029ejs">(function(){
 /* 내비바 AUTO n 표시 */
-function t(){var c=window.__clim&&window.__clim.state&&window.__clim.state();if(!c)return;var a=c.power&&+c.auto>0,txt=a?'AUTO '+(+c.auto):'';
-  if(document.body.classList.contains('climAuto')!==a)document.body.classList.toggle('climAuto',a);
-  document.querySelectorAll('.temp .tAuto').forEach(function(e){if(e.textContent!==txt)e.textContent=txt;});}
+function t(){var c=window.__clim&&window.__clim.state&&window.__clim.state();if(!c)return;var on=!!c.power,au=on&&+c.auto>0?'<i>AUTO '+(+c.auto)+'</i>':'';
+  /*lbl1030j*/var sy=on&&c.sync?'<i>SYNC</i>':'',L=au||(on&&c.ac?'<i>A/C</i>':''),R=sy||au;
+  if(document.body.classList.contains('climAuto')!==!!au)document.body.classList.toggle('climAuto',!!au);
+  document.querySelectorAll('.temp .tAuto').forEach(function(e){var h=e.parentNode.getAttribute('data-tap')==='climateR'?R:L;if(e.innerHTML!==h)e.innerHTML=h;e.classList.toggle('on',!!h);});}
 setInterval(t,250);t();
 var ND=window.NeoDisplay;if(ND&&ND.handle){var h0=ND.handle;ND.handle=function(id,v){if(id==='climate_auto'&&window.__clim&&window.__clim.setAuto){window.__clim.setAuto(v);return true;}return h0.apply(this,arguments);};}
 })();</script>
@@ -5842,7 +5855,7 @@ var mm=$('mSrcMenu');if(mm){var mk=function(){var bt=!!($('scrMusic')&&$('scrMus
   new MutationObserver(function(){if(mm.classList.contains('open'))mk();}).observe(mm,{attributes:true,attributeFilter:['class']});mk();}
 /* ===== 스크롤바 통일: 배경 없는 8px 막대 (오버레이) ===== */
 var stg=$('stage'),SB=[];
-function skip(e){return e.closest('#cluster,.leaflet-container,.maplibregl-map,#map,#navKB,#ctrlBar');}
+function skip(e){return e.closest('#cluster,.leaflet-container,.maplibregl-map,#map,#navKB,#ctrlBar,#scrSettings,#plWrap');}
 function scan(){if(!stg)return;var all=stg.getElementsByTagName('*');for(var i=0;i<all.length;i++){var e=all[i];if(e._sbc)continue;var oy=getComputedStyle(e).overflowY;if(oy!=='auto'&&oy!=='scroll')continue;e._sbc=1;if(skip(e))continue;
    e.classList.add('sbx');var b=document.createElement('i');b.className='sbo';var m={e:e,b:b};SB.push(m);e.addEventListener('scroll',function(m){return function(){upd(m);};}(m),{passive:true});}}
 function host(e){var p=e.parentNode;while(p&&p!==document.body){if(getComputedStyle(p).position!=='static')return p;p=p.parentNode;}return stg;}
@@ -5851,7 +5864,7 @@ function upd(m){var e=m.e,b=m.b,ch=e.clientHeight,sh=e.scrollHeight;
   var er=e.getBoundingClientRect(),cx=er.left+er.width/2,cy=er.top+Math.min(er.height/2,120),hit=document.elementFromPoint(cx,cy);if(!hit||!(e===hit||e.contains(hit))){if(b.style.display!=='none')b.style.display='none';return;}
   if(!b.parentNode||b.parentNode!==m.h){m.h=host(e);m.h.appendChild(b);}
   var hr=m.h.getBoundingClientRect(),k=(hr.width/(m.h.offsetWidth||1))||1;
-  var top=(er.top-hr.top)/k+m.h.scrollTop,left=(er.left-hr.left)/k+m.h.scrollLeft+e.offsetWidth-8-6,tr=ch-16,th=Math.max(48,tr*ch/sh),y=top+8+(tr-th)*(e.scrollTop/Math.max(1,sh-ch));
+  /*sbPos1030o*/var ap=document.getElementById('appScr'),inA=!!(ap&&ap.contains(e)),ar=inA?ap.getBoundingClientRect():null;var top=(er.top-hr.top)/k+m.h.scrollTop,left=inA?((ar.right-hr.left)/k+m.h.scrollLeft-30):((er.left-hr.left)/k+m.h.scrollLeft+e.offsetWidth-8-6),tr=ch-20,th=Math.max(48,tr*ch/sh),y=top+10+(tr-th)*(e.scrollTop/Math.max(1,sh-ch));
   b.style.display='block';b.style.left=left.toFixed(1)+'px';b.style.top=y.toFixed(1)+'px';b.style.height=th.toFixed(1)+'px';}
 function updAll(){SB.forEach(upd);}
 scan();setInterval(scan,2500);setInterval(updAll,400);
@@ -5893,7 +5906,7 @@ function emptySearch(){var sp=$('navSP');if(!sp||sp.classList.contains('nhide')|
   return !!(inp&&!inp.value.trim()&&rs&&!rs.innerHTML.trim());}
 var kb=$('navKB'),wasOn=false;
 if(kb)new MutationObserver(function(){var on=!kb.classList.contains('nhide');if(wasOn&&!on&&emptySearch()&&window.__nsClose)setTimeout(function(){if(emptySearch()&&kb.classList.contains('nhide'))window.__nsClose();},60);wasOn=on;}).observe(kb,{attributes:true,attributeFilter:['class']});
-document.addEventListener('pointerdown',function(e){if(!emptySearch())return;var t=e.target;if(t.closest&&t.closest('#navSP,#navKB,#search,#dock,#ctrlBar'))return;if(window.__nsClose)window.__nsClose();},true);
+document.addEventListener('pointerdown',function(e){if(!emptySearch())return;var t=e.target;if(t.closest&&t.closest('#navSP,#navKB,#search,#dock,#ctrlBar'))return;window.__navTapEat=performance.now();if(window.__nsClose)window.__nsClose();},true);
 })();</script><script id="b1029ijs">(function(){var vp=document.getElementById("volPop");if(!vp)return;vp.querySelectorAll(".vr,.vs").forEach(function(e){e.setAttribute("data-noripple","");});vp.querySelectorAll(".vs").forEach(function(sl){sl.addEventListener("pointerdown",function(){sl.classList.add("drag");});});document.addEventListener("pointerup",function(){vp.querySelectorAll(".vs.drag").forEach(function(x){x.classList.remove("drag");});},true);document.addEventListener("pointercancel",function(){vp.querySelectorAll(".vs.drag").forEach(function(x){x.classList.remove("drag");});},true);})();</script><style id="b1029i">#volPop .vr,#volPop .vs,#volPop .vr:active,#volPop .vs:active{background:none!important}#volPop .vt,#volPop .vf{transition:top .15s ease,height .15s ease,border-radius .15s ease}#volPop .vf b{transition:top .15s ease}#volPop .vs.drag .vt,#volPop .vs.drag .vf{top:26px;height:28px;border-radius:14px}#volPop .vs.drag .vf b{top:0}.st-csw{flex-wrap:wrap;justify-content:flex-end;max-width:640px}.st-csw i{box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)!important}</style><style id="b1029j">
 /* 모든 슬라이더: 조작 중에는 진행바가 핸들과 같은 두께 · press 영역 표시 없음 */
 .st-sl:before,.st-sl i{transition:top .15s ease,height .15s ease,border-radius .15s ease}
@@ -5923,5 +5936,535 @@ document.addEventListener('pointerdown',function(e){var t=e.target.closest&&e.ta
   var c=document.getElementById('climate');if(c&&c.classList.contains('show')&&window.Screens&&window.Screens.handle)window.Screens.handle('climatePopup','close');
   var sp=document.getElementById('seatPop');if(sp&&sp.classList.contains('show')&&window.__seatClose)window.__seatClose();
   if(window.__volClose)window.__volClose();},true);
-})();</script></body>
+})();</script><script id="b1030ajs">(function(){
+/* 내비 위치 정보 팝업(상세): 지도 빈 곳을 '탭'하면 닫힘(목적지 핀·미리보기 경로도 삭제).
+   지도 드래그·두 손가락 확대/축소·휠·지도 버튼 조작은 유지. 하단 바/Search 박스 탭도 닫힘(시험 적용) */
+function $(i){return document.getElementById(i);}
+function spOpen(){var sp=$('navSP');return !!(sp&&!sp.classList.contains('nhide'));}function mcOpen(){var m=$('navMC');return !!(m&&!m.classList.contains('nhide'));}function detailOpen(){return spOpen()||mcOpen();}
+var KEEP='#navSP,#navMC,#navKB,#btnCompass,#btnCurrent,#btnTraffic,#evFlt,#nav>.dots,#mapDiagBox,#tbtCard,#navStatus,#navTrip,#navPick,#navGS,.leaflet-control-container,.leaflet-marker-icon,.leaflet-interactive,#cxPop,#toast';
+var CLOSE='#map,#dock,#search';
+var P={},n=0,g=null;
+document.addEventListener('pointerdown',function(e){n++;P[e.pointerId]=1;
+  if(n>1){if(g)g.multi=true;return;}
+  g=null;if(!detailOpen())return;var t=e.target;if(!t.closest||t.closest(KEEP)||!t.closest(CLOSE))return;
+  g={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:false,multi:false};},true);
+document.addEventListener('pointermove',function(e){if(!g||e.pointerId!==g.id)return;var k=(document.getElementById('stage').getBoundingClientRect().width/1920)||1;
+  if(Math.abs(e.clientX-g.x)/k>10||Math.abs(e.clientY-g.y)/k>10)g.moved=true;},true);
+function rel(e){if(P[e.pointerId]){delete P[e.pointerId];n=Math.max(0,n-1);}
+  if(!g||e.pointerId!==g.id)return;var ok=!g.moved&&!g.multi&&performance.now()-g.t<600&&e.type==='pointerup';g=null;
+  if(ok){if(spOpen()&&window.__nsClose)window.__nsClose();if(mcOpen()&&window.__navMcClose)window.__navMcClose();}}
+document.addEventListener('pointerup',rel,true);document.addEventListener('pointercancel',rel,true);
+})();</script><script id="b1030bjs">(function(){var sp=document.getElementById("navSP");if(!sp)return;var was=!sp.classList.contains("nhide");new MutationObserver(function(){var o=!sp.classList.contains("nhide");if(was&&!o)window.__spClosedAt=Date.now();was=o;}).observe(sp,{attributes:true,attributeFilter:["class"]});})();</script><style id="b1030c">
+/* 1 Image 앱 배경 테두리 라인 제거 */
+html body #scrImage::after{border:0!important;display:none!important}
+/* 2 USB/BT Music 헤더: 우측 정렬 + Type ↔ USB device 간격 24px */
+html body #scrMusic .mh{right:72px!important}
+html body #scrMusic .mh>div:last-child{gap:24px!important;margin-left:auto}
+html body #mSort{margin-right:0!important}
+/* 3 All apps: Android Auto / CarPlay 비활성, 세로 가운데 정렬, 길게 눌러 순서 변경 */
+#popup .pa[data-papp="androidauto"],#popup .pa[data-papp="carplay"]{opacity:.35;cursor:default}
+html body #popGrid{top:50%!important;transform:translateY(-50%)}
+#popGrid .pa{transition:transform .18s ease}
+#popGrid .pa.lift{transition:none!important;z-index:5;position:relative}
+#popGrid .pa.lift .pic{box-shadow:0 10px 26px rgba(0,0,0,.45)}
+#popGrid.reorder .pa:not(.lift){animation:paWig1030 .32s ease-in-out infinite alternate}
+@keyframes paWig1030{from{rotate:-1.5deg}to{rotate:1.5deg}}
+/* 4 Status bar (Figma neo/Status bar 801:28139) */
+html body #rpmBox{left:26px!important;top:0!important;height:60px!important;padding:0!important;align-items:center}
+html body #rpmBox .v,html body #rpmBox .u,html body #fuelBox .v,html body #fuelBox .u{font-size:26px!important;font-weight:500!important;color:#fff!important}
+html body #turnL{left:238px!important;top:5px!important;width:44px!important;height:50px!important}
+html body #turnR{left:378px!important;top:5px!important;width:44px!important;height:50px!important}html body #turnL img,html body #turnR img{width:100%!important;height:100%!important}
+html body #gear{left:300px!important;top:0!important;width:56px!important;height:60px!important;font-size:30px!important;font-weight:600!important}
+html body #fuelBox{left:476px!important;top:10px!important;height:40px!important;width:auto!important;gap:12px;align-items:center}html body #fuelBox>.ico{flex:none!important;width:40px!important;height:40px!important}html body #fuelBox>.ico img{width:100%!important;height:100%!important}html body #fuelBox .u{margin-left:-12px}
+html body #telltales{left:663.5px!important;top:6px!important;height:48px!important;gap:7px!important}
+html body #sysRight{left:1564px!important;right:auto!important;top:8px!important;height:44px!important;width:auto!important;gap:20px!important;align-items:center;padding:0!important}
+html body #sysRight>[data-tap="profile"]{width:44px!important;height:44px!important}
+html body #sysRight>[data-tap="notification"],html body #sysRight>.row{width:36px!important;height:36px!important;display:flex!important;align-items:center;justify-content:center}
+html body #sysRight>.row>.ico{width:36px!important;height:36px!important}
+html body #sysRight>[data-tap="profile"] img,html body #sysRight>.row img{width:100%!important;height:100%!important}html body #sysRight>[data-tap="notification"] img{width:27.43px!important;height:32px!important}
+html body #clock{font-size:30px!important;font-weight:600!important;height:44px!important;line-height:44px!important;width:auto!important;padding:0!important}
+/* 5 시트 팝업 세그먼트 (Figma neo/Segment 768:385) */
+html body #seatPop .sseg{height:64px!important;padding:4px!important;gap:4px;border:0!important;border-radius:8px!important;background:rgba(255,255,255,.06)!important;box-sizing:border-box}
+html body #seatPop .sseg div{height:56px;border-radius:6px!important;font-size:24px!important;font-weight:500!important;color:#B2B2B2!important}
+html body #seatPop .sseg div.on{color:#fff!important;font-weight:600!important}
+html body #seatPop .sseg .ind{left:4px!important;top:4px!important;height:56px!important;width:calc((100% - 20px) / 4)!important;border-radius:6px!important;background:rgba(255,255,255,.2)!important;box-shadow:none!important}
+/* 6 Phone Favorites: Call 아이콘 삭제 */
+html body .pf-c>i{display:none!important}
+/* 7 내비 정보 팝업: [☆][X], 지도에서 선택한 곳은 뒤로가기 없음 */
+html body #navSP.isDetail #spX{display:flex!important;align-items:center;justify-content:center;width:32px;height:32px;margin-left:24px;margin-right:34px;cursor:pointer;flex:none}
+html body #navSP.isDetail .sp-head .favBtn{margin-right:0!important}
+html body #navSP.isDetail #spTitle{flex:1 1 auto;min-width:0;width:auto!important}
+#spX svg,#navMC .navX svg{display:block}
+html body #navMC .mcHead .sp-back{display:none!important}
+html body #navMC .mcHead>b{flex:1 1 auto;min-width:0;width:auto!important;margin-left:40px}
+html body #navMC .navX{width:32px;height:32px;margin-left:24px;margin-right:40px;flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+html body #navMC .mcHead .favBtn{margin-right:0!important}
+</style><script id="b1030cjs">(function(){
+function $(i){return document.getElementById(i);}
+var XSVG='<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#E5E5E5" stroke-width="2.6" stroke-linecap="round"><path d="M8 8l16 16M24 8L8 24"/></svg>';
+/* 내비 상세 팝업 X */
+var sx=$('spX');if(sx)sx.innerHTML=XSVG;
+/* 지도 선택 카드: [☆][X] */
+var mc=$('navMC');if(mc){var fix=function(){var h=mc.querySelector('.mcHead');if(h&&!h.querySelector('.navX')){var x=document.createElement('div');x.className='navX';x.setAttribute('data-noripple','');x.innerHTML=XSVG;
+    x.addEventListener('click',function(e){e.stopPropagation();if(window.__navMcClose)window.__navMcClose();});h.appendChild(x);}};
+  new MutationObserver(fix).observe(mc,{childList:true});fix();}
+/* All apps: 비활성 앱 + 길게 눌러 순서 변경 */
+var DIS={androidauto:1,carplay:1},LP=500,st=null;
+function sc(){return ($('stage').getBoundingClientRect().width/1920)||1;}
+function edit(){return !!(window.__isDockEdit&&window.__isDockEdit());}
+window.addEventListener('pointerdown',function(e){var pa=e.target.closest&&e.target.closest('#popGrid [data-papp]');if(!pa)return;var id=pa.getAttribute('data-papp');
+  if(DIS[id]){e.stopPropagation();e.preventDefault();return;}
+  if(edit())return;
+  st={pa:pa,x:e.clientX,y:e.clientY,on:false,lt:0};st.t=setTimeout(function(){if(!st)return;st.on=true;st.ox=pa.offsetLeft;st.oy=pa.offsetTop;pa.classList.remove('pressed');pa.classList.add('lift');pa.style.transform='scale(1.1)';$('popGrid').classList.add('reorder');},LP);},true);
+window.addEventListener('pointermove',function(e){if(!st)return;
+  if(!st.on){if(Math.hypot(e.clientX-st.x,e.clientY-st.y)>10){clearTimeout(st.t);st=null;}return;}
+  e.stopPropagation();var k=sc(),bx=st.ox+(e.clientX-st.x)/k,by=st.oy+(e.clientY-st.y)/k,pa=st.pa;
+  pa.style.pointerEvents='none';var ov=document.elementFromPoint(e.clientX,e.clientY);pa.style.pointerEvents='';
+  var t=ov&&ov.closest&&ov.closest('#popGrid [data-papp]');
+  if(t&&t!==pa&&Date.now()-st.lt>180){var g=pa.parentNode,all=[].slice.call(g.children),a=all.indexOf(pa),b=all.indexOf(t);if(a<b)g.insertBefore(pa,t.nextSibling);else g.insertBefore(pa,t);st.lt=Date.now();}
+  pa.style.transform='translate('+(bx-pa.offsetLeft).toFixed(1)+'px,'+(by-pa.offsetTop).toFixed(1)+'px) scale(1.1)';},true);
+function end(e){if(!st)return;clearTimeout(st.t);var s=st;st=null;if(!s.on)return;e.stopPropagation();e.preventDefault();
+  s.pa.style.transform='';s.pa.classList.remove('lift','pressed');$('popGrid').classList.remove('reorder');
+  var ids=[].map.call(document.querySelectorAll('#popGrid [data-papp]'),function(x){return x.getAttribute('data-papp');}),O=window.__appOrder;
+  if(O&&ids.length===O.length)O.splice.apply(O,[0,O.length].concat(ids));try{localStorage.setItem('neoAppOrder',JSON.stringify(ids));}catch(x){}
+  if(window.NeoDisplay&&window.NeoDisplay.send)window.NeoDisplay.send('allAppsOrder',ids.join(','));}
+window.addEventListener('pointerup',end,true);window.addEventListener('pointercancel',end,true);
+})();</script><style id="b1030e">
+/* TBT 목록: 2번째 칸(#tbBot)과 같은 색 (흐리게 보이지 않게) */
+html body #tbList .tl-row .tl-d,html body #tbList .tl-row .tl-d span,html body #tbList .tl-row .tl-r{color:#E5E5E5!important}
+html body #tbList .tl-row img{filter:none!important}
+/* 경유지 줄: 오른쪽→왼쪽 스와이프 삭제 */
+#tbList .tl-row.tl-via>*{transition:transform .2s ease}
+#tbList .tl-row.tl-via.swp>*{transition:none}
+#tbList .tl-row.tl-via>*{transform:translateX(calc(-1 * var(--sw,0px)))}
+#tbList .tl-row.tl-via::after{content:"Delete";position:absolute;right:0;top:0;bottom:0;width:var(--sw,0px);background:#E5484D;color:#fff;font-size:24px;font-weight:600;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;transition:width .2s ease}
+#tbList .tl-row.tl-via.swp::after{transition:none}
+#tbList .tl-row.tl-via.gone{transition:height .22s ease,opacity .22s ease;height:0!important;opacity:0;overflow:hidden}
+</style><script id="b1030ejs">(function(){
+var sw=null,eat=0;
+function k(){return (document.getElementById('stage').getBoundingClientRect().width/1920)||1;}
+window.addEventListener('pointerdown',function(e){var r=e.target.closest&&e.target.closest('#tbList .tl-row.tl-via');if(!r)return;sw={r:r,x:e.clientX,y:e.clientY,on:false,dx:0,id:e.pointerId};},true);
+window.addEventListener('pointermove',function(e){if(!sw||e.pointerId!==sw.id)return;var dx=(e.clientX-sw.x)/k(),dy=(e.clientY-sw.y)/k();
+  if(!sw.on){if(Math.abs(dy)>8&&Math.abs(dy)>Math.abs(dx)){sw=null;return;}if(dx<-8&&Math.abs(dx)>Math.abs(dy)){sw.on=true;sw.r.classList.add('swp');}else return;}
+  e.stopPropagation();e.preventDefault();sw.dx=Math.min(0,dx);sw.r.style.setProperty('--sw',(-sw.dx).toFixed(0)+'px');},true);
+function end(e){if(!sw)return;var s=sw;sw=null;if(!s.on)return;e.stopPropagation();eat=Date.now();s.r.classList.remove('swp');
+  var w=s.r.offsetWidth||400;
+  if(-s.dx>Math.min(160,w*.35)){s.r.style.setProperty('--sw',w+'px');var i=+s.r.getAttribute('data-via');setTimeout(function(){s.r.classList.add('gone');if(window.__navViaRemove)window.__navViaRemove(i);},180);}
+  else s.r.style.setProperty('--sw','0px');}
+window.addEventListener('pointerup',end,true);window.addEventListener('pointercancel',end,true);
+window.addEventListener('click',function(e){if(Date.now()-eat<400&&e.target.closest&&e.target.closest('#tbList')){e.stopPropagation();e.preventDefault();}},true);
+})();</script><style id="b1030f">body.swapLR #sysRight{flex-direction:row-reverse!important}</style><style id="b1030h">
+/* 내비바 공조 라벨: 운전석 A/C(+AUTO), 보조석 (AUTO+)SYNC */
+.temp .tAuto{display:none!important;justify-content:center;gap:8px}
+.temp .tAuto.on{display:flex!important}
+.temp .tAuto i{font-style:normal}
+body.climOff .temp .tAuto{display:none!important}
+</style><style id="b1030i">.leaflet-arr-pane{opacity:.5}</style><style id="b1030k">
+#tempPop{position:absolute;top:759px;left:32px;width:506px;height:219px;box-sizing:border-box;padding:34px 43px 0;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+ background:radial-gradient(ellipse at 50% 50%,rgba(46,54,66,.5),rgba(46,54,66,.8));backdrop-filter:blur(100px);-webkit-backdrop-filter:blur(100px);box-shadow:0 25px 80px rgba(0,0,0,.25);z-index:28;display:none}
+#tempPop.show{display:block;animation:vpIn .22s ease-out}
+#tempPop .tpb{display:flex;gap:16px}
+#tempPop .tpb div{width:202px;height:61px;border-radius:4px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;letter-spacing:1.6px;color:#E5E5E5;cursor:pointer;transition:background .15s,color .15s}
+#tempPop .tpb div:active{background:rgba(255,255,255,.2)}
+#tempPop .tpb div.on{color:#79B2FF;background:rgba(121,178,255,.16)}
+#tempPop .tpg{position:relative;margin-top:33px;width:424px;height:48px;border-radius:4px;background:linear-gradient(90deg,#2E60FF 0%,#7D9CFF 36%,#F26807 100%);cursor:pointer;touch-action:none}
+#tempPop .tpg i{position:absolute;top:8px;left:0;width:16px;height:32px;border-radius:2px;background:#fff;box-shadow:-2px 0 8px rgba(0,0,0,.3);transition:left .18s ease;pointer-events:none}
+#tempPop .tpg.drag i{transition:none}
+</style><script id="b1030kjs">(function(){
+/* 내비바 온도 화살표 → 온도 팝업 (AUTO / SYNC / 온도 게이지). 4초간 조작 없으면 닫힘 */
+var SD=window.NeoDisplay,stage=document.getElementById('stage');if(!SD||!stage||!SD.temp)return;
+var MIN=17.5,MAX=32.5,W=424,DW=16;
+var pop=document.createElement('div');pop.id='tempPop';pop.setAttribute('data-noripple','1');
+pop.innerHTML='<div class="tpb"><div data-tp="auto">AUTO</div><div data-tp="sync">SYNC</div></div><div class="tpg"><i></i></div>';
+stage.appendChild(pop);var g=pop.querySelector('.tpg'),dot=g.querySelector('i'),side='L',tmr=0;
+function st(){return window.__clim&&__clim.state?__clim.state():null;}
+function render(){var c=st(),t=SD.temp[side],p=Math.max(0,Math.min(1,(t-MIN)/(MAX-MIN)));dot.style.left=Math.round(p*(W-DW))+'px';
+  pop.querySelector('[data-tp=auto]').classList.toggle('on',!!(c&&c.power&&+c.auto>0));pop.querySelector('[data-tp=sync]').classList.toggle('on',!!(c&&c.power&&c.sync));}
+function place(){var t=document.querySelector('.temp[data-tap="climate'+side+'"]'),sr=stage.getBoundingClientRect(),k=sr.width/1920||1,cx=side==='L'?285:1645;
+  if(t){var r=t.getBoundingClientRect();cx=(r.left+r.width/2-sr.left)/k;}pop.style.left=Math.round(Math.max(32,Math.min(1920-32-506,cx-253)))+'px';}
+function arm(){clearTimeout(tmr);tmr=setTimeout(close,4000);}
+function open(s){var was=pop.classList.contains('show')&&side===s;side=s;if(!was){place();pop.classList.remove('show');void pop.offsetWidth;pop.classList.add('show');SD.send&&SD.send('tempPopup',s==='L'?'left':'right');}render();arm();}
+function close(){clearTimeout(tmr);if(!pop.classList.contains('show'))return;pop.classList.remove('show');SD.send&&SD.send('tempPopup','close');}
+window.__tempPopClose=close;
+var ARW={tempLDown:'L',tempLUp:'L',tempRDown:'R',tempRUp:'R'};
+document.querySelectorAll('[data-tap]').forEach(function(a){var n=a.getAttribute('data-tap');if(ARW[n])a.addEventListener('pointerup',function(){setTimeout(function(){open(ARW[n]);},0);});});
+/* 바깥 터치 시 닫기 (화살표/팝업 제외) */
+document.addEventListener('pointerdown',function(e){if(!pop.classList.contains('show'))return;if(pop.contains(e.target))return;var a=e.target.closest&&e.target.closest('[data-tap]');if(a&&ARW[a.getAttribute('data-tap')])return;close();},true);
+/* 다른 팝업(공조/시트/볼륨)이 열리면 닫기 */
+setInterval(function(){if(!pop.classList.contains('show'))return;var o=document.querySelector('#climate.show,#seatPop.show,#volPop.show');if(o)close();else render();},300);
+/* AUTO / SYNC */
+pop.addEventListener('click',function(e){var b=e.target.closest('[data-tp]');if(!b)return;var c=st();if(!c)return;arm();
+  var k=b.getAttribute('data-tp');
+  if(k==='auto'){if(!c.power&&__clim.wake)__clim.wake();var on=+c.auto>0;__clim.setAuto(on?'off':'on');SD.send('climate_auto',on?'off':String(st().auto));}
+  else{var cb=document.querySelector('#climate [data-c="sync"]');if(!c.power&&__clim.wake)__clim.wake();if(cb)cb.click();else{c.sync=!c.sync;}}
+  render();});
+/* 게이지 탭/드래그 → 0.5° 단위 */
+var drag=false;
+function setFrom(e){var r=g.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-r.left-DW/2*(r.width/W))/(r.width*(W-DW)/W)));
+  var v=Math.round((MIN+p*(MAX-MIN))*2)/2,cur=SD.temp[side],n=Math.round((v-cur)*2);if(!n)return;
+  if(window.__clim)__clim.wake();if(side==='R'&&window.__clim)__clim.syncOff();SD.temp[side]=v;SD.renderTemp(side);if(side==='L'&&window.__clim&&__clim.sync()){SD.temp.R=SD.temp.L;SD.renderTemp('R');}SD.send('temp'+side,SD.temp[side].toFixed(1));render();}
+g.addEventListener('pointerdown',function(e){drag=true;g.classList.add('drag');try{g.setPointerCapture(e.pointerId);}catch(x){}setFrom(e);arm();});
+g.addEventListener('pointermove',function(e){if(drag){setFrom(e);arm();}});
+function up(){if(drag){drag=false;g.classList.remove('drag');render();}}
+g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up);
+})();</script><style id="b1030l">
+/* Settings: 스크롤바 표시 안 함 */
+#scrSettings,#scrSettings *{scrollbar-width:none!important}
+#scrSettings ::-webkit-scrollbar,#scrSettings::-webkit-scrollbar{display:none!important;width:0!important}
+#scrSettings .sbo{display:none!important}
+html body #setBody{padding-right:0!important}
+/* Phone Calls: 기본 커스텀 막대만 유지 + Contacts(.sbo) 스타일로 통일 */
+#plWrap>.sbo{display:none!important}
+html body #plThumb{width:8px!important;border-radius:4px!important;background:rgba(255,255,255,.1)!important}
+/* 앱 화면 BG: 클러스터 콘텐츠 카드와 동일 컬러 + 배경 블러 (test) */
+:root{--appBlur:300px}
+html body #appScr{background:rgba(255,255,255,.1)!important;-webkit-backdrop-filter:blur(var(--appBlur));backdrop-filter:blur(var(--appBlur))}
+</style><style id="b1030m">
+#scrSettings .pf-cur{display:flex;align-items:center;gap:28px;min-height:177px;cursor:pointer}
+#scrSettings .pf-av{position:relative;flex:none;width:56px;height:56px;border-radius:28px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff}
+#scrSettings .pf-av.me{background:linear-gradient(90deg,#4896FF,#256BCA)}
+#scrSettings .pf-av.big{width:96px;height:96px;border-radius:48px;font-size:38px}
+#scrSettings .pf-av .bd{position:absolute;right:-3px;top:-3px;width:18px;height:18px;border-radius:50%;background:#16C978;box-shadow:0 0 0 3px #2E3239}
+#scrSettings .pf-av.big .bd{right:-2px;top:auto;bottom:-2px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+#scrSettings .pf-inf{flex:1;min-width:0}
+#scrSettings .pf-inf b{display:block;font-size:34px;font-weight:600;line-height:51px;color:#fff}
+#scrSettings .pf-inf small{display:block;font-size:22px;font-weight:500;line-height:27px;color:#B2B2B2;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#scrSettings .pf-inf small.ok{color:#16C978}
+#scrSettings .pf-row{min-height:96px;display:flex;align-items:center;gap:20px;font-size:26px;font-weight:500;color:#E5E5E5;cursor:pointer}
+#scrSettings .pf-row+.pf-row{border-top:1px solid rgba(255,255,255,.08)}
+#scrSettings .pf-row .lb{flex:1;min-width:0}
+#scrSettings .pf-row .cur{font-size:22px;font-weight:600;color:#79B2FF}
+#scrSettings .pf-row.add{color:#B2B2B2}
+#scrSettings .pf-row .ad{width:56px;height:56px;display:flex;align-items:center;justify-content:center;flex:none}
+#scrSettings .pf-row.del{color:#F0534E}
+#scrSettings .pf-row .val{font-size:24px;color:#B2B2B2;white-space:nowrap}
+#scrSettings .pf-row.tgr{gap:32px;cursor:default}
+#scrSettings .pf-btns{display:flex;gap:12px}
+#scrSettings .pf-btns div{width:150px;height:60px;border-radius:8px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;color:#E5E5E5;cursor:pointer}
+#scrSettings .pf-btns div:active{background:rgba(255,255,255,.2)}
+#scrSettings .pf-btns div.pri{background:#79B2FF;color:#0A1830}
+#scrSettings .pf-btns div.pri:active{background:#9cc6ff}
+#scrSettings .pf-wrap .st-card{overflow:hidden}
+#scrSettings .pf-row,#scrSettings .pf-cur{position:relative}
+#scrSettings .pf-row:not(.tgr):active::before,#scrSettings .pf-cur:active::before{content:'';position:absolute;top:0;bottom:0;left:-24px;right:-24px;background:rgba(255,255,255,.08);pointer-events:none}
+</style><script id="b1030mjs">(function(){
+/* ===== Settings > User Profile (Tesla식): 드라이버 선택 = 즉시 전환, 같은 페이지 맨 아래 Delete profile → 삭제 진행 팝업 → 다음 드라이버로 전환 + 토스트 ===== */
+var KEY='neoProfiles',P=null;
+function def(){return {cur:'subin',list:[{id:'subin',name:'Subin',key:"Subin's iPhone 15 Pro",saved:1,easy:1,sync:1},{id:'jiwoo',name:'Jiwoo',key:'',saved:1,easy:0,sync:0},{id:'hana',name:'Hana',key:'',saved:0,easy:0,sync:0}],n:3};}
+try{P=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){}if(!P||!P.list||!P.list.length)P=def();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(P));}catch(e){}}
+function send(k,v){if(window.NeoDisplay)window.NeoDisplay.send(k,v);}
+function esc(t){return String(t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function cur(){for(var i=0;i<P.list.length;i++)if(P.list[i].id===P.cur)return P.list[i];P.cur=P.list[0].id;return P.list[0];}
+function toast(m){var t=document.getElementById('toast');if(!t)return;t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(function(){t.style.display='none';},1800);}
+var CHEV='<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M12 7l9 9-9 9" stroke="#B2B2B2" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var CHK='<svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M1.5 5l3.5 3.5L12.5 1.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var ADD='<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 1.5v17M1.5 10h17" stroke="#B2B2B2" stroke-width="3" stroke-linecap="round"/></svg>';
+function av(d,big){var me=d.id===P.cur;return '<div class="pf-av'+(me?' me':'')+(big?' big':'')+'">'+esc(d.name.charAt(0).toUpperCase())+(me&&d.saved?'<i class="bd">'+(big?CHK:'')+'</i>':'')+'</div>';}
+function tg(k,on){return '<div class="tg'+(on?' on':'')+'" data-k="'+k+'"></div>';}
+function render(body){var c=cur();
+ var h='<div class="st-wrap pf-wrap" data-noripple>'+
+  '<div class="st-card"><div class="pf-cur" data-pf="cur">'+av(c,1)+'<div class="pf-inf"><b>'+esc(c.name)+'</b><small>Driver profile · '+(c.key?'Linked to '+esc(c.key):'No key linked')+'</small>'+
+   '<small class="'+(c.saved?'ok':'')+'">'+(c.saved?'Seat, steering &amp; mirrors saved':'Seat, steering &amp; mirrors not saved')+'</small></div>'+CHEV+'</div></div>'+
+  '<div class="st-h">Drivers</div><div class="st-card pf-card">'+
+   P.list.map(function(d){return '<div class="pf-row" data-drv="'+d.id+'">'+av(d)+'<span class="lb">'+esc(d.name)+'</span>'+(d.id===P.cur?'<i class="cdot"></i>':'')+'</div>';}).join('')+
+   (P.list.length<10?'<div class="pf-row add" data-pf="add"><span class="ad">'+ADD+'</span><span class="lb">Add New Driver</span></div>':'')+'</div>'+
+  '<div class="st-g">Up to 10 driver profiles. Seat, steering wheel and mirror positions, climate, navigation, display and driving preferences are saved to each profile.</div>'+
+  '<div class="st-h">Driver settings</div>'+
+  '<div class="st-card"><div class="pf-row tgr" style="gap:20px"><span class="lb">Seat, steering &amp; mirrors</span><div class="pf-btns"><div data-pf="restore">Restore</div><div class="pri" data-pf="save">Save</div></div></div></div>'+
+  '<div class="st-g">Save stores the current seat, steering wheel and mirror positions to this profile. Restore returns to the last saved position.</div>'+
+  '<div class="st-card"><div class="pf-row tgr">'+tg('pf_easy',c.easy)+'<span class="lb">Use Easy Entry</span></div></div>'+
+  '<div class="st-g">In Park with the driver seat belt unbuckled, the seat and steering wheel move to make getting in and out easier. Pressing the brake restores this profile.</div>'+
+  '<div class="st-card pf-card"><div class="pf-row" data-pf="key"><span class="lb">Linked key</span><span class="val">'+(c.key?esc(c.key):'None')+'</span>'+CHEV+'</div>'+
+   '<div class="pf-row tgr">'+tg('pf_sync',c.sync)+'<span class="lb">Sync with account</span></div></div>'+
+  '<div class="st-g">One key can be linked to one profile. When synced, seat, climate, navigation favorites and recents, and media settings follow you to other vehicles.</div>'+
+  '<div class="st-card pf-card"><div class="pf-row" data-pf="valet"><span class="lb">Valet Mode</span><span class="val">Off</span>'+CHEV+'</div></div>'+
+  '<div class="st-g">Limits speed and acceleration, and locks the glovebox and personal data. A 4-digit PIN is required to exit.</div>'+
+  '<div class="st-card pf-card"><div class="pf-row" data-pf="rename"><span class="lb">Rename profile</span>'+CHEV+'</div><div class="pf-row del" data-pf="delete"><span class="lb">Delete profile</span></div></div>'+
+ '</div>';
+ body.innerHTML=h;}
+var keep=null;
+function rerender(top){var b=document.getElementById('setBody');if(!b||!b.querySelector('.pf-wrap'))return;var y=b.scrollTop;render(b);b.scrollTop=top?0:y;}
+var prev=window.__setRender;window.__setRender=function(m,body){if(m==='profile'){render(body);body.scrollTop=0;return true;}return prev?prev(m,body):false;};
+window.__profiles=function(){return P;};
+/* 삭제 진행 팝업: Connection 'Forget This Device' 와 동일 (#cxPop) */
+function busy(title,msg,ms,done){var cp=document.getElementById('cxPop');if(!cp){done();return;}
+ cp.innerHTML='<div class="cxcard"><div class="cxsp2"></div><h3></h3><p></p></div>';cp.querySelector('h3').textContent=title;cp.querySelector('p').innerHTML=msg;cp.onclick=null;cp.classList.add('show');
+ setTimeout(function(){cp.classList.remove('show');done();},ms);}
+function select(id){if(id===P.cur)return;P.cur=id;save();var c=cur();rerender();toast(c.name+"'s profile selected");send('driverProfile',c.name);}
+/* ---- Add New Driver 팝업: 이름 입력(화면 키보드) + Use Easy Entry → Create Profile ---- */
+var ap=null;
+function addPop(){if(!ap){ap=document.createElement('div');ap.id='pfAddPop';
+  ap.innerHTML='<div class="bx"><h3>Add New Driver</h3><p>Enter a name for the new profile. Then adjust the seat, steering wheel and mirrors, and tap Save.</p>'+
+   '<div class="fd"><input id="pfName" placeholder="Driver name" autocomplete="off" inputmode="none" maxlength="20"><span class="clr">✕</span></div>'+
+   '<div class="ck on" data-ck="easy"><i></i>Use Easy Entry</div>'+
+   '<div class="bt"><div class="cx" data-ab="cancel">Cancel</div><div class="pri" data-ab="ok">Create Profile</div></div></div>';
+  (document.getElementById('stage')||document.body).appendChild(ap);
+  var inp=ap.querySelector('#pfName');
+  function kbOn(){window.__kbTarget={el:inp,done:create};if(window.__kbShow)window.__kbShow(true);ap.classList.add('kb');}
+  inp.addEventListener('pointerdown',kbOn);inp.addEventListener('focus',kbOn);
+  inp.addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter')create();});
+  ap.querySelector('.clr').addEventListener('click',function(){inp.value='';});
+  ap.addEventListener('click',function(e){if(e.target===ap){closeAdd();return;}var c=e.target.closest('[data-ck]');if(c){c.classList.toggle('on');return;}
+   var b=e.target.closest('[data-ab]');if(!b)return;if(b.getAttribute('data-ab')==='ok')create();else closeAdd();});
+  var kbEl=document.getElementById('navKB');if(kbEl)new MutationObserver(function(){ap.classList.toggle('kb',ap.classList.contains('on')&&!kbEl.classList.contains('nhide'));}).observe(kbEl,{attributes:true,attributeFilter:['class']});}
+ var n=(P.n||P.list.length)+1;ap.querySelector('#pfName').value='';ap.querySelector('#pfName').placeholder='Driver '+n;ap.querySelector('[data-ck]').classList.add('on');
+ ap.classList.add('on');ap.classList.remove('kb');send('profileAddPopup','open');}
+function closeAdd(){if(!ap)return;ap.classList.remove('on','kb');if(window.__kbShow)window.__kbShow(false);window.__kbTarget=null;send('profileAddPopup','close');}
+function create(){var inp=ap.querySelector('#pfName'),nm=inp.value.trim()||inp.placeholder;
+ if(P.list.some(function(d){return d.name.toLowerCase()===nm.toLowerCase();})){toast('That name is already in use');return;}
+ P.n=(P.n||P.list.length)+1;var nd={id:'d'+Date.now(),name:nm,key:'',saved:0,easy:ap.querySelector('[data-ck]').classList.contains('on')?1:0,sync:0};
+ P.list.push(nd);P.cur=nd.id;save();closeAdd();rerender(true);toast(nm+"'s profile created");send('profile_add',nm);}
+setInterval(function(){if(ap&&ap.classList.contains('on')&&!(window.Screens&&Screens.current&&Screens.current()==='settings'))closeAdd();},500);
+document.addEventListener('click',function(e){var b=document.getElementById('setBody');if(!b||!b.contains(e.target)||!b.querySelector('.pf-wrap'))return;
+ var c=cur(),t=e.target.closest('[data-k]');
+ if(t&&(t.getAttribute('data-k')==='pf_easy'||t.getAttribute('data-k')==='pf_sync')){var k=t.getAttribute('data-k')==='pf_easy'?'easy':'sync';c[k]=c[k]?0:1;t.classList.toggle('on',!!c[k]);save();send('profile_'+k,c[k]?'on':'off');return;}
+ var d=e.target.closest('[data-drv]');if(d){select(d.getAttribute('data-drv'));return;}
+ var a=e.target.closest('[data-pf]');if(!a)return;var k2=a.getAttribute('data-pf');
+ if(k2==='save'){c.saved=1;save();rerender();toast('Saved to '+c.name+"'s profile");send('profile_save',c.name);return;}
+ if(k2==='restore'){toast(c.saved?'Restored to saved position':'No saved position');send('profile_restore',c.name);return;}
+ if(k2==='add'){if(P.list.length>=10){toast('Up to 10 driver profiles');return;}addPop();return;}
+ if(k2==='delete'){if(P.list.length<2){toast('At least one driver profile is required');return;}var nm=c.name,i=P.list.indexOf(c);
+  busy(nm,'Deleting driver profile…<br>Please wait.',1500,function(){P.list.splice(i,1);P.cur=P.list[Math.min(i,P.list.length-1)].id;save();rerender(true);toast(nm+' removed');send('profile_delete',nm);});return;}
+ if(k2==='key'||k2==='valet'||k2==='rename'||k2==='cur'){if(k2!=='cur')toast('Coming soon');return;}
+});
+})();</script><style id="b1030n">
+/* 온도 팝업: 온도 게이지만, 사이즈 축소 (하단 기준 동일) */
+#tempPop{height:112px!important;top:866px!important;padding:32px 41px!important}
+#tempPop .tpb{display:none!important}
+#tempPop .tpg{margin-top:0!important}
+/* 앱 실행 중: 뒤의 내비게이션 숨기고 배경화면(#bg) 노출 */
+/*navHide1030p*/
+#stage:has(#appScr.show) #nav{opacity:0;visibility:hidden}
+</style><script id="b1030o">(function(){
+/* 온도 팝업: 마지막 조작 후 3초 지나면 자동으로 닫힘 */
+var pop=document.getElementById('tempPop');if(!pop)return;var last=0,drag=false;
+function act(){last=Date.now();}
+new MutationObserver(function(){if(pop.classList.contains('show'))act();}).observe(pop,{attributes:true,attributeFilter:['class']});
+pop.addEventListener('pointerdown',function(){drag=true;act();},true);pop.addEventListener('pointermove',function(){if(drag)act();},true);
+document.addEventListener('pointerup',function(){if(drag){drag=false;act();}},true);
+document.addEventListener('pointerup',function(e){var a=e.target.closest&&e.target.closest('[data-tap]');if(a&&/^temp[LR](Up|Down)$/.test(a.getAttribute('data-tap')))act();},true);
+setInterval(function(){if(pop.classList.contains('show')&&!drag&&Date.now()-last>3000&&window.__tempPopClose)window.__tempPopClose();},200);
+})();</script><style id="b1030p"></style><style id="b1030q"></style><style id="b1030r">
+#scrSettings .pf-row .cdot{flex:none;width:12px;height:12px;border-radius:50%;background:#79B2FF;margin-right:8px}
+#pfAddPop{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:58;background:rgba(0,0,0,.55);display:none}
+#pfAddPop.on{display:block}
+#pfAddPop .bx{position:absolute;left:540px;top:262px;width:840px;box-sizing:border-box;padding:46px 40px 40px;border-radius:16px;background:#3A3E46;box-shadow:0 16px 48px rgba(0,0,0,.45);transition:top .3s cubic-bezier(.2,.8,.2,1);animation:zjpIn1029 .22s ease-out}
+#pfAddPop.kb .bx{top:40px}
+#pfAddPop h3{margin:0;text-align:center;font-size:32px;font-weight:600;line-height:39px;color:#E5E5E5}
+#pfAddPop p{margin:20px 0 0;text-align:center;font-size:24px;line-height:36px;color:#B2B2B2}
+#pfAddPop .fd{margin-top:28px;height:80px;border-radius:8px;background:rgba(255,255,255,.1);display:flex;align-items:center;padding:0 24px 0 28px;box-sizing:border-box}
+#pfAddPop .fd input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;color:#fff;font:500 26px Pretendard,sans-serif;caret-color:#79B2FF}
+#pfAddPop .fd input::placeholder{color:#8a9099}
+#pfAddPop .fd .clr{font-size:22px;color:#8a9099;cursor:pointer;padding:8px}
+#pfAddPop .ck{display:inline-flex;align-items:center;gap:14px;margin-top:24px;font-size:24px;font-weight:500;color:#E5E5E5;cursor:pointer}
+#pfAddPop .ck i{width:30px;height:30px;border-radius:4px;border:2px solid #9aa0a8;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+#pfAddPop .ck.on i{background:#79B2FF;border-color:#79B2FF}
+#pfAddPop .ck.on i::after{content:'';width:12px;height:7px;border-left:3px solid #0A1830;border-bottom:3px solid #0A1830;transform:translateY(-2px) rotate(-45deg)}
+#pfAddPop .bt{margin-top:32px;display:flex;gap:16px}
+#pfAddPop .bt>div{flex:1;height:88px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:500;color:#fff;cursor:pointer}
+#pfAddPop .bt .cx{background:rgba(255,255,255,.12)}
+#pfAddPop .bt .cx:active{background:rgba(255,255,255,.22)}
+#pfAddPop .bt .pri{background:linear-gradient(90deg,#4b7bbc,#79b2ff)}
+</style><style id="b1030s"></style><style id="b1030t">
+/* 미디어 소스 메뉴: 4개 항목 */
+html body #mSrcMenu{height:auto!important;padding-bottom:45px!important;z-index:60!important;background:rgba(72,76,84,.94)!important;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#mSrcMenu .msi .sq.img{background:none!important;padding:0;overflow:hidden;width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex:none}
+#mSrcMenu .msi .sq.img img{width:48px;height:48px;display:block}
+.rhd .mchev{display:inline-flex;margin-left:6px;transition:transform .2s}
+.rhd.mopen .mchev{transform:rotate(180deg)}
+#scrRadio .rhd,#scrVideo .rhd{cursor:pointer}
+/* Settings > Connection: 상단 토글 행도 다른 화면과 같은 카드 BG */
+html body #scrSettings #setBody>.srow{background:rgba(255,255,255,.1);border-radius:8px;padding:24px!important;margin:0 0 8px!important;box-sizing:border-box}
+html body #scrSettings #setBody>.srow:first-child{margin-top:16px!important}
+html body #scrSettings #setBody>.cxback+.srow{margin-top:8px!important}
+/* Settings 메뉴: Assist Driving 아이콘 1.15배 */
+#setMenu .sm[data-m="assist"] img{transform:scale(1.15);transform-origin:50% 50%}
+</style><script id="b1030tjs">(function(){
+var $=function(i){return document.getElementById(i);};
+var menu=$('mSrcMenu'),music=$('scrMusic'),radio=$('scrRadio'),video=$('scrVideo');if(!menu||!music)return;
+function send(k,v){if(window.NeoDisplay)window.NeoDisplay.send(k,v);}
+function icoOf(scr){var i=scr&&scr.querySelector('.rhd img');if(i)return '<img alt="" src="'+i.getAttribute('src')+'">';var y=scr&&scr.querySelector('.rhd .ytl');return y?y.outerHTML:'';}
+/* 메뉴 항목 추가 */
+if(radio&&!menu.querySelector('[data-src="radio"]'))menu.insertAdjacentHTML('beforeend','<div class="msi" data-src="radio"><div class="sq img">'+icoOf(radio)+'</div>Radio</div>');
+if(video&&!menu.querySelector('[data-src="video"]'))menu.insertAdjacentHTML('beforeend','<div class="msi" data-src="video"><div class="sq img">'+icoOf(video)+'</div>YouTube</div>');
+var yi=menu.querySelector('[data-src="video"] .ytl');if(yi){yi.style.width='48px';yi.style.height='48px';}
+function cur(){var c=window.Screens&&Screens.current?Screens.current():'';if(c==='radio')return 'radio';if(c==='video')return 'video';return music.classList.contains('bt')?'bt':'usb';}
+function mark(){var k=cur();menu.querySelectorAll('.msi').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-src')===k);});}
+function home(){if(menu.parentNode!==music)music.appendChild(menu);}
+function closeM(){menu.classList.remove('open');var b=$('mSrcBtn');if(b)b.classList.remove('open');document.querySelectorAll('.rhd.mopen').forEach(function(h){h.classList.remove('mopen');});}
+new MutationObserver(function(){if(menu.classList.contains('open'))mark();}).observe(menu,{attributes:true,attributeFilter:['class']});
+/* 항목 선택: Radio / YouTube 는 해당 화면으로, USB / BT 는 음악 화면으로 */
+menu.addEventListener('click',function(e){var it=e.target.closest('.msi');if(!it)return;var k=it.getAttribute('data-src');
+  if(k==='radio'||k==='video'){e.stopPropagation();closeM();home();if(window.Screens)Screens.show(k);send('musicSource',k==='video'?'youtube':'radio');return;}
+  if(menu.parentNode!==music){var onSrc=(k==='bt')===music.classList.contains('bt');home();if(window.Screens)Screens.show('music');if(onSrc){e.stopPropagation();closeM();send('musicSource',k);}}
+},true);
+/* Radio / YouTube 헤더에 같은 드롭다운 */
+var chev=($('mSrcBtn')&&$('mSrcBtn').lastElementChild&&$('mSrcBtn').lastElementChild.tagName.toLowerCase()==='svg')?$('mSrcBtn').lastElementChild.outerHTML:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#e5e5e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+[radio,video].forEach(function(scr){if(!scr)return;var h=scr.querySelector('.rhd');if(!h||h.querySelector('.mchev'))return;
+  var sp=document.createElement('span');sp.className='mchev';sp.innerHTML=chev;h.appendChild(sp);
+  h.addEventListener('click',function(e){if(e.target.closest('#vBack'))return;var vb=$('vBack');if(scr===video&&(video.classList.contains('play')||(vb&&getComputedStyle(vb).display!=='none')))return;
+    e.stopPropagation();var open=!(menu.classList.contains('open')&&menu.parentNode===scr);closeM();if(open){scr.appendChild(menu);menu.classList.add('open');h.classList.add('mopen');}});});
+document.addEventListener('click',function(e){if(menu.classList.contains('open')&&menu.parentNode!==music&&!menu.contains(e.target))closeM();});
+setInterval(function(){if(menu.parentNode!==music&&!menu.classList.contains('open'))home();},1000);
+})();</script><style id="b1030u">
+#ctrlBar .dbtn.hl{min-width:52px!important;padding:0 10px!important;justify-content:center}
+#ctrlBar .dbtn.hl .hls{display:none!important}
+#ctrlBar .dbtn.hl .hli{display:block;color:#9aa0a8;transition:color .15s}
+#ctrlBar .dbtn.hl.hlon .hli{color:#16e484}
+#ctrlBar .dbtn.hl.hlhi .hli{color:#79B2FF}
+#ctrlBar .dbtn.accel{min-width:64px!important;gap:6px!important;touch-action:none;user-select:none}
+#ctrlBar .dbtn.accel svg{display:block}
+#ctrlBar .dbtn.accel.on{background:#16a36a!important;border-color:#16a36a!important;color:#fff!important}
+</style><script id="b1030ujs">(function(){
+var bar=document.getElementById('ctrlBar');if(!bar)return;
+var ND=window.NeoDisplay;function send(k,v){if(ND)ND.send(k,v);}
+/* ---- 헤드라이트: 텍스트 → 아이콘 (OFF 회색 / LOW 초록 / HIGH 파랑) ---- */
+var hl=bar.querySelector('.dbtn.hl');
+if(hl&&!hl.querySelector('.hli')){[].slice.call(hl.childNodes).forEach(function(n){if(n.nodeType===3)n.remove();});
+  hl.insertAdjacentHTML('afterbegin','<svg class="hli" width="34" height="26" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3C7 3 3 7.5 3 13s4 10 11 10c2.2 0 3-1.5 3-10S16.2 3 14 3z"/><path d="M22 6h9M22 11h9M22 16h9M22 21h9"/></svg>');
+  hl.title='Headlight';}
+/* ---- 엑셀(가속 페달): 누르고 있는 동안 주행 ---- */
+var grp=[].slice.call(bar.querySelectorAll('.grp')).filter(function(g){var l=g.querySelector('.lbl');return l&&/GEAR/i.test(l.textContent);})[0];
+if(!grp||bar.querySelector('.dbtn.accel'))return;
+var row=grp.querySelector('.row')||grp;
+var b=document.createElement('div');b.className='dbtn accel';b.setAttribute('data-noripple','1');b.title='Accelerator (hold to drive)';
+b.innerHTML='<svg width="22" height="26" viewBox="0 0 22 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="4" y="2" width="14" height="20" rx="3"/><path d="M8 7h6M8 11h6M8 15h6" stroke-linecap="round"/><path d="M7 22l-2 3M15 22l2 3" stroke-linecap="round"/></svg>Accel';
+row.appendChild(b);
+function driving(){return !!(window.Nav&&Nav.driving&&Nav.driving());}
+function powerOn(){var p=bar.querySelector('[data-c="power"]');return !p||p.classList.contains('on');}
+function gearNow(){var g=document.getElementById('gear');return g?g.textContent.trim():'';}
+var held=false,wT=null;
+function go(){if(!held)return;if(gearNow()!=='D'&&ND&&ND.handle)ND.handle('gear','D');if(window.Nav&&Nav.drive)Nav.drive(true);}
+function down(e){e.preventDefault();e.stopPropagation();if(held)return;held=true;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(x){}send('accelerator','press');
+  clearInterval(wT);if(powerOn()){go();return;}if(ND&&ND.handle)ND.handle('engineStart','1');var n=0;wT=setInterval(function(){if(!held||powerOn()||++n>40){clearInterval(wT);go();}},150);}
+function up(){if(!held)return;held=false;b.classList.remove('on');clearInterval(wT);send('accelerator','release');
+  var cz=window.__cruise&&window.__cruise();if(!cz&&driving()&&window.Nav&&Nav.drive)Nav.drive(false);}
+/*accToggle1030w*/var pend=false;b.title='Accelerator (On/Off)';
+function on(){held=true;pend=true;b.classList.add('on');send('accelerator','on');clearInterval(wT);if(powerOn()){go();pend=false;return;}if(ND&&ND.handle)ND.handle('engineStart','1');var n=0;wT=setInterval(function(){if(!held||powerOn()||++n>40){clearInterval(wT);go();pend=false;}},150);}
+function off(){held=false;pend=false;clearInterval(wT);b.classList.remove('on');send('accelerator','off');if(driving()&&window.Nav&&Nav.drive)Nav.drive(false);}
+b.addEventListener('pointerdown',function(e){e.stopPropagation();});
+b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();if(held||driving())off();else on();});
+setInterval(function(){var d=driving();if(pend)return;if(d!==b.classList.contains('on')){b.classList.toggle('on',d);held=d;}},300);
+})();</script><style id="b1030v">
+/* 공통: 항목 좌우 끝까지 눌림, 메뉴 라운드로 클립 */
+html body #mSrcMenu,html body #phMenu,html body #zUMenu,html body #vCcMenu,html body #camMenu,html body .rdd{overflow:hidden}
+/* 미디어 소스 */
+html body #mSrcMenu{padding:12px 0!important;gap:0!important}
+html body #mSrcMenu .msi{height:81px!important;padding:0 32px!important;box-sizing:border-box}
+/* 폰 기기 선택 */
+html body #phMenu{padding:12px 0!important;gap:0!important}
+html body #phMenu .pm{height:81px!important;padding:0 32px!important;box-sizing:border-box}
+/* Zoom 사용자 메뉴 */
+html body #zUMenu{padding:10px 0!important}
+html body #zUMenu div{border-radius:0!important;padding:16px 30px!important}
+html body #zUMenu small{padding:6px 30px 10px!important}
+/* YouTube 자막/화질 메뉴 */
+html body #vCcMenu{padding:20px 0!important;overflow-y:auto}
+html body #vCcMenu .hd{padding:0 40px 16px!important}
+html body #vCcMenu .it{border-radius:0!important;padding:0 40px!important}
+/* 카메라 선택 */
+html body #camMenu{padding:14px 0!important;overflow-y:auto}
+html body #camMenu .hd{padding:10px 28px 14px!important}
+html body #camMenu .it{border-radius:0!important;padding:18px 30px!important}
+html body #camMenu .msg{padding:12px 30px!important}
+/* 눌림 상태 (전체 폭) */
+html body #mSrcMenu .msi:active,html body #phMenu .pm:active,html body #zUMenu div:active,html body #vCcMenu .it:active,html body #camMenu .it:active,html body .rdd div:active{background:rgba(255,255,255,.16)!important}
+/* YouTube chip 라운드 16px */
+html body #vChips>div{border-radius:16px!important}
+</style><script id="b1030vjs">(function(){
+/* 드롭메뉴는 공통 리플 대신 전체 폭 눌림만 사용 */
+function mark(){['mSrcMenu','phMenu','zUMenu','vCcMenu','camMenu','rDD'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.hasAttribute('data-noripple'))e.setAttribute('data-noripple','1');});}
+mark();setInterval(mark,2000);
+})();</script><style id="b1030x">
+:root{--ddSel:hsl(calc(214deg + var(--thd,0) * 1deg) 100% 74%)}
+/* 선택 상태: 배경 없음, 텍스트만 메인 컬러 */
+html body #vCcMenu .it.on,html body #camMenu .it.on,html body #camMenu .it:hover,html body .rdd div:hover,html body #mSrcMenu .msi.on,html body #phMenu .pm.on{background:none!important}
+html body #vCcMenu .it.on,html body #camMenu .it.on,html body .rdd .on,html body #mSrcMenu .msi.on,html body #phMenu .pm.on{color:var(--ddSel)!important;font-weight:600}
+html body #vCcMenu .it.on:after{content:none!important}
+/* press 상태에서만 배경 (전체 폭) */
+html body #mSrcMenu .msi:active,html body #phMenu .pm:active,html body #zUMenu div:active,html body #vCcMenu .it:active,html body #camMenu .it:active,html body .rdd div:active{background:rgba(255,255,255,.16)!important}
+</style><style id="b1030y">
+/* 앱 화면 BG: #appScr 자체에 backdrop-filter 가 있으면 그 안의 메뉴 블러가 동작하지 않음 → 같은 효과를 ::before 레이어로 */
+html body #appScr{background:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html body #appScr::before{content:'';position:absolute;left:0;top:0;right:0;bottom:0;border-radius:inherit;background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(var(--appBlur,300px));backdrop-filter:blur(var(--appBlur,300px));z-index:-1;pointer-events:none}
+/* 드롭메뉴: 반투명 + blur 100 */
+html body #mSrcMenu,html body #phMenu,html body #zUMenu,html body #vCcMenu,html body #camMenu,html body .rdd,html body #vSug{background:rgba(72,76,84,.62)!important;-webkit-backdrop-filter:blur(100px)!important;backdrop-filter:blur(100px)!important}
+/* 팝업: blur 100 (불투명 배경은 살짝 반투명으로) */
+html body #cxPop .cxcard,html body #pfAddPop .bx,html body #zJoinPop .bx{background:rgba(58,62,70,.82)!important;-webkit-backdrop-filter:blur(100px)!important;backdrop-filter:blur(100px)!important}
+html body #vLinkPop{background:rgba(40,44,52,.82)!important;-webkit-backdrop-filter:blur(100px)!important;backdrop-filter:blur(100px)!important}
+html body #climate,html body #navPick,html body #seatPop,html body #volPop,html body #tempPop,html body #navMC,html body #hwVolPop{-webkit-backdrop-filter:blur(100px)!important;backdrop-filter:blur(100px)!important}
+/* Now playing 진행바: Bluetooth 와 동일 (트랙 6px #333, 진행 6px 메인 컬러) */
+html body #nowp .bar{height:6px!important;background:#333!important}
+html body #npProg{height:6px!important;background:#79B2FF!important}
+html body #rNow .bar{height:6px!important;background:#333!important}
+html body #vNpBar:before{height:6px!important;background:#333!important}
+html body #vNpFill{height:6px!important;background:#79B2FF!important}
+</style><style id="b1030z">
+/* YouTube 재생 중: 헤더는 뒤로가기만 (드롭메뉴 화살표 숨김, 클릭 커서 기본) */
+#scrVideo.play .rhd .mchev{display:none!important}
+#scrVideo.play .rhd{cursor:default!important}
+#scrVideo.play #vBack{cursor:pointer!important}
+</style><script id="b1030zjs">(function(){
+/* 이미 테마가 적용된 Seat 팝업 아이콘을 원래 색으로 복구 */
+var p=document.getElementById('seatPop');if(!p)return;
+p.querySelectorAll('*').forEach(function(el){[].slice.call(el.attributes).forEach(function(at){if(at.name.indexOf('data-tho-')===0){var k=at.name.slice(9);el.setAttribute(k,at.value);}});});
+/* 재생 중 메뉴가 열려 있으면 닫기 */
+var v=document.getElementById('scrVideo'),m=document.getElementById('mSrcMenu');
+if(v&&m)new MutationObserver(function(){if(v.classList.contains('play')&&m.classList.contains('open')&&m.parentNode===v){m.classList.remove('open');var h=v.querySelector('.rhd');if(h)h.classList.remove('mopen');}}).observe(v,{attributes:true,attributeFilter:['class']});
+})();</script><style id="b1030aa">
+/* 공통 (Bluetooth 기준): 154px, 흰색 5%, 하단 라운드 8, 진행바 6px */
+html body #nowp,html body #btNow,html body #rNow,html body #vNp{height:154px!important;background:rgba(255,255,255,.05)!important;border-radius:0 0 8px 8px!important}
+/* 아트 90x90 @ 94,32 라운드 8 */
+html body #npArt,html body #btNow .art,html body #rNow .rlg,html body #vNpArt{left:94px!important;top:32px!important;width:90px!important;height:90px!important;border-radius:8px!important}
+html body #rNow .rlg{overflow:hidden}
+/* 제목 28px 흰색 @ 210,38 / 부제 26px #B2B2B2 @ 210,78 */
+html body #btNow .ti,html body #nowp .ti:not(.solo){left:210px!important;top:38px!important;font-size:28px!important;font-weight:400!important;color:#fff!important}
+html body #btNow .ar,html body #nowp .ar{left:210px!important;top:78px!important;font-size:26px!important;color:#B2B2B2!important}
+/* 재생 없음: 제목만 세로 가운데 */
+html body #btNow.nodev .ti{top:0!important;height:154px!important;display:flex!important;align-items:center}
+/* Radio */
+html body #rNow .info{left:210px!important;top:38px!important;transform:none!important;gap:6px!important}
+html body #rNow .info:has(#rSub:empty){top:77px!important;transform:translateY(-50%)!important}
+html body #rNow .ti{font-size:28px!important;line-height:34px!important;font-weight:400!important;color:#fff!important}
+html body #rNow .ar{font-size:26px!important;line-height:31px!important;color:#B2B2B2!important}
+html body #rNow .ctl,html body #nowp .ctl,html body #btNow .ctl{right:70px!important;top:37px!important;gap:60px!important}
+/* YouTube: 썸네일 아트 + 같은 텍스트·버튼 위치, 부가 버튼은 텍스트와 재생 버튼 사이 */
+#vNpArt{position:absolute;background:#444 center/cover no-repeat}
+html body #vNp .np-tx{left:210px!important;top:38px!important;width:380px!important}
+html body #vNpTi{font-size:28px!important;font-weight:400!important;color:#fff!important;line-height:34px!important}
+html body #vNpCh{margin-top:6px!important;font-size:26px!important;font-weight:400!important;color:#B2B2B2!important;line-height:31px!important}
+html body #vNpPrev,html body #vNpPlay,html body #vNpNext{top:37px!important;width:80px!important;height:80px!important;border-radius:8px!important}
+html body #vNpPrev{left:auto!important;right:350px!important}
+html body #vNpPlay{left:auto!important;right:210px!important}
+html body #vNpNext{left:auto!important;right:70px!important}
+html body #vNp>#vNpCm,html body #vNp>#vNpList{top:41px!important;width:72px!important;height:72px!important;border-radius:8px!important}
+html body #vNp>#vNpCm{left:613px!important}
+html body #vNp>#vNpList{left:725px!important}
+html body #vNp>#vNpCm img,html body #vNp>#vNpList img{max-width:72px;max-height:72px}
+html body #vNpPrev img,html body #vNpPlay img,html body #vNpNext img{max-width:80px;max-height:80px}
+</style><script id="b1030aajs">(function(){
+/* YouTube now playing: 썸네일 아트 추가 (vThumb 와 동기화) */
+var np=document.getElementById('vNp'),th=document.getElementById('vThumb');if(!np)return;
+var a=document.getElementById('vNpArt');if(!a){a=document.createElement('div');a.id='vNpArt';np.appendChild(a);}
+function sync(){var u=th&&th.getAttribute('src');a.style.backgroundImage=u?'url("'+u+'")':'';}
+if(th)new MutationObserver(sync).observe(th,{attributes:true,attributeFilter:['src']});sync();
+})();</script><style id="b1030ab">
+/* 토글 핸들(13x26, r1.6)과 같은 비율의 각진 핸들 */
+html body .st-sl b{top:10px!important;width:14px!important;height:28px!important;margin-left:-7px!important;border-radius:2px!important;background:#fff!important;box-shadow:0 1px 4px rgba(0,0,0,.35)!important}
+html body #volPop .vf b{right:-7px!important;width:14px!important;height:28px!important;border-radius:2px!important;background:#fff!important;box-shadow:0 1px 4px rgba(0,0,0,.35)!important}
+html body #vNpKnob{width:10px!important;height:20px!important;margin-left:-5px!important;top:5px!important;border-radius:2px!important;border:0!important;background:#fff!important;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+html body #vNpBar.drag #vNpKnob{top:4px!important}
+</style><style id="b1030ac">
+/* Settings 슬라이더: 드래그 중 막대 28px, 라운드 4, 핸들은 막대 안쪽 4px 여백 */
+html body .st-sl.drag:before,html body .st-sl.drag i{border-radius:4px!important}
+html body .st-sl.drag b{top:14px!important;width:10px!important;height:20px!important;margin-left:-9px!important;box-shadow:-2px 0 6px rgba(0,0,0,.3)!important}
+html body .st-sl b{transition:top .15s ease,height .15s ease,width .15s ease,margin-left .15s ease}
+/* 볼륨 팝업 */
+html body #volPop .vs.drag .vt,html body #volPop .vs.drag .vf{border-radius:4px!important}
+html body #volPop .vs.drag .vf b{top:4px!important;width:10px!important;height:20px!important;right:4px!important;box-shadow:-2px 0 6px rgba(0,0,0,.3)!important}
+html body #volPop .vf b{transition:top .15s ease,height .15s ease,width .15s ease,right .15s ease}
+/* YouTube 재생바 */
+html body #vNpBar.drag:before,html body #vNpBar.drag #vNpFill{border-radius:4px!important}
+</style></body>
 </html>

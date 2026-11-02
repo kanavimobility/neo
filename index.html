@@ -4168,8 +4168,8 @@ window.__car3dX=(function(){const bm=[];model.traverse(o=>{if(o.isMesh&&o.materi
 let offMode=false,wideT=0;
 function setWide(on){W=on?1904:605;renderer.setSize(W,H,false);cv.style.width=W+'px';place(cur);wake(300);}
 function screenOff(on){on=!!on;if(on===offMode)return;offMode=on;clearTimeout(wideT);tw=null;sTg=null;
-  if(on){setWide(true);goView('off',750/1.45);}
-  else{Object.assign(cur,VIEWS[gearD&&!anyOpen()?'drive':'park']);setWide(false);}}
+  if(on){/*offDx1102b*/var dx=window.__c3dOffDx?window.__c3dOffDx():0;cv.style.translate=dx?(-dx)+'px 0':'';cur.sx+=dx;setWide(true);goView('off',750/1.45);}
+  else{cv.style.translate='';Object.assign(cur,VIEWS[gearD&&!anyOpen()?'drive':'park']);setWide(false);}}
 function paint(hex){window.__carPaint=hex;if(!model)return;model.traverse(o=>{if(o.isMesh&&o.material&&o.material.name==='Node RS bodymat'){o.material.color.set(hex||'#ffffff');o.material.needsUpdate=true;}});wake(300);}
 window.Car3D={paint,screenOff,door,gear,headlight,taillight,windows,mirrors,goView,wake,views:VIEWS,
   state:()=>({hl,tail,win:Object.assign({},win),mirror}),
@@ -6466,13 +6466,10 @@ html body #volPop .vs.drag .vf b{top:4px!important;width:10px!important;height:2
 html body #volPop .vf b{transition:top .15s ease,height .15s ease,width .15s ease,right .15s ease}
 /* YouTube 재생바 */
 html body #vNpBar.drag:before,html body #vNpBar.drag #vNpFill{border-radius:4px!important}
-</style><script id="b1102a">(function(){
-/* 클러스터가 좌우 반전으로 translate 되어 있으면, Screen off(차량 off 뷰) 동안 3D 캔버스를 반대로 되돌려 기본 레이아웃 위치에 고정 */
-var B=document.body;
-function fix(){var c=document.getElementById('car3d'),cl=document.getElementById('cluster');if(!c||!cl)return;
-  var on=B.classList.contains('swapLR')&&B.classList.contains('scrOff'),v='';
-  if(on){var t=getComputedStyle(cl).translate||'';var x=parseFloat(t)||0;if(!x){var m=getComputedStyle(cl).transform;var mm=/matrix\(([^)]+)\)/.exec(m||'');if(mm)x=parseFloat(mm[1].split(',')[4])||0;}if(x)v=(-x)+'px 0';}
-  if(c.style.translate!==v)c.style.translate=v;}
-new MutationObserver(fix).observe(B,{attributes:true,attributeFilter:['class']});setInterval(fix,300);fix();
+</style><script id="b1102b">(function(){
+/* 좌우 변경 상태면 클러스터가 옮겨진 거리(px)를 돌려줌 → Screen off 때 캔버스를 그만큼 되돌리고, 차량 시작점은 우측 클러스터 위치로 */
+window.__c3dOffDx=function(){var B=document.body,cl=document.getElementById('cluster');if(!B.classList.contains('swapLR')||!cl)return 0;
+  /* 애니메이션 중간값이 아닌 최종 위치 기준: 좌우 반전 후 클러스터 left = 1920 - 기본 left - 폭 */
+  return 1920-2*cl.offsetLeft-cl.offsetWidth;};
 })();</script></body>
 </html>

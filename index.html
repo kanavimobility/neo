@@ -6466,5 +6466,13 @@ html body #volPop .vs.drag .vf b{top:4px!important;width:10px!important;height:2
 html body #volPop .vf b{transition:top .15s ease,height .15s ease,width .15s ease,right .15s ease}
 /* YouTube 재생바 */
 html body #vNpBar.drag:before,html body #vNpBar.drag #vNpFill{border-radius:4px!important}
-</style></body>
+</style><script id="b1102a">(function(){
+/* 클러스터가 좌우 반전으로 translate 되어 있으면, Screen off(차량 off 뷰) 동안 3D 캔버스를 반대로 되돌려 기본 레이아웃 위치에 고정 */
+var B=document.body;
+function fix(){var c=document.getElementById('car3d'),cl=document.getElementById('cluster');if(!c||!cl)return;
+  var on=B.classList.contains('swapLR')&&B.classList.contains('scrOff'),v='';
+  if(on){var t=getComputedStyle(cl).translate||'';var x=parseFloat(t)||0;if(!x){var m=getComputedStyle(cl).transform;var mm=/matrix\(([^)]+)\)/.exec(m||'');if(mm)x=parseFloat(mm[1].split(',')[4])||0;}if(x)v=(-x)+'px 0';}
+  if(c.style.translate!==v)c.style.translate=v;}
+new MutationObserver(fix).observe(B,{attributes:true,attributeFilter:['class']});setInterval(fix,300);fix();
+})();</script></body>
 </html>

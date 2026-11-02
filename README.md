@@ -32,7 +32,7 @@
 | 장소 검색 | Photon, Nominatim, Overpass (OpenStreetMap) | TomTom Search (한국은 `kr-api.tomtom.com` 우선) |
 | 경로 안내 | OSRM 공개 서버 | TomTom Routing (교통 반영) |
 | 라디오 | Radio Browser | — |
-| YouTube | 영상 목록 표시 안 됨 (키 필요 안내 표시) | YouTube Data API v3 카테고리별 인기 영상·검색 (설정 국가 기준), 재생은 YouTube 임베드 플레이어 |
+| YouTube | 웹 버전 기본 제공 (사이트 전용 키) | YouTube Data API v3 카테고리별 인기 영상·검색·댓글 (설정 국가 기준), 재생은 YouTube 임베드 플레이어 |
 | Zoom | 데모 데이터 (회의·참가자 예시) | — (실제 Zoom 연동은 사내 로컬 실행 환경에서만 동작) |
 | 3D 차량 | three.js | — |
 | 폰트 | Pretendard | — |
@@ -40,8 +40,8 @@
 공개 무료 서버(OSRM 데모, Nominatim, Overpass, Radio Browser)는 사용량 제한·이용 정책이 있어 데모 용도로만 사용합니다. 상용 서비스에는 사용할 수 없습니다.
 
 ## API 키 (로컬 사용 시)
-웹(GitHub Pages) 버전은 **API 키 없이** 동작합니다. 지도는 무료 지도(Esri/OpenStreetMap), YouTube는 인기 영상 목록 없이 표시됩니다.
-TomTom 지도·YouTube 인기 영상은 각자 PC의 로컬 사본에 키를 넣어 사용합니다. (설정 방법은 로컬 프로젝트 폴더의 README 참고)
+웹(GitHub Pages) 버전은 **별도 키 입력 없이** 동작합니다. 지도(TomTom)와 YouTube는 이 사이트 주소(kanavimobility.github.io)에서만 동작하도록 제한된 사이트 전용 키를 사용합니다.
+다른 주소나 로컬 사본에서는 각자 키를 넣어 사용합니다. (설정 방법은 로컬 프로젝트 폴더의 README 참고)
 **키가 들어간 `index.html` 은 이 저장소에 올리지 마세요.**
 
 ### 참고: YouTube Data API
